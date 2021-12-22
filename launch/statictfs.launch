@@ -1,0 +1,8 @@
+<launch>
+  <!--<node pkg="tf2_ros" type="static_transform_publisher" name="maptoodomtf" args="0 0 0 0 0 0 map odom"/>-->
+  <!--<node pkg="tf2_ros" type="static_transform_publisher" name="odomtobaselinktf" args="0 0 0 0 0 0 odom stable_base_link"/>-->
+  <!--<node pkg="tf2_ros" type="static_transform_publisher" name="stabletobaselinktf" args="0 0 0 0 0 0 stable_base_link base_link"/>-->
+  <node pkg="tf2_ros" type="static_transform_publisher" name="xsensetf" args="0 0 0 -1.571 0 0 base_link imu"/>
+  <node pkg="tf2_ros" type="static_transform_publisher" name="lidartf" args="0.3 0 0.4 2.3562 0 0 base_link laser"/>
+</launch>
+

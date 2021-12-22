@@ -1,0 +1,4 @@
+<launch>
+  <include file="$(find buggycontrol)/launch/statictfs.launch"/>
+  <node name="learnedodomNode" pkg="buggycontrol" type="learnedodompublisher.py" output="screen" />
+</launch>

@@ -1,0 +1,13 @@
+<launch>
+  <node name="joyNode" pkg="joy" type="joy_node" output="screen" />
+  <node name="joyconverterNode" pkg="buggycontrol" type="joyconverter.py" output="screen" />
+  <node name="converterNode" pkg="buggycontrol" type="actionsconverter.py" output="screen" />
+  <node name="pwmdriverNode" pkg="buggycontrol" type="pwmdriver.py" output="screen" />
+  <node name="gpiospeedreaderNode" pkg="buggycontrol" type="gpio_speed_reader.py" output="screen" />
+  <include file="$(find buggycontrol)/launch/statictfs.launch"/>
+  <include file="$(find xsens_mti_driver)/launch/xsens_mti_node.launch"/>
+  <!--<node name="odomNode" pkg="buggycontrol" type="odometrypublisher.py" output="screen"/>-->
+  <!--<include file="$(find buggycontrol)/launch/lidar.launch"/>-->
+  <!--<include file="$(find hector_slam_launch)/launch/tutorial.launch"/>-->
+</launch>
+

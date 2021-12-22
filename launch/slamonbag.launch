@@ -1,0 +1,8 @@
+<launch>
+  <node pkg="tf2_ros" type="static_transform_publisher" name="maptoodomtf" args="0 0 0 0 0 0 map odom"/>
+  <node pkg="tf2_ros" type="static_transform_publisher" name="xsensetf" args="0 0 0 -1.571 0 0 base_link imu"/>
+  <node pkg="tf2_ros" type="static_transform_publisher" name="lidartf" args="0.3 0 0.4 2.3562 0 0 base_link laser"/>
+  <arg name="bagpath" default="/home/barinale/Documents/ctu/thesis/trajectories_follower/data/bagfiles/24_11_2021_TA/_2021-11-22-18-27-49.bag"/>
+  <node name="odomNode" pkg="buggycontrol" type="odometrypublisher_python2.py" output="screen"/>
+  <node pkg="rosbag" type="play" args="$(arg bagpath) --rate=1" name="play" output="screen"/>
+</launch>

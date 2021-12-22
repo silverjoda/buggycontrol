@@ -1,0 +1,8 @@
+<launch>
+  <!--<node name="odomNode" pkg="buggycontrol" type="learnedodompublisher.py" output="screen" />-->
+  <!--<arg name="bagpath" default="/home/barinale/Documents/ctu/thesis/trajectories_follower/data/bagfiles/15_11_2021/_2021-11-15-07-36-36.bag"/>-->
+  <arg name="bagpath" default="/home/barinale/Documents/ctu/thesis/trajectories_follower/data/bagfiles/xsens/_2021-11-18-17-26-21.bag"/>
+  <node name="stabilizerNode" pkg="buggycontrol" type="baselinkstabilizer.py" output="screen" />
+  <node pkg="rosbag" type="play" args="$(arg bagpath)" name="play" output="screen"/>
+  <!--<include file="$(find hector_slam_launch)/launch/tutorial.launch"/>-->
+</launch>
