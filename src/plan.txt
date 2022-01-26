@@ -1,0 +1,3 @@
+1) Update odometry publisher with corrections, using estimated calibration matrices and decay vars
+2) Write bagfile reader which converts bag to dict dataset at 5ms sample rate
+3) Implement odometry estimation pipeline in pytorch for optimizing calibration parameters
