@@ -3,32 +3,68 @@ import rospy
 import tf2_ros
 from tf.transformations import *
 from geometry_msgs.msg import Vector3Stamped, QuaternionStamped, TransformStamped, Quaternion, Vector3
+from std_msgs.msg import Float64
 from utils_python2 import *
 import numpy as np
-from multiprocessing import Lock
-mutex = Lock()
+import threading
+import time
 
 class OdometryPublisher:
     def __init__(self):
-        rospy.init_node("odometrypublisher")
+        self.init_ros()
+
+    def init_ros(self):
+        rospy.init_node("odometry_publisher")
+
         self.tfBuffer = tf2_ros.Buffer()
         self.tflistener = tf2_ros.TransformListener(self.tfBuffer)
         self.broadcaster = tf2_ros.TransformBroadcaster()
-        self.imu = "imu"
-        self.odom = "odom"
-        self.base_link = "base_link"
-        self.stable_base_link = "stable_base_link"
-        self.baselinktoimu = quaternion_from_euler(0, 0, np.pi / 2)
-        self.pos = np.array([0., 0., 0.])
-        self.v = np.zeros(3)
-        self.dvrate = 200
-        self.g = np.array([0, 0, 9.8]) / self.dvrate
-        self.gcounter = 0
-	self.decay_vec = np.array([0.0005] * 3)
-        self.gsub = rospy.Subscriber("/imu/dv", Vector3Stamped, self.gravitationcallback)
-        rospy.Subscriber("/imu/dv", Vector3Stamped, self.dvcallback)
-        rospy.Subscriber("/filter/quaternion", QuaternionStamped, self.orientationcallback)
-        rospy.spin()
+
+        self.wheel_speed_sub = subscriber_factory("/wheel_speed", Float64)
+        self.dv_sub = subscriber_factory("/imu/dv", Vector3Stamped)
+        self.quat_sub = subscriber_factory("/filter/quaternion", QuaternionStamped)
+
+        time.sleep(0.5)
+
+        # self.baselinktoimu = quaternion_from_euler(0, 0, np.pi / 2)
+        # self.pos = np.array([0., 0., 0.])
+        # self.v = np.zeros(3)
+        # self.dvrate = 200
+        # self.g = np.array([0, 0, 9.8]) / self.dvrate
+        # self.gcounter = 0
+        # self.decay_vec = np.array([0.0005] * 3)
+
+    def loop(self):
+        # Read current sensor values (wheel, accel, quat)
+        wheel_speed, dv_imu, quat = self.read_sensor_values()
+
+        # Transform imu accel to imu_zrp frame
+        dv_zrp = None
+
+
+        # Subtract g from imu_accel in imu_zrp frame
+        # Transform clean imu_accel from imu_zrp to bl_zrp
+        # Update vel in bl_zrp using acceleration, wheel speed and decay
+        # Transform vel from bl_zrp to odom using quat in odom
+        # Update pos in odom using vel in odom
+        # Publish tf
+        pass
+
+    def gather(self):
+        pass
+
+    def read_sensor_values(self):
+        with self.wheel_speed_sub.lock:
+            while self.wheel_speed_sub.msg is None: pass
+            wheel_speed = self.wheel_speed_sub.msg.data
+        with self.dv_sub.lock:
+            while self.dv_sub.msg is None: pass
+            dv = self.dv_sub.msg.vector
+        with self.quat_sub.lock:
+            while self.quat_sub.msg is None: pass
+            quat = self.quat_sub.msg.quaternion
+
+        return wheel_speed, dv, quat
 
     def publish_base_links(self, rpy):
         """
@@ -41,8 +77,8 @@ class OdometryPublisher:
         r, p, y = euler_from_quaternion(rpy)
         rp = numpytoquaternion(quaternion_from_euler(r, p, 0))
         y = numpytoquaternion(quaternion_from_euler(0, 0, y))
-        with mutex:
-            stablebaselink = make_tf(frame=self.odom, child=self.stable_base_link, pos=self.pos.copy(), q=y)
+
+        stablebaselink = make_tf(frame=self.odom, child=self.stable_base_link, pos=self.pos.copy(), q=y)
         baselink = make_tf(frame=self.stable_base_link, child=self.base_link, pos=np.zeros(3), q=rp)
         self.broadcaster.sendTransform(stablebaselink)
         self.broadcaster.sendTransform(baselink)
@@ -72,7 +108,7 @@ class OdometryPublisher:
             gdv = np.matmul(iqm, self.g)
             dv = vectror3tonumpy(dv) - gdv
             self.v += np.matmul(qm, dv)
-	    self.v = np.maximum(np.zeros(3), (self.v - self.decay_vec) * (self.v > 0)) + \
+            self.v = np.maximum(np.zeros(3), (self.v - self.decay_vec) * (self.v > 0)) + \
 	             np.minimum(np.zeros(3), (self.v + self.decay_vec) * (self.v < 0)) 
 
         except Exception as e:
@@ -82,8 +118,7 @@ class OdometryPublisher:
         """
         compute new position of a stable_base_link in an odom frame
         """
-        with mutex:
-            self.pos[:2] += self.v[:2] * (1. / self.dvrate)
+        self.pos[:2] += self.v[:2] * (1. / self.dvrate)
 
     def updateg(self, q, dv):
         """

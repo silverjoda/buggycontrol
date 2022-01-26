@@ -1,0 +1,8 @@
+.idea/
+.bagfiles/
+venv/
+data/
+*.pyc
+*.bag
+*.pkl
+

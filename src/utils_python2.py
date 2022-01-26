@@ -3,7 +3,25 @@ import yaml
 import rospy
 from geometry_msgs.msg import TransformStamped, Quaternion, Vector3
 import numpy as np
+import threading
 
+def subscriber_factory(topic_name, topic_type):
+    class RosSubscriber:
+        def __init__(self):
+            self.lock = threading.Lock()
+            self.cb = None
+            self.msg = None
+
+    def msg_cb_wrapper(subscriber):
+        def msg_cb(msg):
+            with subscriber.lock:
+                subscriber.msg = msg
+        return msg_cb
+    subscriber = RosSubscriber()
+    rospy.Subscriber(topic_name,
+                     topic_type,
+                     msg_cb_wrapper(subscriber), queue_size=1)
+    return subscriber
 
 def vectror3tonumpy(v):
     """
