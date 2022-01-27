@@ -12,6 +12,7 @@ import time
 class OdometryPublisher:
     def __init__(self):
         self.init_ros()
+        self.define_calibration_params()
 
     def init_ros(self):
         rospy.init_node("odometry_publisher")
@@ -24,31 +25,69 @@ class OdometryPublisher:
         self.dv_sub = subscriber_factory("/imu/dv", Vector3Stamped)
         self.quat_sub = subscriber_factory("/filter/quaternion", QuaternionStamped)
 
+        self.v_bl_zrp = Vector3()
+        self.v_odom = Vector3()
+        self.p_odom = Vector3()
+
+        self.ros_rate = rospy.Rate(200)
+
         time.sleep(0.5)
 
-        # self.baselinktoimu = quaternion_from_euler(0, 0, np.pi / 2)
-        # self.pos = np.array([0., 0., 0.])
-        # self.v = np.zeros(3)
-        # self.dvrate = 200
-        # self.g = np.array([0, 0, 9.8]) / self.dvrate
-        # self.gcounter = 0
-        # self.decay_vec = np.array([0.0005] * 3)
+    def define_calibration_params(self):
+        self.grav_accel = 9.81
+        self.imu_to_bl_quat = quaternion_from_euler(0, 0, np.pi / 2)
+        self.x_vel_tau = 0.005
+        self.y_vel_tau = 0.01
+        self.dt = 0.005
 
     def loop(self):
         # Read current sensor values (wheel, accel, quat)
-        wheel_speed, dv_imu, quat = self.read_sensor_values()
+        wheel_speed, dv_imu, quat_imu = self.read_sensor_values()
 
         # Transform imu accel to imu_zrp frame
-        dv_zrp = None
-
+        r, p, y = euler_from_quaternion(quat_imu)
+        quat_imu_zrp = quaternion_from_euler(r, p, 0)
+        dv_imu_zrp = self.rotate_vector3_by_quat(dv_imu, quat_imu_zrp)
 
         # Subtract g from imu_accel in imu_zrp frame
-        # Transform clean imu_accel from imu_zrp to bl_zrp
+        dv_imu_zrp.vector.z -= self.grav_accel
+
+        # Transform (rotate) clean imu_accel from imu_zrp to bl_zrp
+        dv_bl_zrp = self.rotate_vector3_by_quat(dv_imu_zrp, self.imu_to_bl_quat)
+
         # Update vel in bl_zrp using acceleration, wheel speed and decay
+        self.v_bl_zrp.x = self.update_towards(self.v_bl_zrp.x, wheel_speed, self.x_vel_tau) + dv_bl_zrp.x
+        self.v_bl_zrp.y = self.update_towards(self.v_bl_zrp.y, 0, self.y_vel_tau) + dv_bl_zrp.y
+
         # Transform vel from bl_zrp to odom using quat in odom
+        quat_yaw_odom = quaternion_from_euler(0, 0, y)
+        self.v_odom = self.rotate_vector3_by_quat(self.v_bl_zrp, quat_yaw_odom)
+
         # Update pos in odom using vel in odom
-        # Publish tf
-        pass
+        self.p_odom.x += self.v_odom.x * self.dt
+        self.p_odom.y += self.v_odom.y * self.dt
+
+        # Publish tf (bl, bl_zrp, imu_zrp)
+        odom_tf = make_tf(frame="odom", child="base_link_zrp", pos=self.p_odom, q=quat_imu_zrp)
+        self.broadcaster.sendTransform(odom_tf)
+
+        bl_zrp_tf = make_tf(frame="base_link_zrp", child="base_link", pos=self.p_odom, q=quat_imu_zrp)
+        self.broadcaster.sendTransform(bl_zrp_tf)
+
+        imu_zrp_tf = make_tf(frame="imu", child="imu_zrp", pos=self.p_odom, q=quat_imu_zrp)
+        self.broadcaster.sendTransform(imu_zrp_tf)
+
+        self.ros_rate.sleep()
+
+    def update_towards(self, val, target, tau):
+        updated_val = 0
+        return updated_val
+
+    def rotate_vector3_by_quat(self, v, q):
+        qm = quaternion_matrix(q)[:3, :3]
+        dv_imu_np = vector3tonumpy(v)
+        dv_zrp = np.matmul(qm, dv_imu_np)
+        return dv_zrp
 
     def gather(self):
         pass
@@ -106,7 +145,7 @@ class OdometryPublisher:
             qm = quaternion_matrix(quaterniontonumpy(t.transform.rotation))[:3, :3]
             iqm = quaternion_matrix(invquaterniontonumpy(t.transform.rotation))[:3, :3]
             gdv = np.matmul(iqm, self.g)
-            dv = vectror3tonumpy(dv) - gdv
+            dv = vector3tonumpy(dv) - gdv
             self.v += np.matmul(qm, dv)
             self.v = np.maximum(np.zeros(3), (self.v - self.decay_vec) * (self.v > 0)) + \
 	             np.minimum(np.zeros(3), (self.v + self.decay_vec) * (self.v < 0)) 

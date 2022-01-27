@@ -23,7 +23,7 @@ def subscriber_factory(topic_name, topic_type):
                      msg_cb_wrapper(subscriber), queue_size=1)
     return subscriber
 
-def vectror3tonumpy(v):
+def vector3tonumpy(v):
     """
     :param v: 3d vector ros
     :return: numpy array shape (3,)
@@ -67,9 +67,9 @@ def make_tf(frame, child, pos, q):
     t.header.stamp = rospy.Time.now()
     t.header.frame_id = frame
     t.child_frame_id = child
-    t.transform.translation.x = pos[0]
-    t.transform.translation.y = pos[1]
-    t.transform.translation.z = pos[2]
+    t.transform.translation.x = pos.x
+    t.transform.translation.y = pos.y
+    t.transform.translation.z = pos.z
     t.transform.rotation.x = q.x
     t.transform.rotation.y = q.y
     t.transform.rotation.z = q.z
