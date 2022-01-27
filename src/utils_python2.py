@@ -67,13 +67,13 @@ def make_tf(frame, child, pos, q):
     t.header.stamp = rospy.Time.now()
     t.header.frame_id = frame
     t.child_frame_id = child
-    t.transform.translation.x = pos.x
-    t.transform.translation.y = pos.y
-    t.transform.translation.z = pos.z
-    t.transform.rotation.x = q.x
-    t.transform.rotation.y = q.y
-    t.transform.rotation.z = q.z
-    t.transform.rotation.w = q.w
+    t.transform.translation.x = pos[0]
+    t.transform.translation.y = pos[1]
+    t.transform.translation.z = pos[2]
+    t.transform.rotation.x = q[0]
+    t.transform.rotation.y = q[1]
+    t.transform.rotation.z = q[2]
+    t.transform.rotation.w = q[3]
     return t
 
 
