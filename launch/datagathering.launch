@@ -1,5 +1,5 @@
 <launch>
   <arg name="bagname" default=""/>
-  <node pkg="rosbag" type="record" args="-o /home/ubuntu/SW/trajectories_follower/data/bagfiles/ -a" name="record" output="screen"/>
+  <node pkg="rosbag" type="record" args="-o $(find buggycontrol)/bagfiles/ -a" name="record" output="screen"/>
   <include file="$(find buggycontrol)/launch/control.launch"/>
 </launch>

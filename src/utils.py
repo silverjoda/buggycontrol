@@ -5,7 +5,7 @@ from geometry_msgs.msg import TransformStamped, Quaternion, Vector3
 import numpy as np
 
 
-def vectror3tonumpy(v: Vector3) -> np.ndarray:
+def vector3tonumpy(v):
     """
     :param v: 3d vector ros
     :return: numpy array shape (3,)
@@ -13,7 +13,7 @@ def vectror3tonumpy(v: Vector3) -> np.ndarray:
     return np.array([v.x, v.y, v.z])
 
 
-def invquaterniontonumpy(q: Quaternion) -> np.ndarray:
+def invquaterniontonumpy(q):
     """
     :param q: rotation as a ros quaternion
     :return: inversed quaternion x,y,z,-w as a numpy array
@@ -21,7 +21,7 @@ def invquaterniontonumpy(q: Quaternion) -> np.ndarray:
     return np.array([q.x, q.y, q.z, -q.w])
 
 
-def quaterniontonumpy(q: Quaternion) -> np.ndarray:
+def quaterniontonumpy(q):
     """
     :param q: rotation as a ros quaternion
     :return: quaternion x,y,z,w as a numpy array
@@ -29,7 +29,7 @@ def quaterniontonumpy(q: Quaternion) -> np.ndarray:
     return np.array([q.x, q.y, q.z, q.w])
 
 
-def numpytoquaternion(q: np.ndarray) -> Quaternion:
+def numpytoquaternion(q):
     """
     :param q: quaternion x,y,z,w as a numpy array
     :return: rotation as a ros quaternion
@@ -37,7 +37,7 @@ def numpytoquaternion(q: np.ndarray) -> Quaternion:
     return Quaternion(*q)
 
 
-def make_tf(frame: str, child: str, pos: np.ndarray, q: Quaternion) -> TransformStamped:
+def make_tf(frame, child, pos, q):
     """
     :param frame: frame id
     :param child: child frame id
@@ -59,7 +59,7 @@ def make_tf(frame: str, child: str, pos: np.ndarray, q: Quaternion) -> Transform
     return t
 
 
-def loadconfig(path: str) -> dict:
+def loadconfig(path):
     """
     :param path: path to a configuration file
     :return: configurations as a dictionary
@@ -68,12 +68,12 @@ def loadconfig(path: str) -> dict:
         try:
             return yaml.load(stream=f, Loader=yaml.FullLoader)
         except IOError as e:
-            sys.exit(f"FAILED TO LOAD CONFIG {path}: {e}")
+            sys.exit("FAILED TO LOAD CONFIG {path}: {}".format(e))
 
 
-def loaddefaultconfig() -> dict:
+def loaddefaultconfig():
     """
     :return: configurations as a dictionary
     """
-    path = f"{os.path.dirname(__file__)}/configs/default.yaml"
+    path = "{}/configs/default.yaml".format(os.path.dirname(__file__))
     return loadconfig(path=path)

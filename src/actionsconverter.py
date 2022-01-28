@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 import rospy
 from utils import loaddefaultconfig
 from buggycontrol.msg import Actions
@@ -13,7 +13,7 @@ class ActionsConverter:
         self.pub = rospy.Publisher("servos", Actions, queue_size=10)
         rospy.spin()
 
-    def action_to_servos(self, throttle: float, turn: float) -> (float, float):
+    def action_to_servos(self, throttle, turn):
         """
         map joystick or agent actions to motors
 
@@ -23,10 +23,10 @@ class ActionsConverter:
         """
         sthrottle = 0.5 * throttle * self.config["motor_scalar"] + self.config["throttle_offset"]
         sthrottle = np.clip(sthrottle, 0.5, 1)
-        sturn = turn / 2 + 0.5
+        sturn = turn / 2. + 0.5
         return sthrottle, sturn
 
-    def callback(self, msg: Actions):
+    def callback(self, msg):
         """
         :param msg: actions input from joystick or agent
         """

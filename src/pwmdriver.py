@@ -15,7 +15,7 @@ class PWMDriver:
         self.throttlemin = 0.5
         self.turnmiddle = 0.5
         print("Initializing the PWMdriver. ")
-        self.pwm = Adafruit_PCA9685.PCA9685()
+        self.pwm = Adafruit_PCA9685.PCA9685(address=0x43, i2c=None)
         self.pwm.set_pwm_freq(self.pwm_freq)
         self.arm_escs()
         print("Finished initializing the PWMdriver. ")
@@ -43,7 +43,7 @@ class PWMDriver:
         self.write_servos([self.throttlemin, self.turnmiddle])
         time.sleep(0.3)
 
-    def callback(self, msg: Actions):
+    def callback(self, msg):
         """
         :param msg: actions that are to be written to motors
         """

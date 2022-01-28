@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 import rospy
 from buggycontrol.msg import Actions
 from sensor_msgs.msg import Joy
