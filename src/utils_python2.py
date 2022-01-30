@@ -4,20 +4,27 @@ import rospy
 from geometry_msgs.msg import TransformStamped, Quaternion, Vector3
 import numpy as np
 import threading
+from copy import deepcopy
 
 def subscriber_factory(topic_name, topic_type):
     class RosSubscriber:
-        def __init__(self):
+        def __init__(self, topic_name=None):
+            self.topic_name = topic_name
             self.lock = threading.Lock()
             self.cb = None
             self.msg = None
+        def get_msg(self, copy_msg=False):
+            with self.lock:
+                if copy_msg:
+                    return deepcopy(self.msg)
+                return self.msg
 
     def msg_cb_wrapper(subscriber):
         def msg_cb(msg):
             with subscriber.lock:
                 subscriber.msg = msg
         return msg_cb
-    subscriber = RosSubscriber()
+    subscriber = RosSubscriber(topic_name)
     rospy.Subscriber(topic_name,
                      topic_type,
                      msg_cb_wrapper(subscriber), queue_size=1)

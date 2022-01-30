@@ -1,4 +1,26 @@
-1) Update odometry publisher with corrections, using estimated calibration matrices and decay vars
-2) Write bagfile reader which converts bag to dict dataset at 5ms sample rate
-3) Implement odometry estimation pipeline in pytorch for optimizing calibration parameters
+Plan:
+- Update odometry publisher with corrections, using estimated calibration matrices and decay vars
+- Write bagfile reader which converts bag to dict dataset at 5ms sample rate (IP)
+    . Has to be able to parse individual start stop episodes.
+- Implement odometry estimation pipeline in pytorch for optimizing calibration parameters
+- Gather data with RS at several locations, analyze stability.
+- Use RS data to calibrate wheel sensor
+- Implement RNN velocity estimator from IMU + wheel sensor data, train on 100 start stop sequences.
+- Compare RNN velocity odometry with odometry calibrated using proposed differential structure,
+  from start stop sequences. How many sequences in comparison do we need with RNN?
+- Use proposed node on tradr and compare odometry with inso.
+- Learn to imitate random sequences with max noise frequency component of 10hz (90th percentile) in Mujoco
+    . Dont forget rear wheel and steering state observers
+    . Experiment with regularly sampled and distance sampled waypoints
+    . Experiment with various NN architectures for imitation
+- See if feature processor (at least of given trajectory) from imitator can be used for RL,
+compare RL performance with imitation. Is imitated agent (self supervised viable for this job).
+- Learn NN odometry from data (predict lin. acc and ang. vel)
+    . See if various data balancing techniques help with learning
+- Fit mujoco simulation to data
+- Make visual comparison of fitted Mujoco and learned data engine and ground truth
+- Compare policies learned on mujoco and learned engine on real platform
+- Can we use learned model to optimize a trajectory (with geometrical constraints) slightly for faster time?
+    . First try in simulation
+    . If works in simulation, obtain a hokuyo and try on real platform
 
