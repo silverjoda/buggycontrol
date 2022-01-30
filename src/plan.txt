@@ -1,7 +1,5 @@
 Plan:
-- Update odometry publisher with corrections, using estimated calibration matrices and decay vars
-- Write bagfile reader which converts bag to dict dataset at 5ms sample rate (IP)
-    . Has to be able to parse individual start stop episodes.
+- Update odometry publisher with corrections, using estimated calibration matrices and decay vars (IP). Test on dataset with t265 for comparison and debuggin
 - Implement odometry estimation pipeline in pytorch for optimizing calibration parameters
 - Gather data with RS at several locations, analyze stability.
 - Use RS data to calibrate wheel sensor

@@ -1,126 +1,143 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 import rospy
 import tf2_ros
 from tf.transformations import *
 from geometry_msgs.msg import Vector3Stamped, QuaternionStamped, TransformStamped, Quaternion, Vector3
-from utils import *
+from std_msgs.msg import Float64
+from utils_python2 import *
 import numpy as np
-from multiprocessing import Lock
-mutex = Lock()
-
+import threading
+import time
+from sensor_msgs.msg import Imu
 
 class OdometryPublisher:
     def __init__(self):
-        rospy.init_node("odometrypublisher")
+        self.init_ros()
+        self.define_calibration_params()
+        self.loop()
+
+    def init_ros(self):
+        rospy.init_node("odometry_publisher")
+
         self.tfBuffer = tf2_ros.Buffer()
         self.tflistener = tf2_ros.TransformListener(self.tfBuffer)
         self.broadcaster = tf2_ros.TransformBroadcaster()
-        self.imu = "imu"
-        self.odom = "odom"
-        self.base_link = "base_link"
-        self.stable_base_link = "stable_base_link"
-        self.baselinktoimu = quaternion_from_euler(0, 0, np.pi / 2)
-        self.pos = np.array([0., 0., 0.])
-        self.v = np.zeros(3)
-        self.dvrate = 200
-        self.g = np.array([0, 0, 9.8]) / self.dvrate
-        self.gcounter = 0
-        self.gsub = rospy.Subscriber("/imu/dv", Vector3Stamped, self.gravitationcallback)
-        rospy.Subscriber("/imu/dv", Vector3Stamped, self.dvcallback)
-        rospy.Subscriber("/filter/quaternion", QuaternionStamped, self.orientationcallback)
-        rospy.spin()
 
-    def publish_base_links(self, rpy: np.ndarray):
-        """
-        given full orientation of a robot make odom to stable_base_link
-        transformation that has only yaw rotation and stable_base_link to base_link
-        that has only roll and pitch rotation. publish both
+        self.wheel_speed_sub = subscriber_factory("/wheel_speed", Float64)
+        self.dv_sub = subscriber_factory("/imu/dv", Vector3Stamped)
+        self.imu_sub = subscriber_factory("/imu/data", Imu)
+        self.quat_sub = subscriber_factory("/filter/quaternion", QuaternionStamped)
 
-        :param rpy: full orientation of a buggy as a quaternion
-        """
-        r, p, y = euler_from_quaternion(rpy)
-        rp = numpytoquaternion(quaternion_from_euler(r, p, 0))
-        y = numpytoquaternion(quaternion_from_euler(0, 0, y))
-        with mutex:
-            stablebaselink = make_tf(frame=self.odom, child=self.stable_base_link, pos=self.pos.copy(), q=y)
-        baselink = make_tf(frame=self.stable_base_link, child=self.base_link, pos=np.zeros(3), q=rp)
-        self.broadcaster.sendTransform(stablebaselink)
-        self.broadcaster.sendTransform(baselink)
+        self.v_bl_zrp = [0,0,0]
+        self.v_odom = [0,0,0]
+        self.p_odom = [0,0,0]
 
-    def orientationcallback(self, msg: QuaternionStamped):
-        """
-        correct orientation data from a sensor by sensor to baselink transformation,
-        make base and stable base links and publish it
+        self.ros_rate = rospy.Rate(200)
+        time.sleep(0.5)
 
-        :param: message containing orientation of imu_link frame in the world frame
-        """
-        rpy = quaterniontonumpy(msg.quaternion)
-        rpy = quaternion_multiply(rpy, self.baselinktoimu)
-        self.publish_base_links(rpy=rpy)
+    def define_calibration_params(self):
+        self.grav_accel = 9.81
+        self.imu_to_bl_quat = quaternion_from_euler(0, 0, np.pi / 2)
+        self.x_vel_tau = 0.005
+        self.y_vel_tau = 0.01
+        self.wheel_speed_scalar = 1.0
+        self.dt = 0.005
 
-    def updatevelocity(self, dv: Vector3):
-        """
-        substract mean (g / dv rate) value in an imu frame from dv and
-        update velocity in an odom frame by a new dv sample
+    def get_avg_g(self):
+        ctr = 0
+        g_cum = 0
+        while not rospy.is_shutdown():
+            # Read current sensor values (wheel, imu, quat)
+            ret = self.read_sensor_values()
+            if ret is None:
+                self.ros_rate.sleep()
+                continue
+            else:
+                wheel_speed, dv_imu, accel_imu, quat_imu = ret
+            ctr +=1
+            g_cum += accel_imu[2]
+            if ctr > 100:
+                avg_g = g_cum / float(ctr)
+                print("Current g is {}".format(avg_g))
+                return avg_g
 
-        :param dv: delta linear velocity in an imu_link frame
-        """
-        try:
-            t = self.tfBuffer.lookup_transform(self.odom, self.imu, rospy.Time(0))
-            qm = quaternion_matrix(quaterniontonumpy(t.transform.rotation))[:3, :3]
-            iqm = quaternion_matrix(invquaterniontonumpy(t.transform.rotation))[:3, :3]
-            gdv = iqm @ self.g
-            dv = vectror3tonumpy(dv) - gdv
-            self.v += qm @ dv
-        except Exception as e:
-            print(e)
+    def loop(self):
+        # Take average of gravitational acceleration
+        self.grav_accel = self.get_avg_g()
 
-    def updateposition(self):
-        """
-        compute new position of a stable_base_link in an odom frame
-        """
-        with mutex:
-            self.pos[:2] += self.v[:2] * (1 / self.dvrate)
+        while not rospy.is_shutdown():
+            # Read current sensor values (wheel, imu, quat)
+            ret = self.read_sensor_values()
+            if ret is None:
+                self.ros_rate.sleep()
+                continue
+            else:
+                wheel_speed, _, accel_imu, quat_imu = ret
 
-    def updateg(self, q: Quaternion, dv: Vector3):
-        """
-        compute mean of a (g / dv rate) value in an odom frame
-        given a new dv sample in an imu frame
+            # Transform imu accel to imu_zrp frame
+            r, p, y = euler_from_quaternion(quat_imu)
+            quat_imu_zrp = quaternion_from_euler(r, p, 0)
+            accel_imu_zrp = self.rotate_vector_by_quat(accel_imu, quat_imu_zrp)
 
-        :param q: full orientation of an imu (roll, pitch, yaw in quaternion)
-        :param dv: change in linear velocity in an imu_link frame
-        """
-        qm = quaternion_matrix(quaterniontonumpy(q))[:3, :3]
-        dv = vectror3tonumpy(dv)
-        gnow = qm @ dv
-        self.g = (self.g * self.gcounter + gnow) / (self.gcounter + 1)
-        self.g[:2] = 0
-        self.gcounter += 1
+            # Subtract g from imu_accel in imu_zrp frame
+            accel_imu_zrp[2] -= self.grav_accel
 
-    def gravitationcallback(self, msg: Vector3Stamped):
-        """
-        lookup current odom to imu rotation and update g
-        value with a new delta velocity vector
+            # Transform (rotate) clean imu_accel from imu_zrp to bl_zrp
+            quat_bl_zrp = quaternion_multiply(quat_imu_zrp, self.imu_to_bl_quat) # !Check with RVIZ if this is correct!
+            accel_bl_zrp = self.rotate_vector_by_quat(accel_imu_zrp, self.imu_to_bl_quat)
 
-        :param msg: message containing velocity changes in an imu_link frame
-        """
-        try:
-            t = self.tfBuffer.lookup_transform(self.odom, self.imu, rospy.Time(0))
-            self.updateg(q=t.transform.rotation, dv=msg.vector)
-        except Exception as e:
-            print(e)
-        if self.gcounter >= 100:
-            self.gsub.unregister()
+            # Update vel in bl_zrp using acceleration, wheel speed and decay
+            self.v_bl_zrp[0] = self.update_towards(self.v_bl_zrp[0], wheel_speed * self.wheel_speed_scalar, self.x_vel_tau) + accel_bl_zrp[0]
+            self.v_bl_zrp[1] = self.update_towards(self.v_bl_zrp[1], 0, self.y_vel_tau) + accel_bl_zrp[1]
 
-    def dvcallback(self, msg: Vector3Stamped):
-        """
-        given a new dv sample compute odometry, i.e. update
-        velocity in an odom frame and position of a robot in an odom frame
+            # Transform vel from bl_zrp to odom using quat in odom
+            _, _, bl_zrp_y = euler_from_quaternion(quat_bl_zrp)
+            quat_yaw_odom = quaternion_from_euler(0, 0, bl_zrp_y)
+            self.v_odom = self.rotate_vector_by_quat(self.v_bl_zrp, quat_yaw_odom)
 
-        :param msg: message containing velocity changes in an imu_link frame
-        """
-        self.updatevelocity(dv=msg.vector)
-        self.updateposition()
+            # Update pos in odom using vel in odom
+            self.p_odom[0] += self.v_odom[0] * self.dt
+            self.p_odom[1] += self.v_odom[1] * self.dt
+
+            # Publish tfs
+            odom_tf = make_tf(frame="odom", child="base_link_zrp", pos=self.p_odom, q=quat_yaw_odom)
+            self.broadcaster.sendTransform(odom_tf)
+
+            imu_zrp_tf = make_tf(frame="odom", child="imu_zrp", pos=self.p_odom, q=quat_imu_zrp)
+            self.broadcaster.sendTransform(imu_zrp_tf)
+
+            base_link_tf = make_tf(frame="base_link_zrp", child="base_link", pos=[0,0,0], q=quat_bl_zrp)
+            self.broadcaster.sendTransform(base_link_tf)
+
+            self.ros_rate.sleep()
+
+    def update_towards(self, val, target, tau):
+        sign = val < target
+        update_val = np.minimum(target - val, tau) * sign - np.minimum(val - target, tau) * (not sign)
+        return val + update_val
+
+    def rotate_vector_by_quat(self, v, q):
+        qm = quaternion_matrix(q)[:3, :3]
+        return np.matmul(qm, v)
+
+    def gather(self):
+        pass
+
+    def read_sensor_values(self):
+        with self.wheel_speed_sub.lock:
+            if self.wheel_speed_sub.msg is None: return None
+            wheel_speed = self.wheel_speed_sub.msg.data
+        with self.dv_sub.lock:
+            if self.dv_sub.msg is None: return None
+            dv = vector3tonumpy(self.dv_sub.msg.vector)
+        with self.imu_sub.lock:
+            if self.imu_sub.msg is None: return None
+            imu_accel = vector3tonumpy(self.dv_sub.msg.linear_acceleration)
+        with self.quat_sub.lock:
+            if self.quat_sub.msg is None: return None
+            quat = quaterniontonumpy(self.quat_sub.msg.quaternion)
+
+        return wheel_speed, dv, imu_accel, quat
 
 
 if __name__ == "__main__":
