@@ -1,6 +1,6 @@
 Plan:
-- Update odometry publisher with corrections, using estimated calibration matrices and decay vars (IP). Test on dataset with t265 for comparison and debuggin
-- Implement odometry estimation pipeline in pytorch for optimizing calibration parameters
+- Test odom publisher on dataset with t265 for comparison and debugging
+- Implement odometry estimation pipeline in pytorch for optimizing calibration parameters (IP)
 - Gather data with RS at several locations, analyze stability.
 - Use RS data to calibrate wheel sensor
 - Implement RNN velocity estimator from IMU + wheel sensor data, train on 100 start stop sequences.

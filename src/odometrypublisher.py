@@ -38,7 +38,7 @@ class OdometryPublisher:
 
     def define_calibration_params(self):
         self.grav_accel = 9.81
-        self.imu_to_bl_quat = quaternion_from_euler(0, 0, -np.pi / 2)
+        self.bl_to_imu = quaternion_from_euler(0, 0, -np.pi / 2)
         self.x_vel_tau = 0.002
         self.y_vel_tau = 0.002
         self.wheel_speed_scalar = 1.0
@@ -84,12 +84,11 @@ class OdometryPublisher:
             accel_imu_zrp = self.rotate_vector_by_quat(accel_imu, q_imu_imuzrp)
 
             # Transform (rotate) clean imu_accel from imu_zrp to bl_zrp
-            q_imuzrp_blzrp = self.imu_to_bl_quat
-            accel_bl_zrp = self.rotate_vector_by_quat(accel_imu_zrp, q_imuzrp_blzrp)
+            accel_bl_zrp = self.rotate_vector_by_quat(accel_imu_zrp, self.bl_to_imu)
 
             # Update vel in bl_zrp using acceleration, wheel speed and decay #
             self.v_bl_zrp[0] = self.update_towards(self.v_bl_zrp[0], wheel_speed * self.wheel_speed_scalar, self.x_vel_tau) + accel_bl_zrp[0] * self.dt
-            self.v_bl_zrp[1] = self.update_towards(self.v_bl_zrp[1], 0, self.y_vel_tau) + accel_bl_zrp[1] * self.dt
+            self.v_bl_zrp[1] = self.update_towards(self.v_bl_zrp[1], 0., self.y_vel_tau) + accel_bl_zrp[1] * self.dt
 
             # Transform vel from bl_zrp to odom using quat in odom
             q_blzrp_odom = quaternion_from_euler(0, 0, y_imu_imuinit)
@@ -103,11 +102,11 @@ class OdometryPublisher:
             odom_tf = make_tf(frame="odom", child="base_link_zrp", pos=self.p_odom, q=q_blzrp_odom)
             self.broadcaster.sendTransform(odom_tf)
 
-            imu_zrp_tf = make_tf(frame="base_link_zrp", child="imu_zrp", pos=[-0.1,0,0], q=self.imu_to_bl_quat)
+            imu_zrp_tf = make_tf(frame="base_link_zrp", child="imu_zrp", pos=[-0.1,0,0], q=self.bl_to_imu)
             self.broadcaster.sendTransform(imu_zrp_tf)
 
-            imu_zrp_tf = make_tf(frame="imu_zrp", child="imu", pos=[0,0,0], q=q_imu_imuzrp)
-            self.broadcaster.sendTransform(imu_zrp_tf)
+            imu_tf = make_tf(frame="imu_zrp", child="imu", pos=[0,0,0], q=q_imu_imuzrp)
+            self.broadcaster.sendTransform(imu_tf)
 
             self.ros_rate.sleep()
 
