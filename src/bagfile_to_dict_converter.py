@@ -3,6 +3,7 @@ import rospy
 import tf2_ros
 from tf.transformations import *
 from geometry_msgs.msg import Vector3Stamped, QuaternionStamped, TransformStamped, Quaternion, Vector3
+from sensor_msgs.msg import Imu
 from std_msgs.msg import Float64
 from utils_python2 import *
 import numpy as np
@@ -13,9 +14,9 @@ import pickle
 class BagfileConverter:
     def __init__(self):
         self.dataset_path = self.create_dataset_path()
-        self.dataset_dict = {}
-
         self.init_ros()
+
+        self.dataset_dict_list = []
 
     def create_dataset_path(self):
         # Save dataset
@@ -40,11 +41,13 @@ class BagfileConverter:
 
         self.wheel_speed_sub = subscriber_factory("/wheel_speed", Float64)
         self.dv_sub = subscriber_factory("/imu/dv", Vector3Stamped)
+        self.imu_sub = subscriber_factory("/imu/data", Imu)
         self.quat_sub = subscriber_factory("/filter/quaternion", QuaternionStamped)
 
         self.subscriber_list = []
         self.subscriber_list.append(self.wheel_speed_sub)
         self.subscriber_list.append(self.dv_sub)
+        self.subscriber_list.append(self.imu_sub)
         self.subscriber_list.append(self.quat_sub)
 
         self.ros_rate = rospy.Rate(200)
@@ -56,10 +59,13 @@ class BagfileConverter:
             if np.all([s.get_msg() is not None for s in self.subscriber_list]): break
 
         # Do the gathering
+        print("Started gathering")
         while not rospy.is_shutdown():
             # Get messages from all subscribers
+            dataset_dict = {}
             for s in self.subscriber_list:
-                self.dataset_dict[s.topic_name] = s.get_msg(copy_msg=True)
+                dataset_dict[s.topic_name] = s.get_msg(copy_msg=True)
+            self.dataset_dict_list.append(dataset_dict)
 
             # Maintain that 200hz
             self.ros_rate.sleep()

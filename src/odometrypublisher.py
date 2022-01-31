@@ -83,7 +83,7 @@ class OdometryPublisher:
             q_imu_imuzrp = quaternion_from_euler(r_imu_imuinit, p_imu_imuinit, 0)
             accel_imu_zrp = self.rotate_vector_by_quat(accel_imu, q_imu_imuzrp)
 
-            # Transform (rotate) clean imu_accel from imu_zrp to bl_zrp
+            # Transform (rotate) imu_accel from imu_zrp to bl_zrp
             accel_bl_zrp = self.rotate_vector_by_quat(accel_imu_zrp, self.bl_to_imu)
 
             # Update vel in bl_zrp using acceleration, wheel speed and decay #
