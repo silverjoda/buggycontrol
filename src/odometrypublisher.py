@@ -38,9 +38,9 @@ class OdometryPublisher:
 
     def define_calibration_params(self):
         self.grav_accel = 9.81
-        self.imu_to_bl_quat = quaternion_from_euler(0, 0, np.pi / 2)
-        self.x_vel_tau = 0.005
-        self.y_vel_tau = 0.01
+        self.imu_to_bl_quat = quaternion_from_euler(0, 0, -np.pi / 2)
+        self.x_vel_tau = 0.002
+        self.y_vel_tau = 0.002
         self.wheel_speed_scalar = 1.0
         self.dt = 0.005
 
@@ -57,7 +57,7 @@ class OdometryPublisher:
                 wheel_speed, accel_imu, quat_imu = ret
 
             ctr +=1
-            g_cum += accel_imu[2]
+            g_cum += sum(accel_imu)
             if ctr > 100:
                 avg_g = g_cum / float(ctr)
                 print("Current g is {}".format(avg_g))
@@ -66,7 +66,8 @@ class OdometryPublisher:
 
     def loop(self):
         # Take average of gravitational acceleration
-        self.grav_accel = self.get_avg_g()
+        #self.grav_accel = self.get_avg_g()
+        self.grav_accel = 9.81
 
         while not rospy.is_shutdown():
             # Read current sensor values (wheel, imu, quat)
@@ -75,48 +76,38 @@ class OdometryPublisher:
                 self.ros_rate.sleep()
                 continue
             else:
-                wheel_speed, accel_imu, quat_imu = ret
-
-            # TODO: rename all quaternions to from_to_ notation for clarity
-            # TODO: Continue correcting and checking with rviz
+                wheel_speed, accel_imu, q_imu_imuinit = ret
 
             # Transform imu accel to imu_zrp frame
-            r, p, y = euler_from_quaternion(quat_imu)
-            quat_imu_zrp = quaternion_from_euler(r, p, 0)
-            accel_imu_zrp = self.rotate_vector_by_quat(accel_imu, quat_imu_zrp)
-
-            # Subtract g from imu_accel in imu_zrp frame
-            accel_imu_zrp[2] -= self.grav_accel
+            r_imu_imuinit, p_imu_imuinit, y_imu_imuinit = euler_from_quaternion(q_imu_imuinit)
+            q_imu_imuzrp = quaternion_from_euler(r_imu_imuinit, p_imu_imuinit, 0)
+            accel_imu_zrp = self.rotate_vector_by_quat(accel_imu, q_imu_imuzrp)
 
             # Transform (rotate) clean imu_accel from imu_zrp to bl_zrp
-            quat_bl_zrp = quaternion_multiply(quat_imu_zrp, self.imu_to_bl_quat) # !Check with RVIZ if this is correct!
-            accel_bl_zrp = self.rotate_vector_by_quat(accel_imu_zrp, self.imu_to_bl_quat)
+            q_imuzrp_blzrp = self.imu_to_bl_quat
+            accel_bl_zrp = self.rotate_vector_by_quat(accel_imu_zrp, q_imuzrp_blzrp)
 
-            # Update vel in bl_zrp using acceleration, wheel speed and decay
-            self.v_bl_zrp[0] = self.update_towards(self.v_bl_zrp[0], wheel_speed * self.wheel_speed_scalar, self.x_vel_tau) + accel_bl_zrp[0]
-            self.v_bl_zrp[1] = self.update_towards(self.v_bl_zrp[1], 0, self.y_vel_tau) + accel_bl_zrp[1]
+            # Update vel in bl_zrp using acceleration, wheel speed and decay #
+            self.v_bl_zrp[0] = self.update_towards(self.v_bl_zrp[0], wheel_speed * self.wheel_speed_scalar, self.x_vel_tau) + accel_bl_zrp[0] * self.dt
+            self.v_bl_zrp[1] = self.update_towards(self.v_bl_zrp[1], 0, self.y_vel_tau) + accel_bl_zrp[1] * self.dt
 
             # Transform vel from bl_zrp to odom using quat in odom
-            _, _, bl_zrp_y = euler_from_quaternion(quat_bl_zrp)
-            quat_yaw_odom = quaternion_from_euler(0, 0, bl_zrp_y)
-            self.v_odom = self.rotate_vector_by_quat(self.v_bl_zrp, quat_yaw_odom)
+            q_blzrp_odom = quaternion_from_euler(0, 0, y_imu_imuinit)
+            self.v_odom = self.rotate_vector_by_quat(self.v_bl_zrp, q_blzrp_odom)
 
             # Update pos in odom using vel in odom
             self.p_odom[0] += self.v_odom[0] * self.dt
             self.p_odom[1] += self.v_odom[1] * self.dt
 
             # Publish tfs
-            odom_tf = make_tf(frame="odom", child="base_link_zrp", pos=[0,0,0], q=quat_yaw_odom)
+            odom_tf = make_tf(frame="odom", child="base_link_zrp", pos=self.p_odom, q=q_blzrp_odom)
             self.broadcaster.sendTransform(odom_tf)
 
-            imu_zrp_tf = make_tf(frame="odom", child="imu ", pos=[0, 0, 0], q=quat_imu) # WRONG, need to transform by pi/2 first
+            imu_zrp_tf = make_tf(frame="base_link_zrp", child="imu_zrp", pos=[-0.1,0,0], q=self.imu_to_bl_quat)
             self.broadcaster.sendTransform(imu_zrp_tf)
 
-            imu_zrp_tf = make_tf(frame="imu_zrp", child="imu", pos=[0,0,0], q=quat_imu_zrp)
+            imu_zrp_tf = make_tf(frame="imu_zrp", child="imu", pos=[0,0,0], q=q_imu_imuzrp)
             self.broadcaster.sendTransform(imu_zrp_tf)
-
-            base_link_tf = make_tf(frame="base_link_zrp", child="base_link", pos=[0,0,0], q=quat_bl_zrp)
-            self.broadcaster.sendTransform(base_link_tf)
 
             self.ros_rate.sleep()
 
