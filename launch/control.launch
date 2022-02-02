@@ -1,4 +1,8 @@
 <launch>
+  <rosparam>
+        /t265/tracking_module/enable_relocalization: false
+  </rosparam>
+
   <node name="joyNode" pkg="joy" type="joy_node" output="screen" />
   <node name="joyconverterNode" pkg="buggycontrol" type="joyconverter.py" output="screen" />
   <node name="converterNode" pkg="buggycontrol" type="actionsconverter.py" output="screen" />

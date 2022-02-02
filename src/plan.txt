@@ -1,12 +1,4 @@
 Plan:
-- Test odom publisher on dataset with t265 for comparison and debugging
-- Implement odometry estimation pipeline in pytorch for optimizing calibration parameters (IP)
-- Gather data with RS at several locations, analyze stability.
-- Use RS data to calibrate wheel sensor
-- Implement RNN velocity estimator from IMU + wheel sensor data, train on 100 start stop sequences.
-- Compare RNN velocity odometry with odometry calibrated using proposed differential structure,
-  from start stop sequences. How many sequences in comparison do we need with RNN?
-- Use proposed node on tradr and compare odometry with inso.
 - Learn to imitate random sequences with max noise frequency component of 10hz (90th percentile) in Mujoco
     . Dont forget rear wheel and steering state observers
     . Experiment with regularly sampled and distance sampled waypoints
