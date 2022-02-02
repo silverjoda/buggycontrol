@@ -1,4 +1,14 @@
 Plan:
+- Make pose republisher to buggy aligned frame
+- Make pose republisher from twist velocities (integrator)
+- Make twist republisher from poses
+- Make numpy dataset of poses/vels from bagfile
+- Make transition model trainer
+- Make rviz visualization for trained engine (with joystick).
+- Analyze trained model when controlling with JS
+- Compare trained model to dataset (visually in rviz)
+- Use various dataset techniques to improve training of correlated data
+
 - Learn to imitate random sequences with max noise frequency component of 10hz (90th percentile) in Mujoco
     . Dont forget rear wheel and steering state observers
     . Experiment with regularly sampled and distance sampled waypoints
