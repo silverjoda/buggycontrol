@@ -1,17 +1,13 @@
 #!/usr/bin/env python3
-import rospy
-import tf2_ros
-from tf.transformations import *
-from geometry_msgs.msg import Vector3Stamped, QuaternionStamped, TransformStamped, Quaternion, Vector3
-from sensor_msgs.msg import Imu
-from std_msgs.msg import Float64
-from nav_msgs.msg import Odometry
-from buggycontrol.msg import Actions
-from utils import *
-import numpy as np
-import threading
-import time
 import pickle
+import time
+
+import numpy as np
+from buggycontrol.msg import Actions
+from nav_msgs.msg import Odometry
+
+from utils import *
+
 
 class BagfileConverter:
     def __init__(self):

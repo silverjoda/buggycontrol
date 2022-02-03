@@ -1,5 +1,4 @@
 Plan:
-- Make numpy dataset of poses/vels from bagfile
 - Make transition model trainer
 - Make rviz visualization for trained engine (with joystick).
 - Analyze trained model when controlling with JS
