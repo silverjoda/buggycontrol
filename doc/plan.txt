@@ -1,5 +1,4 @@
 Plan:
-- Make pose republisher from twist velocities (integrator)
 - Make twist republisher from poses
 - Make numpy dataset of poses/vels from bagfile
 - Make transition model trainer
