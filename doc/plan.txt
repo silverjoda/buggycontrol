@@ -1,5 +1,4 @@
 Plan:
-- Make twist republisher from poses
 - Make numpy dataset of poses/vels from bagfile
 - Make transition model trainer
 - Make rviz visualization for trained engine (with joystick).

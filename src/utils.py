@@ -3,7 +3,32 @@ import yaml
 import rospy
 from geometry_msgs.msg import TransformStamped, Quaternion, Vector3
 import numpy as np
+import threading
+from copy import deepcopy
 
+def subscriber_factory(topic_name, topic_type):
+    class RosSubscriber:
+        def __init__(self, topic_name=None):
+            self.topic_name = topic_name
+            self.lock = threading.Lock()
+            self.cb = None
+            self.msg = None
+        def get_msg(self, copy_msg=False):
+            with self.lock:
+                if copy_msg:
+                    return deepcopy(self.msg)
+                return self.msg
+
+    def msg_cb_wrapper(subscriber):
+        def msg_cb(msg):
+            with subscriber.lock:
+                subscriber.msg = msg
+        return msg_cb
+    subscriber = RosSubscriber(topic_name)
+    rospy.Subscriber(topic_name,
+                     topic_type,
+                     msg_cb_wrapper(subscriber), queue_size=7)
+    return subscriber
 
 def vector3tonumpy(v):
     """
@@ -52,10 +77,10 @@ def make_tf(frame, child, pos, q):
     t.transform.translation.x = pos[0]
     t.transform.translation.y = pos[1]
     t.transform.translation.z = pos[2]
-    t.transform.rotation.x = q.x
-    t.transform.rotation.y = q.y
-    t.transform.rotation.z = q.z
-    t.transform.rotation.w = q.w
+    t.transform.rotation.x = q[0]
+    t.transform.rotation.y = q[1]
+    t.transform.rotation.z = q[2]
+    t.transform.rotation.w = q[3]
     return t
 
 
@@ -68,7 +93,7 @@ def loadconfig(path):
         try:
             return yaml.load(stream=f, Loader=yaml.FullLoader)
         except IOError as e:
-            sys.exit("FAILED TO LOAD CONFIG {path}: {}".format(e))
+            sys.exit("FAILED TO LOAD CONFIG {}: {}".format(path,e))
 
 
 def loaddefaultconfig():

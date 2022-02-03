@@ -1,10 +1,12 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import rospy
 import tf2_ros
 from tf.transformations import *
 from geometry_msgs.msg import Vector3Stamped, QuaternionStamped, TransformStamped, Quaternion, Vector3
 from sensor_msgs.msg import Imu
 from std_msgs.msg import Float64
+from nav_msgs.msg import Odometry
+from buggycontrol.msg import Actions
 from utils import *
 import numpy as np
 import threading
@@ -36,42 +38,38 @@ class BagfileConverter:
     def init_ros(self):
         rospy.init_node("bagfile_converter")
 
-        self.tfBuffer = tf2_ros.Buffer()
-        self.tflistener = tf2_ros.TransformListener(self.tfBuffer)
-
-        self.wheel_speed_sub = subscriber_factory("/wheel_speed", Float64)
-        self.dv_sub = subscriber_factory("/imu/dv", Vector3Stamped)
-        self.imu_sub = subscriber_factory("/imu/data", Imu)
-        self.quat_sub = subscriber_factory("/filter/quaternion", QuaternionStamped)
-
-        self.subscriber_list = []
-        self.subscriber_list.append(self.wheel_speed_sub)
-        self.subscriber_list.append(self.dv_sub)
-        self.subscriber_list.append(self.imu_sub)
-        self.subscriber_list.append(self.quat_sub)
+        self.gt_odometry_sub = subscriber_factory("/gt/base_link_odom", Odometry)
+        self.actions_sub = subscriber_factory("/actions", Actions)
 
         self.ros_rate = rospy.Rate(200)
-        time.sleep(0.5)
+        time.sleep(0.3)
+
+    def process_dataset(self):
+        pass
 
     def gather(self):
         # Wait until all subscribers have a message to begin
         while not rospy.is_shutdown():
-            if np.all([s.get_msg() is not None for s in self.subscriber_list]): break
+            if np.all([s.get_msg() is not None for s in [self.gt_odometry_sub, self.actions_sub]]): break
 
         # Do the gathering
         print("Started gathering")
         while not rospy.is_shutdown():
             # Get messages from all subscribers
             dataset_dict = {}
-            for s in self.subscriber_list:
-                dataset_dict[s.topic_name] = s.get_msg(copy_msg=True)
+            act_msg = self.actions_sub.get_msg(copy_msg=True)
+            odom_msg = self.gt_odometry_sub.get_msg(copy_msg=True)
+            dataset_dict["act_msg"] = act_msg
+            dataset_dict["odom_msg"] = odom_msg
             self.dataset_dict_list.append(dataset_dict)
 
             # Maintain that 200hz
             self.ros_rate.sleep()
 
+        X, Y = self.process_dataset()
+
         print("Saving dataset")
-        self.save_dataset(self.dataset_dict, self.dataset_path)
+        self.save_dataset(X, Y, self.dataset_path)
 
 if __name__=="__main__":
     bagfile_converter = BagfileConverter()
