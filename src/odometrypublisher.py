@@ -38,8 +38,8 @@ class OdometryPublisher:
 
     def define_calibration_params(self):
         self.bl_to_imu = quaternion_from_euler(0, 0, 0)
-        self.x_vel_tau = 0.03
-        self.y_vel_tau = 3.
+        self.x_vel_tau = 0.01
+        self.y_vel_tau = 1.
         self.wheel_speed_scalar = 1.0
         self.dt = 0.005
 
