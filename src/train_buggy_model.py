@@ -20,20 +20,20 @@ class ModelDataset:
                 self.x_data_list.append(pickle.load(open(fp_X, "rb")))
                 self.y_data_list.append(pickle.load(open(fp_Y, "rb")))
 
-        X = np.array(self.x_data_list)
-        Y = np.array(self.y_data_list)
+        X = np.concatenate(self.x_data_list)
+        Y = np.concatenate(self.y_data_list)
         n_data_points = len(X)
         assert n_data_points > 100
         print("Loaded dataset with {} points".format(n_data_points))
         return X, Y
 
     def get_random_batch(self, batchsize, tensor=True):
-        rnd_indeces = np.random.choice(np.arrange(len(self.X)), batchsize, replace=False)
+        rnd_indeces = np.random.choice(np.arange(len(self.X)), batchsize, replace=False)
         x = self.X[rnd_indeces]
         y = self.Y[rnd_indeces]
         if tensor:
-            x = T.tensor(x)
-            y = T.tensor(y)
+            x = T.tensor(x, dtype=T.float32)
+            y = T.tensor(y, dtype=T.float32)
         return x, y
 
 class ModelTrainer:
@@ -43,8 +43,8 @@ class ModelTrainer:
         self.policy = policy
 
     def train(self):
-        optim = T.optim.Adam(parameters=self.policy.parameters(), lr=self.config['lr'], weight_decay=self.config['w_decay'])
-        lossfun = T.MseLoss()
+        optim = T.optim.Adam(params=self.policy.parameters(), lr=self.config['lr'], weight_decay=self.config['w_decay'])
+        lossfun = T.nn.MSELoss()
         for i in range(self.config['iters']):
             X, Y = self.dataset.get_random_batch(self.config['batchsize'])
             Y_ = self.policy(X)

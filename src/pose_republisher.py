@@ -4,10 +4,24 @@ import rospy
 import tf.transformations
 import tf2_ros
 from geometry_msgs.msg import Quaternion
+from geometry_msgs.msg import TwistWithCovariance, Vector3
 from nav_msgs.msg import Odometry
+
+
+def rotate_vector_by_quat(v, q):
+    qm = tf.transformations.quaternion_matrix([q.x, q.y, q.z, q.w])[:3, :3]
+    new_v = np.matmul(qm, np.array([v.x, v.y, v.z]))
+    return Vector3(x=new_v[0], y=new_v[1], z=new_v[2])
 
 if __name__=="__main__":
     def odom_cb(msg):
+        twist_msg = TwistWithCovariance()
+        twist_msg.twist.linear = rotate_vector_by_quat(msg.twist.twist.linear,
+                                                       trans.transform.rotation)
+
+        twist_msg.twist.angular = rotate_vector_by_quat(msg.twist.twist.angular,
+                                                        trans.transform.rotation)
+
         msg.pose.pose.position.x -= trans.transform.translation.x
         msg.pose.pose.position.y -= trans.transform.translation.y
         msg.pose.pose.position.z -= trans.transform.translation.z
@@ -18,6 +32,7 @@ if __name__=="__main__":
                                                     np.array([q2.x, q2.y, q2.z, q2.w]))
         msg.pose.pose.orientation = Quaternion(*qr)
         new_msg = Odometry()
+        new_msg.twist = twist_msg
         new_msg.header.stamp = msg.header.stamp
         new_msg.header.frame_id = msg.header.frame_id
         new_msg.pose = msg.pose

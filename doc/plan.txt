@@ -1,6 +1,4 @@
 Plan:
-- Make transition model trainer
-- Make rviz visualization for trained engine (with joystick).
 - Analyze trained model when controlling with JS
 - Compare trained model to dataset (visually in rviz)
 - Use various dataset techniques to improve training of correlated data

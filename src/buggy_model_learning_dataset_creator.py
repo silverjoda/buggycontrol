@@ -8,7 +8,6 @@ from nav_msgs.msg import Odometry
 
 from utils import *
 
-
 class BagfileConverter:
     def __init__(self):
         self.xy_dataset_paths = self.create_dataset_path()
@@ -41,8 +40,8 @@ class BagfileConverter:
         time.sleep(0.3)
 
     def get_delta(self, msg_cur, msg_next):
-        return msg_next.header.stamp.secs - msg_cur.header.stamp.secs + \
-                (msg_next.header.stamp.nsecs - msg_cur.header.stamp.nsecs) / 1000000000.
+        return np.maximum(msg_next.header.stamp.secs - msg_cur.header.stamp.secs + \
+                (msg_next.header.stamp.nsecs - msg_cur.header.stamp.nsecs) / 1000000000., 0.00001)
 
     def process_dataset(self, dataset_dict_list):
         dt = 0.005
@@ -51,10 +50,10 @@ class BagfileConverter:
         for i in range(len(dataset_dict_list) - 1):
             current_act_msg = dataset_dict_list[i]["act_msg"]
             current_odom_msg = dataset_dict_list[i]["odom_msg"]
-            next_odom_msg = dataset_dict_list[i + 1]["odom_msg"]
+            next_odom_msg = dataset_dict_list[i+1]["odom_msg"]
 
             time_delta = self.get_delta(current_odom_msg, next_odom_msg)
-            time_correction_factor = np.clip(dt / time_delta, -0.9, 1.1)
+            time_correction_factor = np.clip(dt / time_delta, 0.8, 1.2)
 
             # Calculate velocity delta from current to next odom
             current_lin_vel = current_odom_msg.twist.twist.linear
@@ -73,7 +72,7 @@ class BagfileConverter:
                           current_odom_msg.twist.twist.angular.z], dtype=np.float32)
             y = np.array([lin_vel_diff_x,
                           lin_vel_diff_y,
-                          ang_vel_diff_z])
+                          ang_vel_diff_z], dtype=np.float32)
 
             x_list.append(x)
             y_list.append(y)

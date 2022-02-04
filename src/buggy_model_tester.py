@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-import numpy as np
-import rospy
-from geometry_msgs.msg import Vector3, PoseWithCovariance, Pose, Quaternion
-from nav_msgs.msg import Odometry
-import tf.transformations
-from buggy_control.msg import Actions
-import tf2_ros
-import torch as T
-from policies import *
 import pickle
 import threading
 from copy import deepcopy
+
+import numpy as np
+import rospy
+import tf.transformations
+from buggycontrol.msg import Actions
+from geometry_msgs.msg import Vector3, PoseWithCovariance, Pose, Quaternion
+from nav_msgs.msg import Odometry
+
+from policies import *
 
 def rotate_vector_by_quat(v, q):
     qm = tf.transformations.quaternion_matrix([q.x, q.y, q.z, q.w])[:3, :3]
@@ -29,7 +29,7 @@ if __name__=="__main__":
     integrated_pose = Pose(orientation=Quaternion(x=0, y=0, z=0, w=1))
 
     policy = MLP(5, 3, hid_dim=128)
-    policy.set_params(pickle.load(open("agents/buggy_transition_model.p", "rb")))
+    policy.load_state_dict(T.load("agents/buggy_transition_model.p"), strict=False)
 
     rospy.init_node("predicted_buggy_pose_publisher")
     ros_rate = rospy.Rate(0.005)
@@ -44,6 +44,8 @@ if __name__=="__main__":
     buggy_ang_vel_z = 0.
 
     delta = 0.005
+    throttle = 0.
+    turn = 0.
 
     while not rospy.is_shutdown():
         with act_lock:
@@ -53,9 +55,9 @@ if __name__=="__main__":
 
         # Predict velocity update
         policy_input = T.tensor([throttle, turn, buggy_lin_vel_x, buggy_lin_vel_y, buggy_ang_vel_z])
-        with T.no_grad:
+        with T.no_grad():
             pred_deltas = policy(policy_input)
-        x_delta, y_delta, z_ang_delta = pred_deltas.numpy
+        x_delta, y_delta, z_ang_delta = pred_deltas.numpy()
 
         buggy_lin_vel_x += x_delta * delta
         buggy_lin_vel_y += y_delta * delta
