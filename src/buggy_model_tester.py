@@ -32,7 +32,7 @@ if __name__=="__main__":
     policy.load_state_dict(T.load("agents/buggy_transition_model.p"), strict=False)
 
     rospy.init_node("predicted_buggy_pose_publisher")
-    ros_rate = rospy.Rate(0.005)
+    ros_rate = rospy.Rate(200)
     pub = rospy.Publisher("pred/odom_base_link", Odometry, queue_size=5)
     rospy.Subscriber("actions",
                      Actions,
@@ -53,11 +53,13 @@ if __name__=="__main__":
                 throttle = deepcopy(act_msg.throttle)
                 turn = deepcopy(act_msg.turn)
 
+
         # Predict velocity update
         policy_input = T.tensor([throttle, turn, buggy_lin_vel_x, buggy_lin_vel_y, buggy_ang_vel_z])
         with T.no_grad():
             pred_deltas = policy(policy_input)
         x_delta, y_delta, z_ang_delta = pred_deltas.numpy()
+        print(x_delta, y_delta, z_ang_delta)
 
         buggy_lin_vel_x += x_delta * delta
         buggy_lin_vel_y += y_delta * delta
@@ -66,6 +68,7 @@ if __name__=="__main__":
         # Transform linear velocities to base_link frame
         base_link_linear = rotate_vector_by_quat(Vector3(x=buggy_lin_vel_x, y=buggy_lin_vel_y, z=buggy_ang_vel_z),
                                                  integrated_pose.orientation)
+
 
         # Modify integrated pose using twist message
         integrated_pose.position.x += base_link_linear.x * delta
@@ -76,6 +79,7 @@ if __name__=="__main__":
         i_e[2] += buggy_ang_vel_z * delta
         i_q_new = tf.transformations.quaternion_from_euler(*i_e)
         integrated_pose.orientation = Quaternion(*i_q_new)
+
 
         odom_msg = Odometry()
         odom_msg.header.stamp = rospy.Time(0)
