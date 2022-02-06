@@ -1,0 +1,5 @@
+<launch>
+  <include file="$(find buggycontrol)/launch/statictfs.launch"/>
+  <node pkg="buggycontrol" type="pose_republisher.py" name="pose_republisher" output="screen"/>
+  <node pkg="buggycontrol" type="buggy_model_learning_dataset_creator.py" name="dataset_creator" output="screen"/>
+</launch>

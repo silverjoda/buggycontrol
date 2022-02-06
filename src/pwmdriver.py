@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 import Adafruit_PCA9685
 import time
 import rospy

@@ -57,22 +57,24 @@ class BagfileConverter:
 
             # Calculate velocity delta from current to next odom
             current_lin_vel = current_odom_msg.twist.twist.linear
+            current_ang_vel = current_odom_msg.twist.twist.angular
             next_lin_vel = next_odom_msg.twist.twist.linear
+            next_ang_vel = next_odom_msg.twist.twist.angular
 
-            lin_vel_diff_x = (next_lin_vel.x - current_lin_vel.x) * time_correction_factor
-            lin_vel_diff_y = (next_lin_vel.y - current_lin_vel.y) * time_correction_factor
+            #lin_vel_diff_x = (next_lin_vel.x - current_lin_vel.x) * time_correction_factor
+            #lin_vel_diff_y = (next_lin_vel.y - current_lin_vel.y) * time_correction_factor
 
-            ang_vel_diff_z = (next_odom_msg.twist.twist.angular.z - current_odom_msg.twist.twist.angular.z) * time_correction_factor
+            ang_vel_diff_z = (next_ang_vel.z - current_ang_vel.z) * time_correction_factor
 
             # Assemble observation and label
             x = np.array([current_act_msg.throttle,
                           current_act_msg.turn,
                           current_lin_vel.x,
                           current_lin_vel.y,
-                          current_odom_msg.twist.twist.angular.z], dtype=np.float32)
-            y = np.array([lin_vel_diff_x,
-                          lin_vel_diff_y,
-                          ang_vel_diff_z], dtype=np.float32)
+                          current_ang_vel.z], dtype=np.float32)
+            y = np.array([next_lin_vel.x,
+                          next_lin_vel.y,
+                          next_ang_vel.z], dtype=np.float32)
 
             x_list.append(x)
             y_list.append(y)

@@ -7,8 +7,10 @@ import numpy as np
 import rospy
 import tf.transformations
 from buggycontrol.msg import Actions
-from geometry_msgs.msg import Vector3, PoseWithCovariance, Pose, Quaternion
+from geometry_msgs.msg import Vector3, PoseWithCovariance, Pose, Quaternion, TwistStamped, Twist, TransformStamped
 from nav_msgs.msg import Odometry
+import tf2_ros
+import os
 
 from policies import *
 
@@ -29,11 +31,16 @@ if __name__=="__main__":
     integrated_pose = Pose(orientation=Quaternion(x=0, y=0, z=0, w=1))
 
     policy = MLP(5, 3, hid_dim=128)
-    policy.load_state_dict(T.load("agents/buggy_transition_model.p"), strict=False)
+    agent_path = os.path.join(os.path.dirname(__file__), "agents/buggy_transition_model.p")
+    policy.load_state_dict(T.load(agent_path), strict=False)
 
     rospy.init_node("predicted_buggy_pose_publisher")
+    tfBuffer = tf2_ros.Buffer()
+    tflistener = tf2_ros.TransformListener(tfBuffer)
+    broadcaster = tf2_ros.TransformBroadcaster()
     ros_rate = rospy.Rate(200)
-    pub = rospy.Publisher("pred/odom_base_link", Odometry, queue_size=5)
+    pub_twist = rospy.Publisher("pred/twist_base_link", TwistStamped, queue_size=5)
+    pub_odom = rospy.Publisher("pred/odom_base_link", Odometry, queue_size=5)
     rospy.Subscriber("actions",
                      Actions,
                      cb,
@@ -50,25 +57,23 @@ if __name__=="__main__":
     while not rospy.is_shutdown():
         with act_lock:
             if act_msg is not None:
-                throttle = deepcopy(act_msg.throttle)
+                throttle = np.maximum(deepcopy(act_msg.throttle), 0)
                 turn = deepcopy(act_msg.turn)
-
 
         # Predict velocity update
         policy_input = T.tensor([throttle, turn, buggy_lin_vel_x, buggy_lin_vel_y, buggy_ang_vel_z])
         with T.no_grad():
-            pred_deltas = policy(policy_input)
-        x_delta, y_delta, z_ang_delta = pred_deltas.numpy()
-        print(x_delta, y_delta, z_ang_delta)
+            pred_vel = policy(policy_input)
+        x_vel, y_vel, z_ang_vel = pred_vel.numpy()
+        print(x_vel, y_vel, z_ang_vel)
 
-        buggy_lin_vel_x += x_delta * delta
-        buggy_lin_vel_y += y_delta * delta
-        buggy_ang_vel_z += z_ang_delta * delta
+        buggy_lin_vel_x = x_vel
+        buggy_lin_vel_y = y_vel
+        buggy_ang_vel_z = z_ang_vel
 
         # Transform linear velocities to base_link frame
         base_link_linear = rotate_vector_by_quat(Vector3(x=buggy_lin_vel_x, y=buggy_lin_vel_y, z=buggy_ang_vel_z),
                                                  integrated_pose.orientation)
-
 
         # Modify integrated pose using twist message
         integrated_pose.position.x += base_link_linear.x * delta
@@ -80,11 +85,30 @@ if __name__=="__main__":
         i_q_new = tf.transformations.quaternion_from_euler(*i_e)
         integrated_pose.orientation = Quaternion(*i_q_new)
 
+        twist_msg = TwistStamped()
+        twist_msg.header.stamp = rospy.Time(0)
+        twist_msg.header.frame_id = "base_link"
+        twist_msg.twist = Twist(linear=Vector3(x=buggy_lin_vel_x, y=buggy_lin_vel_y), angular=Vector3(z=buggy_ang_vel_z))
+        pub_twist.publish(twist_msg)
 
         odom_msg = Odometry()
         odom_msg.header.stamp = rospy.Time(0)
         odom_msg.header.frame_id = "camera_odom_frame"
         odom_msg.pose = PoseWithCovariance(pose=integrated_pose)
-        pub.publish(odom_msg)
+        pub_odom.publish(odom_msg)
+
+        t = TransformStamped()
+        t.header.stamp = rospy.Time.now()
+        t.header.frame_id = "camera_odom_frame"
+        t.child_frame_id = "base_link"
+        t.transform.translation.x = odom_msg.pose.pose.position.x
+        t.transform.translation.y = odom_msg.pose.pose.position.y
+        t.transform.translation.z = odom_msg.pose.pose.position.z
+
+        t.transform.rotation.x = odom_msg.pose.pose.orientation.x
+        t.transform.rotation.y = odom_msg.pose.pose.orientation.y
+        t.transform.rotation.z = odom_msg.pose.pose.orientation.z
+        t.transform.rotation.w = odom_msg.pose.pose.orientation.w
+        broadcaster.sendTransform(t)
 
         ros_rate.sleep()

@@ -1,4 +1,6 @@
 Plan:
+- Fix dataset creator which just saves basic obs/labels
+- Make dataset preprocessing during training
 - Analyze trained model when controlling with JS
 - Compare trained model to dataset (visually in rviz)
 - Use various dataset techniques to improve training of correlated data

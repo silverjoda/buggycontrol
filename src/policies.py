@@ -30,7 +30,7 @@ class MLP(nn.Module):
 
     def forward(self, x):
         fc1 = T.tanh(self.fc1(x))
-        fc2 = T.tanh(self.fc2(fc1)) * 1
+        fc2 = T.tanh(self.fc2(fc1))
         out = self.fc3(fc2)
         return out
 

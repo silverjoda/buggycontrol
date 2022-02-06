@@ -1,0 +1,6 @@
+<launch>
+  <include file="$(find buggycontrol)/launch/statictfs.launch"/>
+  <node name="joyNode" pkg="joy" type="joy_node" output="screen" />
+  <node name="joyconverterNode" pkg="buggycontrol" type="joyconverter.py" output="screen" />
+  <node pkg="buggycontrol" type="buggy_model_tester.py" name="buggy_model_tester" output="screen"/>
+</launch>
