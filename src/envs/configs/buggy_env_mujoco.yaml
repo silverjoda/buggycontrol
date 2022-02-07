@@ -1,4 +1,4 @@
 "rate" : 100
 "render" : True
 "n_substeps" : 10
-"n_trajectory_pts" : 15
+"n_traj_pts" : 15
