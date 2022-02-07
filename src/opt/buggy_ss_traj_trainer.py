@@ -133,7 +133,6 @@ class BuggySSTrajectoryTrainer:
             os.makedirs("agents")
         T.save(policy.state_dict(), "agents/buggy_imitator.p")
 
-
     def visualize_imitator(self):
         pass
 

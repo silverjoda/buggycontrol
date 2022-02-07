@@ -6,7 +6,7 @@ import mujoco_py
 import numpy as np
 import yaml
 from gym import spaces
-
+from xml_gen import *
 
 class BuggyEnv(gym.Env):
     metadata = {
@@ -16,8 +16,11 @@ class BuggyEnv(gym.Env):
 
     def __init__(self):
         self.config = self.load_config()
-        self.xml_template_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/one_car.xml")
-        self.xml_rnd_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/rnd_car.xml")
+        self.buddy_template_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/cars/base_car/buddy.xml")
+        self.buddy_rnd_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/cars/base_car/buddy_rnd.xml")
+
+        self.car_template_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/one_car.xml")
+        self.car_rnd_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/one_car_rnd.xml")
 
         self.sim = self.load_random_env()
         self.bodyid = self.model.body_name2id('buddy')
@@ -36,14 +39,29 @@ class BuggyEnv(gym.Env):
         return config
 
     def load_random_env(self):
-        self.model = mujoco_py.load_model_from_path(self.xml_template_path)
+        self.random_params = [0,0,0,0]
+
+        buddy_xml = gen_buddy_xml(self.random_params)
+        with open(self.buddy_rnd_path, "w") as out_file:
+            for s in buddy_xml.splitlines():
+                out_file.write(s)
+
+        car_xml = gen_car_xml(self.random_params)
+        with open(self.car_rnd_path, "w") as out_file:
+            for s in car_xml.splitlines():
+                out_file.write(s)
+
+        self.model = mujoco_py.load_model_from_path(self.car_template_path)
         return mujoco_py.MjSim(self.model, nsubsteps=self.config['n_substeps'])
 
     def get_env_obs(self):
-        pass
+        pos = self.sim.data.body_xpos[self.bodyid].copy()
+        ori = self.sim.data.body_xquat[self.bodyid].copy()
+        vel = self.sim.data.body_xvelp[self.bodyid].copy()
+        return None
 
     def get_reward(self):
-        pass
+        return 0
 
     def step(self, action):
         # Step simulation
