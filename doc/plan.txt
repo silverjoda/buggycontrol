@@ -1,9 +1,14 @@
 Plan:
-- Fix dataset creator which just saves basic obs/labels
-- Make dataset preprocessing during training
-- Analyze trained model when controlling with JS
-- Compare trained model to dataset (visually in rviz)
-- Use various dataset techniques to improve training of correlated data
+
+Monday:
+- Make buggy env with randomization and trajectory generation/
+- Make training script for self-supervised trajectory learning and time predictor
+- Properly mount RSt265 on buggy
+
+Tuesday:
+- Gather large dataset for model learning
+- Make script for maximizing target vels by optimizing ETP
+- Make script for changing trajectory by optimizing ETP
 
 - Learn to imitate random sequences with max noise frequency component of 10hz (90th percentile) in Mujoco
     . Dont forget rear wheel and steering state observers
