@@ -1,27 +1,23 @@
-import mujoco_py
 import os
-import time
+import pickle
+
 import numpy as np
-from multiprocessing import Lock
-import yaml
+import torch as T
+
 from simplex_noise import SimplexNoise
 from src.envs.buggy_env_mujoco import BuggyEnv
-import pickle
-import torch as T
-from src.policies import MLP
+from src.policies import MLP, RNN
+from src.utils import load_config
+
 
 class BuggySSTrajectoryTrainer:
     def __init__(self):
-        self.config = self.load_config()
+        self.config = load_config(os.path.join(os.path.dirname(__file__), "configs/buggy_ss_traj_trainer.yaml"))
         self.noise = SimplexNoise(dim=2, smoothness=100, multiplier=2)
 
         self.x_file_path = os.path.join(os.path.dirname(__file__), "X.pkl")
         self.y_file_path = os.path.join(os.path.dirname(__file__), "Y.pkl")
-
-    def load_config(self):
-        with open(os.path.join(os.path.dirname(__file__), "configs/buggy_ss_traj_trainer.yaml"), 'r') as f:
-            config = yaml.load(f, Loader=yaml.FullLoader)
-        return config
+        self.p_file_path = os.path.join(os.path.dirname(__file__), "P.pkl")
 
     def generate_random_action_vec(self):
         # noise -1,1
@@ -121,7 +117,7 @@ class BuggySSTrajectoryTrainer:
             rnd_indeces = np.random.choice(np.arange(len(X)), self.config["batchsize"], replace=False)
             x = X[rnd_indeces]
             y = Y[rnd_indeces]
-            y_ = self.policy(x)
+            y_ = policy(x)
             loss = lossfun(y_, y)
             loss.backward()
             optim.step()
@@ -132,6 +128,54 @@ class BuggySSTrajectoryTrainer:
         if not os.path.exists("agents"):
             os.makedirs("agents")
         T.save(policy.state_dict(), "agents/buggy_imitator.p")
+
+    def train_imitator_with_param_estimator_on_dataset(self):
+        # Load dataset
+        X = pickle.load(open(self.x_file_path, "rb"))
+        Y = pickle.load(open(self.y_file_path, "rb"))
+        P = pickle.load(open(self.p_file_path, "rb"))
+
+        # Prepare policy and training
+        policy = MLP(obs_dim=X.shape[1] + self.config["n_latent_params"], act_dim=2)
+        policy_optim = T.optim.Adam(params=policy.parameters(), lr=self.config['policy_lr'], weight_decay=self.config['w_decay'])
+
+        param_estimator = RNN(obs_dim=X.shape[1], act_dim=self.config["n_latent_params"], hid_dim=64)
+        estimator_optim = T.optim.Adam(params=param_estimator.parameters(), lr=self.config['param_estimator_lr'],
+                                    weight_decay=self.config['w_decay'])
+        lossfun = T.nn.MSELoss()
+
+        for i in range(self.config["trn_iters"]):
+            rnd_start_idx = np.random.randint(low=0, high=len(X) - self.config["batchsize"] - 1)
+            x = X[rnd_start_idx:rnd_start_idx+self.config["batchsize"]]
+            y = Y[rnd_start_idx:rnd_start_idx+self.config["batchsize"]]
+            p = P[rnd_start_idx:rnd_start_idx+self.config["batchsize"]]
+
+            x_T = T.tensor(x)
+            y_T = T.tensor(y)
+            p_T = T.tensor(p)
+
+            p_ = param_estimator(x)
+            param_est_loss = lossfun(p_, p)
+
+            y_ = policy(T.concat([x_T, p_T], dim=1))
+            policy_loss = lossfun(y_, y)
+
+            total_loss = policy_loss + param_est_loss
+            total_loss.backward()
+
+            if i % self.config["recurrent_batchsize"] == 0:
+                policy_optim.step()
+                estimator_optim.step()
+                policy_optim.zero_grad()
+                estimator_optim.zero_grad()
+
+            if i % 50 == 0:
+                print("Iter {}/{}, loss: {}".format(i, self.config['iters'], loss.data))
+        print("Done training, saving model")
+        if not os.path.exists("agents"):
+            os.makedirs("agents")
+        T.save(policy.state_dict(), "agents/buggy_imitator.p")
+        T.save(param_estimator.state_dict(), "agents/buggy_latent_param_estimator.p")
 
     def visualize_imitator(self):
         pass

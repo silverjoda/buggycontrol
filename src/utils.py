@@ -102,3 +102,8 @@ def loaddefaultconfig():
     """
     path = "{}/configs/default.yaml".format(os.path.dirname(__file__))
     return loadconfig(path=path)
+
+def load_config(path):
+    with open(path, 'r') as f:
+        config = yaml.load(f, Loader=yaml.FullLoader)
+    return config

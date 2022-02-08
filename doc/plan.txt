@@ -1,19 +1,18 @@
 Plan:
 
-Monday:
-- Make buggy env with randomization and trajectory generation/
-- Make training script for self-supervised trajectory learning and time predictor
-- Properly mount RSt265 on buggy
-
 Tuesday:
-- Gather large dataset for model learning
-- Make script for maximizing target vels by optimizing ETP
-- Make script for changing trajectory by optimizing ETP
+- Add possibility of including learned engine into mujoco env
+- Experiment with using imit. trajectories in stable baselines rl
+- Make new rs holder with straight and angled variant
 
-- Learn to imitate random sequences with max noise frequency component of 10hz (90th percentile) in Mujoco
-    . Dont forget rear wheel and steering state observers
-    . Experiment with regularly sampled and distance sampled waypoints
-    . Experiment with various NN architectures for imitation
+Wednesday:
+- Put rs holder to print
+- Mount T265
+- Gather large dataset for model learning
+- Train model
+- Train the rest
+- Make new meat grinder ring which is taller
+
 - See if feature processor (at least of given trajectory) from imitator can be used for RL,
 compare RL performance with imitation. Is imitated agent (self supervised viable for this job).
 - Learn NN odometry from data (predict lin. acc and ang. vel)

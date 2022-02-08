@@ -1,0 +1,6 @@
+"opt_window_stride" : 70
+"opt_iters" : 1
+"state_dim" : 5
+"n_traj_pts" : 15
+"thr_in_traj" : True
+"traj_grad_update_rate" : 0.1

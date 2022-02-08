@@ -34,3 +34,20 @@ class MLP(nn.Module):
         out = self.fc3(fc2)
         return out
 
+
+class RNN(nn.Module):
+    def __init__(self, obs_dim, act_dim, hid_dim=64):
+        super(RNN, self).__init__()
+        self.obs_dim = obs_dim
+        self.act_dim = act_dim
+        self.hid_dim = hid_dim
+
+        self.fc1 = T.nn.Linear(self.obs_dim, self.hid_dim, bias=True)
+        self.rnn_1 = T.nn.LSTM(self.obs_dim, self.hid_dim, self.hid_dim)
+        self.fc3 = T.nn.Linear(self.hid_dim, self.act_dim, bias=True)
+
+    def forward(self, x):
+        fc1 = T.tanh(self.fc1(x))
+        rnn_1 = self.rnn_1(fc1, None)
+        fc2 = self.fc2(rnn_1)
+        return fc2
