@@ -7,6 +7,8 @@ import numpy as np
 import yaml
 from gym import spaces
 from xml_gen import *
+from src.policies import MLP
+import torch as T
 
 class BuggyEnv(gym.Env):
     metadata = {
@@ -27,8 +29,12 @@ class BuggyEnv(gym.Env):
         self.viewer = mujoco_py.MjViewerBasic(self.sim) if self.config["render"] else None
 
         self.n_trajectory_pts = 15
-        self.obs_dim = 5 + self.config["n_trajectory_pts"] * 3
+        self.obs_dim = self.config["state_dim"] + self.config["n_trajectory_pts"] * 3 + self.config["allow_latent_input"] * self.config["latent_dim"] + self.config["allow_lte"]
         self.act_dim = 2
+
+        if self.config["allow_lte"]:
+            self.lte = MLP(obs_dim=self.config["state_dim"] + 2, act_dim=self.config["state_dim"])
+            self.lte.load_state_dict(T.load("opt/agents/buggy_lte.p"), strict=False)
 
         self.observation_space = spaces.Box(low=-5, high=5, shape=(self.obs_dim,), dtype=np.float32)
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(self.act_dim,), dtype=np.float32)
@@ -39,20 +45,26 @@ class BuggyEnv(gym.Env):
         return config
 
     def load_random_env(self):
-        self.random_params = [0,0,0,0]
+        self.random_params = np.random.randn(5)
+        if self.config["allow_lte"]:
+            self.random_params = np.concatenate([self.random_params, np.array([-1])])
+            if np.random.rand() < self.config["lte_prob"]:
+                self.random_params = [0,0,0,0,0,1.]
+            sim = None
+        else:
+            buddy_xml = gen_buddy_xml(self.random_params)
+            with open(self.buddy_rnd_path, "w") as out_file:
+                for s in buddy_xml.splitlines():
+                    out_file.write(s)
 
-        buddy_xml = gen_buddy_xml(self.random_params)
-        with open(self.buddy_rnd_path, "w") as out_file:
-            for s in buddy_xml.splitlines():
-                out_file.write(s)
+            car_xml = gen_car_xml(self.random_params)
+            with open(self.car_rnd_path, "w") as out_file:
+                for s in car_xml.splitlines():
+                    out_file.write(s)
 
-        car_xml = gen_car_xml(self.random_params)
-        with open(self.car_rnd_path, "w") as out_file:
-            for s in car_xml.splitlines():
-                out_file.write(s)
-
-        self.model = mujoco_py.load_model_from_path(self.car_template_path)
-        return mujoco_py.MjSim(self.model, nsubsteps=self.config['n_substeps'])
+            model = mujoco_py.load_model_from_path(self.car_template_path)
+            sim = mujoco_py.MjSim(model, nsubsteps=self.config['n_substeps'])
+        return sim
 
     def get_env_obs(self):
         pos = self.sim.data.body_xpos[self.bodyid].copy()
