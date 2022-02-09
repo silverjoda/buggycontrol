@@ -7,8 +7,11 @@ import numpy as np
 import yaml
 from gym import spaces
 from xml_gen import *
-from src.policies import MLP
+from src.policies import LTE
 import torch as T
+from src.utils import load_config
+from engines import *
+from simplex_noise import SimplexNoise
 
 class BuggyEnv(gym.Env):
     metadata = {
@@ -17,32 +20,24 @@ class BuggyEnv(gym.Env):
     }
 
     def __init__(self):
-        self.config = self.load_config()
+        self.config = load_config(os.path.join(os.path.dirname(__file__), "configs/buggy_env_mujoco.yaml"))
         self.buddy_template_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/cars/base_car/buddy.xml")
         self.buddy_rnd_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/cars/base_car/buddy_rnd.xml")
 
         self.car_template_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/one_car.xml")
         self.car_rnd_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/one_car_rnd.xml")
 
-        self.sim = self.load_random_env()
-        self.bodyid = self.model.body_name2id('buddy')
-        self.viewer = mujoco_py.MjViewerBasic(self.sim) if self.config["render"] else None
+        self.sim, self.engine = self.load_random_env()
 
-        self.n_trajectory_pts = 15
         self.obs_dim = self.config["state_dim"] + self.config["n_trajectory_pts"] * 3 + self.config["allow_latent_input"] * self.config["latent_dim"] + self.config["allow_lte"]
         self.act_dim = 2
 
         if self.config["allow_lte"]:
-            self.lte = MLP(obs_dim=self.config["state_dim"] + 2, act_dim=self.config["state_dim"])
+            self.lte = LTE(obs_dim=self.config["state_dim"] + 2, act_dim=self.config["state_dim"])
             self.lte.load_state_dict(T.load("opt/agents/buggy_lte.p"), strict=False)
 
         self.observation_space = spaces.Box(low=-5, high=5, shape=(self.obs_dim,), dtype=np.float32)
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(self.act_dim,), dtype=np.float32)
-
-    def load_config(self):
-        with open(os.path.join(os.path.dirname(__file__), "configs/buggy_env_mujoco.yaml"), 'r') as f:
-            config = yaml.load(f, Loader=yaml.FullLoader)
-        return config
 
     def load_random_env(self):
         self.random_params = np.random.randn(5)
@@ -50,7 +45,9 @@ class BuggyEnv(gym.Env):
             self.random_params = np.concatenate([self.random_params, np.array([-1])])
             if np.random.rand() < self.config["lte_prob"]:
                 self.random_params = [0,0,0,0,0,1.]
-            sim = None
+            model = mujoco_py.load_model_from_path(self.car_template_path)
+            sim = mujoco_py.MjSim(model, nsubsteps=self.config['n_substeps'])
+            engine = LTEEngine(sim, self.lte)
         else:
             buddy_xml = gen_buddy_xml(self.random_params)
             with open(self.buddy_rnd_path, "w") as out_file:
@@ -61,56 +58,66 @@ class BuggyEnv(gym.Env):
             with open(self.car_rnd_path, "w") as out_file:
                 for s in car_xml.splitlines():
                     out_file.write(s)
-
             model = mujoco_py.load_model_from_path(self.car_template_path)
             sim = mujoco_py.MjSim(model, nsubsteps=self.config['n_substeps'])
-        return sim
+            engine = MujocoEngine(sim)
 
-    def get_env_obs(self):
-        pos = self.sim.data.body_xpos[self.bodyid].copy()
-        ori = self.sim.data.body_xquat[self.bodyid].copy()
-        vel = self.sim.data.body_xvelp[self.bodyid].copy()
-        return None
+        return sim, engine
 
-    def get_reward(self):
+    def get_obs_dict(self):
+        return self.engine.get_obs_dict()
+
+    def get_state_vec(self):
+        return self.engine.get_state_vec()
+
+    def get_reward(self, obs_dict):
         return 0
 
     def step(self, action):
-        # Step simulation
-        self.sim.data.ctrl[:] = action
-        self.sim.forward()
-        self.sim.step()
+        self.engine.step(action)
 
         # Get new observation
-        obs = self.get_env_obs()
+        obs_dict = self.engine.get_obs_dict()
+        state_vec = self.engine.get_state_vec()
+        complete_obs_vec = self.engine.get_complete_obs_vec()
 
         # calculate reward
-        r = self.get_reward()
+        r = self.get_reward(obs_dict)
 
         # Calculate termination
         done = False
 
-        return obs, r, done, {}
+        return complete_obs_vec, r, done, {}
 
     def reset(self):
         # Reset simulation
-        self.sim.reset()
+        self.engine.reset()
 
         # Reset environment variables
-        return self.get_env_obs()
+        return self.engine.get_complete_obs_vec()
 
     def render(self, mode=None):
-        if self.viewer:
-            self.viewer.render()
+        self.engine.render()
+
+    def generate_random_traj(self, n_pts):
+        self.noise = SimplexNoise(dim=2, smoothness=100, multiplier=0.1)
+        self.traj_pts = []
+        current_xy = np.zeros(2)
+
+        # Generate fine grained trajectory
+        for i in range(1000):
+            current_xy += self.noise()
+            self.traj_pts.append(current_xy)
+
+        # Sample equidistant points
+
 
     def demo(self):
         while True:
-            self.sim.forward()
-            self.sim.step()
+            self.engine.step([0,0])
             if self.config["render"]:
-                self.render()
+                self.engine.render()
             time.sleep(1. / self.config["rate"])
-
 
 if __name__ == "__main__":
     be = BuggyEnv()

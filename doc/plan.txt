@@ -6,8 +6,9 @@ Tuesday:
 - Make new rs holder with straight and angled variant
 
 Wednesday:
-- Put rs holder to print
-- Mount T265
+- Make buggy env RL-ready (rew, traj gen, etc)
+- Make buggy RL raining script
+- Debug and test buggy env imitation learning
 - Gather large dataset for model learning
 - Train model
 - Train the rest

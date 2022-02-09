@@ -9,7 +9,6 @@ from src.envs.buggy_env_mujoco import BuggyEnv
 from src.policies import MLP, RNN
 from src.utils import load_config
 
-
 class BuggySSTrajectoryTrainer:
     def __init__(self):
         self.config = load_config(os.path.join(os.path.dirname(__file__), "configs/buggy_ss_traj_trainer.yaml"))
