@@ -1,4 +1,3 @@
-import argparse
 import os
 import random
 import time
@@ -7,27 +6,21 @@ from pprint import pprint
 import torch as T
 import yaml
 from stable_baselines3 import A2C
-from stable_baselines3.common.callbacks import CheckpointCallback, CallbackList, EvalCallback
+from stable_baselines3.common.callbacks import CheckpointCallback, CallbackList
 from stable_baselines3.common.vec_env import VecNormalize, SubprocVecEnv, DummyVecEnv, VecMonitor
 
-from src.envs import marv_rocket_env_mujoco, marv_rocket_env_mujoco_exp
-from src.utilities import utilities
+from src.envs import buggy_env_mujoco
+from src.utils import merge_dicts
 
-import tkinter as tk
-from tkinter import ttk
-from threading import Thread
 
-class SBMarvRocketTrainer:
+class BuggyTrajFollowerTrainer:
     def __init__(self):
+
         self.config = self.read_configs()
-        self.env_fun = marv_rocket_env_mujoco.MARVRocketBalMujocoEnv
-        self.env = self.env_fun(self.config)
+        self.env_fun = buggy_env_mujoco.BuggyEnv
         self.N_cores = 6
 
-        self.model, self.checkpoint_callback, self.stats_path = self.setup_train()
-
-        #thread = Thread(target=self.make_control_widget)
-        #thread.start()
+        self.env, self.model, self.checkpoint_callback, self.stats_path = self.setup_train()
 
         if self.config["train"]:
             t1 = time.time()
@@ -54,70 +47,13 @@ class SBMarvRocketTrainer:
             total_rew = self.test_agent(deterministic=True, N=N_test)
             print(f"Total test rew: {total_rew / N_test}")
 
-    def make_control_widget(self):
-        # root window
-        root = tk.Tk()
-        root.geometry('200x80')
-        root.resizable(False, False)
-        root.title('Slider Demo')
-
-        root.columnconfigure(0, weight=1)
-        root.columnconfigure(1, weight=3)
-
-        # slider current value
-        current_value = tk.DoubleVar()
-
-        def get_current_value():
-            return '{: .2f}'.format(current_value.get())
-
-        def slider_changed(event):
-            value_label.configure(text=get_current_value())
-            self.env.unwrapped.envs[0].param_target = float(get_current_value())
-
-        # label for the slider
-        slider_label = ttk.Label(root, text='Slider:')
-        slider_label.grid(column=0, row=0, sticky='w')
-
-        #  slider
-        slider = ttk.Scale(root, from_=-1, to=1, orient='horizontal', command=slider_changed, variable=current_value)
-
-        slider.grid(column=1, row=0, sticky='we')
-
-        # current value label
-        current_value_label = ttk.Label(root, text='Current Value:')
-
-        current_value_label.grid(row=1, columnspan=2, sticky='n', ipadx=10, ipady=10)
-
-        # value label
-        value_label = ttk.Label(root, text=get_current_value())
-        value_label.grid(row=2, columnspan=2, sticky='n')
-
-        root.mainloop()
-
-    def parse_args(self):
-        parser = argparse.ArgumentParser(description='Pass in parameters. ')
-        parser.add_argument('--train', action='store_true', required=False,
-                            help='Flag indicating whether the training process is to be run. ')
-        parser.add_argument('--test', action='store_true', required=False,
-                            help='Flag indicating whether the testing process is to be run. ')
-        parser.add_argument('--animate', action='store_true', required=False,
-                            help='Flag indicating whether the environment will be rendered. ')
-        parser.add_argument('--test_agent_path', type=str, default=".", required=False,
-                            help='Path of test agent. ')
-        parser.add_argument('--iters', type=int, required=False, default=1000000, help='Number of training steps. ')
-
-        args = parser.parse_args()
-        return args.__dict__
-
     def read_configs(self):
-        with open(os.path.join(os.path.dirname(__file__), "configs/train_marv_rocket_config.yaml"), 'r') as f:
-            train_config = yaml.load(f, Loader=yaml.FullLoader)
-        with open(os.path.join(os.path.dirname(__file__), "configs/a2c_default_config.yaml"), 'r') as f:
+        with open(os.path.join(os.path.dirname(__file__), "configs/train_buggy_a2c.yaml"), 'r') as f:
             algo_config = yaml.load(f, Loader=yaml.FullLoader)
-        with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/marv_rocket_mujoco_config.yaml"), 'r') as f:
+        with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_env_mujoco.yaml"), 'r') as f:
             env_config = yaml.load(f, Loader=yaml.FullLoader)
 
-        config = utilities.merge_dicts([algo_config, train_config, env_config])
+        config = merge_dicts([algo_config, env_config])
         return config
 
     def setup_train(self, setup_dirs=True):
@@ -133,7 +69,7 @@ class SBMarvRocketTrainer:
         else:
             self.config["session_ID"] = self.config["default_session_ID"]
 
-        #vec_env = DummyVecEnv(env_fns=[lambda : marv_rocket_bal_env_mujoco.MARVRocketBalMujocoEnv(self.config)] * self.N_cores)
+        #vec_env = DummyVecEnv(env_fns=[lambda : elf.env_fun(self.config)] * self.N_cores)
         vec_env = SubprocVecEnv(env_fns=[lambda : self.env_fun(self.config) for _ in range(self.N_cores)] , start_method="fork")
         monitor_env = VecMonitor(vec_env)
         normed_env = VecNormalize(venv=monitor_env, training=True, norm_obs=True, norm_reward=True)
@@ -143,27 +79,21 @@ class SBMarvRocketTrainer:
                                                  save_path='agents_cp/',
                                                  name_prefix=self.config["session_ID"], verbose=1)
 
-        # eval_callback = EvalCallback(normed_env, best_model_save_path='logs/',
-        #                              log_path='logs/', eval_freq=10000, n_eval_episodes=1,
-        #                              deterministic=False, render=True)
-
-        self.env = normed_env
-
         model = A2C(policy=self.config["policy_name"],
-                    env=self.env,
+                    env=normed_env,
                     gamma=self.config["gamma"],
                     n_steps=self.config["n_steps"],
                     vf_coef=self.config["vf_coef"],
                     ent_coef=self.config["ent_coef"],
                     max_grad_norm=self.config["max_grad_norm"],
-                    learning_rate= self.config["learning_rate"], # lambda x : x * self.config["learning_rate"] # doesn't work due to picking err when saving model,
+                    learning_rate= self.config["learning_rate"],
                     verbose=self.config["verbose"],
                     device="cpu",
                     policy_kwargs=dict(net_arch=[self.config["policy_hid_dim"], self.config["policy_hid_dim"]]))
 
         callback_list = CallbackList([checkpoint_callback])
 
-        return model, callback_list, stats_path
+        return normed_env, model, callback_list, stats_path
 
     def test_agent(self, deterministic=True, N=100, print_rew=True, render=True):
         total_rew = 0
@@ -185,4 +115,4 @@ class SBMarvRocketTrainer:
         return total_rew
 
 if __name__ == "__main__":
-    trainer = SBMarvRocketTrainer()
+    trainer = BuggyTrajFollowerTrainer()

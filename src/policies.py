@@ -34,6 +34,27 @@ class MLP(nn.Module):
         out = self.fc3(fc2)
         return out
 
+class LTE(nn.Module):
+    def __init__(self, obs_dim, act_dim, hid_dim=128):
+        super(LTE, self).__init__()
+        self.obs_dim = obs_dim
+        self.act_dim = act_dim
+        self.hid_dim = hid_dim
+
+        self.fc1 = T.nn.Linear(self.obs_dim, self.hid_dim, bias=True)
+        self.fc2 = T.nn.Linear(self.hid_dim, self.hid_dim, bias=True)
+        self.fc3 = T.nn.Linear(self.hid_dim, self.act_dim, bias=True)
+
+    def forward(self, x):
+        fc1 = T.tanh(self.fc1(x))
+        fc2 = T.tanh(self.fc2(fc1))
+        out = self.fc3(fc2)
+        return out
+
+    def predict_next_vel(self, o):
+        o_T = T.tensor(o).unsqueeze(0)
+        y_T = self.forward(o_T)
+        return y_T.detach().numpy()[0]
 
 class RNN(nn.Module):
     def __init__(self, obs_dim, act_dim, hid_dim=64):

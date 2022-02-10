@@ -27,3 +27,14 @@ def load_config(path):
     with open(path, 'r') as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
     return config
+
+def merge_two_dicts(x, y):
+    z = x.copy()  # start with x's keys and values
+    z.update(y.copy())  # modifies z with y's keys and values & returns None
+    return z
+
+def merge_dicts(dicts):
+    d = dicts[0]
+    for i in range(1, len(dicts)):
+        d = merge_two_dicts(d, dicts[i])
+    return d

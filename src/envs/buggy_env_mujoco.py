@@ -11,7 +11,7 @@ from src.policies import LTE
 import torch as T
 from src.utils import load_config
 from engines import *
-from simplex_noise import SimplexNoise
+
 
 class BuggyEnv(gym.Env):
     metadata = {
@@ -19,8 +19,8 @@ class BuggyEnv(gym.Env):
         "video.frames_per_second": 100
     }
 
-    def __init__(self):
-        self.config = load_config(os.path.join(os.path.dirname(__file__), "configs/buggy_env_mujoco.yaml"))
+    def __init__(self, config):
+        self.config = config
         self.buddy_template_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/cars/base_car/buddy.xml")
         self.buddy_rnd_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/cars/base_car/buddy_rnd.xml")
 
@@ -29,14 +29,14 @@ class BuggyEnv(gym.Env):
 
         self.sim, self.engine = self.load_random_env()
 
-        self.obs_dim = self.config["state_dim"] + self.config["n_trajectory_pts"] * 3 + self.config["allow_latent_input"] * self.config["latent_dim"] + self.config["allow_lte"]
+        self.obs_dim = self.config["state_dim"] + self.config["n_trajectory_pts"] * 2 + self.config["allow_latent_input"] * self.config["latent_dim"] + self.config["allow_lte"]
         self.act_dim = 2
 
         if self.config["allow_lte"]:
-            self.lte = LTE(obs_dim=self.config["state_dim"] + 2, act_dim=self.config["state_dim"])
-            self.lte.load_state_dict(T.load("opt/agents/buggy_lte.p"), strict=False)
+            self.lte = LTE(obs_dim=self.config["state_dim"] + self.act_dim, act_dim=self.config["state_dim"])
+            self.lte.load_state_dict(T.load("agents/buggy_lte.p"), strict=False)
 
-        self.observation_space = spaces.Box(low=-5, high=5, shape=(self.obs_dim,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=-7, high=7, shape=(self.obs_dim,), dtype=np.float32)
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(self.act_dim,), dtype=np.float32)
 
     def load_random_env(self):
@@ -47,7 +47,7 @@ class BuggyEnv(gym.Env):
                 self.random_params = [0,0,0,0,0,1.]
             model = mujoco_py.load_model_from_path(self.car_template_path)
             sim = mujoco_py.MjSim(model, nsubsteps=self.config['n_substeps'])
-            engine = LTEEngine(sim, self.lte)
+            engine = LTEEngine(self.config, sim, self.lte)
         else:
             buddy_xml = gen_buddy_xml(self.random_params)
             with open(self.buddy_rnd_path, "w") as out_file:
@@ -60,7 +60,7 @@ class BuggyEnv(gym.Env):
                     out_file.write(s)
             model = mujoco_py.load_model_from_path(self.car_template_path)
             sim = mujoco_py.MjSim(model, nsubsteps=self.config['n_substeps'])
-            engine = MujocoEngine(sim)
+            engine = MujocoEngine(self.config, sim)
 
         return sim, engine
 
@@ -99,18 +99,6 @@ class BuggyEnv(gym.Env):
     def render(self, mode=None):
         self.engine.render()
 
-    def generate_random_traj(self, n_pts):
-        self.noise = SimplexNoise(dim=2, smoothness=100, multiplier=0.1)
-        self.traj_pts = []
-        current_xy = np.zeros(2)
-
-        # Generate fine grained trajectory
-        for i in range(1000):
-            current_xy += self.noise()
-            self.traj_pts.append(current_xy)
-
-        # Sample equidistant points
-
 
     def demo(self):
         while True:
@@ -120,5 +108,6 @@ class BuggyEnv(gym.Env):
             time.sleep(1. / self.config["rate"])
 
 if __name__ == "__main__":
-    be = BuggyEnv()
+    config = load_config(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_env_mujoco.yaml"))
+    be = BuggyEnv(config)
     be.demo()

@@ -1,6 +1,6 @@
 import pickle
 import os
-from policies import *
+from src.policies import *
 import numpy as np
 import torch as T
 
@@ -55,11 +55,10 @@ class ModelTrainer:
             if i % 50 == 0:
                 print("Iter {}/{}, loss: {}".format(i, self.config['iters'], loss.data))
         print("Done training, saving model")
-        T.save(self.policy.state_dict(), "../agents/buggy_transition_model.p")
+        T.save(self.policy.state_dict(), "agents/buggy_lte.p")
 
 if __name__=="__main__":
     import yaml
-
     with open(os.path.join(os.path.dirname(__file__), "../configs/train_buggy_model.yaml"), 'r') as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
 
