@@ -19,6 +19,8 @@ class Engine:
         self.set_wp_visuals()
 
     def step_trajectory(self, pos):
+        done = False
+        wp_visited = False
         # Check if wp is reached
         if self.dist_between_wps(pos, self.wp_list[self.cur_wp_idx]) < self.config["wp_reach_dist"]:
             self.cur_wp_idx += 1
@@ -27,10 +29,13 @@ class Engine:
             # Update wp visually in mujoco
             self.update_wp_visuals()
 
+            wp_visited = True
+
         # Return done=true if we are at end of trajectory
         if self.cur_wp_idx == (len(self.wp_list) - self.config["n_traj_pts"]):
-            return True
-        return False
+            done = True
+
+        return done, wp_visited
 
     @abstractmethod
     def step(self, action):
@@ -111,7 +116,7 @@ class MujocoEngine(Engine):
         self.mujoco_sim.forward()
         self.mujoco_sim.step()
 
-        self.step_trajectory(self.mujoco_sim.data.body_xpos[self.bodyid].copy()[0:2])
+        return self.step_trajectory(self.mujoco_sim.data.body_xpos[self.bodyid].copy()[0:2])
 
     def reset(self):
         self.mujoco_sim.reset()
@@ -155,7 +160,7 @@ class LTEEngine(Engine):
         self.xy_pos[1] += self.xy_vel[1] * self.dt
         self.theta += self.ang_vel_z * self.dt
 
-        self.step_trajectory(self.xy_pos)
+        return self.step_trajectory(self.xy_pos)
 
     def reset(self):
         self.reset_vars()

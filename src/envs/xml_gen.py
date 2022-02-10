@@ -1,4 +1,5 @@
 
+# 0: friction (0.4), 1: steering_range (0.38), 2: body mass (3.47), 3: kv (3000), 4: gear (0.003)
 def gen_buddy_xml(params):
     buddy_str = """<mujoco>
       <compiler meshdir="cars/meshes" />
@@ -19,7 +20,7 @@ def gen_buddy_xml(params):
           </default>
     
           <default class="buddy_steering">
-            <joint type="hinge" axis="0 0 1" limited="true" frictionloss="0.01" damping="0.001" armature="0.0002" range="-0.38 0.38"/>
+            <joint type="hinge" axis="0 0 1" limited="true" frictionloss="0.01" damping="0.001" armature="0.0002" range="-{} {}"/>
           </default>
     
           <default class="buddy_throttle">
@@ -39,7 +40,7 @@ def gen_buddy_xml(params):
           <camera name="buddy_realsense_d435i" mode="fixed" pos="-0.005 0 .165" euler="0 4.712 4.712"/>
           <site name="buddy_imu" pos="-0.005 0 .165"/>
     
-          <geom pos="0 0 0.094655" type="mesh" mass="3.542137" mesh="buddy_mushr_base_nano"/>
+          <geom pos="0 0 0.094655" type="mesh" mass="{}" mesh="buddy_mushr_base_nano"/>
           <geom name="buddy_realsense_d435i" size="0.012525 0.045 0.0125" pos="0.0123949 0 0.162178" mass="0.072" type="box"/>
           <geom name="buddy_ydlidar" pos="-0.035325 0 0.202405" type="mesh" mass="0.180" mesh="buddy_mushr_ydlidar"/>
     
@@ -100,7 +101,7 @@ def gen_buddy_xml(params):
         <gyro name="buddy_gyro" site="buddy_imu" />
         <velocimeter name="buddy_velocimeter" site="buddy_imu" />
       </sensor>
-    </mujoco>""".format(*params)
+    </mujoco>""".format(*params[:5])
 
 
 def gen_car_xml(params):
@@ -120,6 +121,6 @@ def gen_car_xml(params):
     <map znear="0.001" />
   </visual>
   <worldbody>
-    <geom contype="1" name="floor" friction="0.6 0.005 0.0001" pos="0 0 0" size="0 0 .25" type="plane" material="matplane" condim="3" solimp="0 0.95 0.001 0.5 2" solref="0.02 1" margin="0"/>
+    <geom contype="1" name="floor" friction="{} 0.005 0.0001" pos="0 0 0" size="0 0 .25" type="plane" material="matplane" condim="3" solimp="0 0.95 0.001 0.5 2" solref="0.02 1" margin="0"/>
   </worldbody>
-</mujoco> """.format(*params)
+</mujoco> """.format(params[0])

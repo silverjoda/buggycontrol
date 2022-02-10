@@ -12,7 +12,6 @@ import torch as T
 from src.utils import load_config
 from engines import *
 
-
 class BuggyEnv(gym.Env):
     metadata = {
         'render.modes': ['human'],
@@ -40,11 +39,16 @@ class BuggyEnv(gym.Env):
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(self.act_dim,), dtype=np.float32)
 
     def load_random_env(self):
-        self.random_params = np.random.randn(5)
+        # 0: friction (0.4), 1: steering_range (0.38), 2: body mass (3.47), 3: kv (3000), 4: gear (0.003)
+        random_param_scale_offset_list = [[0.15, 0.4],[0.1, 0.38], [1, 3.5],[1000, 3000], [0.001, 0.003]]
+        self.scaled_random_params = [np.clip(np.random.randn(), 1, 1) for i in range(len(random_param_scale_offset_list))]
+        self.sim_random_params = [np.clip(np.random.randn(), 1, 1) * rso[0] + rso[1] for rso in random_param_scale_offset_list]
+
         if self.config["allow_lte"]:
-            self.random_params = np.concatenate([self.random_params, np.array([-1])])
+            self.random_params = np.concatenate([self.sim_random_params, np.array([-1])])
             if np.random.rand() < self.config["lte_prob"]:
-                self.random_params = [0,0,0,0,0,1.]
+                self.scaled_random_params = [0,0,0,0,0,1.]
+                self.sim_random_params = [0,0,0,0,0,1.]
             model = mujoco_py.load_model_from_path(self.car_template_path)
             sim = mujoco_py.MjSim(model, nsubsteps=self.config['n_substeps'])
             engine = LTEEngine(self.config, sim, self.lte)
@@ -70,11 +74,20 @@ class BuggyEnv(gym.Env):
     def get_state_vec(self):
         return self.engine.get_state_vec()
 
-    def get_reward(self, obs_dict):
-        return 0
+    def get_complete_obs_vec(self):
+        return self.engine.get_complete_obs_vec()
+
+    def get_reward(self, obs_dict, wp_visited):
+        pos = obs_dict["pos"]
+        cur_wp = obs_dict["wp_list"][self.engine.cur_wp_idx]
+        dist_between_cur_wp = np.sqrt(np.square(pos[0] - cur_wp[0]) + np.square(pos[1] - cur_wp[1]))
+        r = wp_visited - dist_between_cur_wp * 0.1
+        return r
 
     def step(self, action):
-        self.engine.step(action)
+        self.step_ctr += 1
+
+        done, wp_visited = self.engine.step(action)
 
         # Get new observation
         obs_dict = self.engine.get_obs_dict()
@@ -82,14 +95,17 @@ class BuggyEnv(gym.Env):
         complete_obs_vec = self.engine.get_complete_obs_vec()
 
         # calculate reward
-        r = self.get_reward(obs_dict)
+        r = self.get_reward(obs_dict, wp_visited)
 
         # Calculate termination
-        done = False
+        done = done or self.step_ctr > self.config["max_steps"]
 
         return complete_obs_vec, r, done, {}
 
     def reset(self):
+        # Reset variables
+        self.step_ctr = 0
+
         # Reset simulation
         self.engine.reset()
 
@@ -98,7 +114,6 @@ class BuggyEnv(gym.Env):
 
     def render(self, mode=None):
         self.engine.render()
-
 
     def demo(self):
         while True:

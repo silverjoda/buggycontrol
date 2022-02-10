@@ -9,3 +9,4 @@
 "lte_prob" : 0.3
 "wp_sample_dist" : 0.15
 "wp_reach_dist" : 0.15
+"max_steps" : 700
