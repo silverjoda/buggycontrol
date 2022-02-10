@@ -5,6 +5,7 @@ import numpy as np
 import time
 from src.opt.simplex_noise import SimplexNoise
 from src.utils import load_config
+from copy import deepcopy
 
 class Engine:
     def __init__(self, config, mujoco_sim):
@@ -68,24 +69,38 @@ class Engine:
         return state + wps
 
     def generate_random_traj(self):
-        self.noise = SimplexNoise(dim=2, smoothness=100, multiplier=0.1)
+        self.noise = SimplexNoise(dim=1, smoothness=200, multiplier=1)
         traj_pts = []
         current_xy = np.zeros(2)
 
         # Generate fine grained trajectory
         for i in range(1000):
-            current_xy += self.noise()
-            traj_pts.append(current_xy)
+            noise = 5 * self.noise()[0]
+            current_xy += np.array([0.01 * np.cos(noise), 0.01 * np.sin(noise)])
+            traj_pts.append(deepcopy(current_xy))
 
         # Sample equidistant points
-        way_pts = []
+        wp_list = []
         current_wp = [0, 0]
         for t in traj_pts:
             if self.dist_between_wps(t, current_wp) > self.config["wp_sample_dist"]:
                 current_wp = t
-                way_pts.append(t)
+                wp_list.append(t)
 
-        return way_pts
+        # Debug plot
+        #self.plot_traj(traj_pts, wp_list)
+
+        return wp_list
+
+    def plot_traj(self, traj_pts, wp_list):
+        traj_pts_x = [x for x,_ in traj_pts]
+        traj_pts_y = [y for _, y in traj_pts]
+        wp_x = [x for x,_ in wp_list]
+        wp_y = [y for _, y in wp_list]
+        import matplotlib.pyplot as plt
+        plt.scatter(traj_pts_x, traj_pts_y)
+        plt.show()
+        exit()
 
     def dist_between_wps(self, wp_1, wp_2):
         return np.sqrt(np.square(wp_1[0] - wp_2[0]) + np.square(wp_1[1] - wp_2[1]))
@@ -95,15 +110,16 @@ class Engine:
             self.mujoco_sim.data.set_mocap_pos(f"waypoint{i}", np.hstack((self.wp_list[i], [0])))
 
     def update_wp_visuals(self):
-        self.mujoco_sim.data.set_mocap_pos(f"waypoint{self.cur_mujoco_wp_idx}", np.hstack((self.wp_list[self.cur_wp_idx + 1], [0])))
+        self.mujoco_sim.data.set_mocap_pos(f"waypoint{self.cur_mujoco_wp_idx - 1}", np.hstack((self.wp_list[self.cur_wp_idx + self.config["n_traj_pts"] - 1], [0])))
 
     def demo(self):
         self.reset()
         while True:
             self.step([0.1, 0.1])
             self.render()
-            print(self.get_obs_dict())
+            #print(self.get_obs_dict())
             time.sleep(0.01)
+            #print(self.cur_wp_idx, self.cur_mujoco_wp_idx)
 
 class MujocoEngine(Engine):
     def __init__(self, config, mujoco_sim):
@@ -150,7 +166,7 @@ class LTEEngine(Engine):
 
     def step(self, action):
         # Make observation for lte out of current vel and action
-        obs = *self.xy_vel, self.ang_vel_z[0], *action
+        obs = *self.xy_vel, self.ang_vel_z, *action
 
         # Update velocities
         *self.xy_vel, self.ang_vel_z = self.lte.predict_next_vel(obs)
@@ -192,8 +208,8 @@ class LTEEngine(Engine):
     def reset_vars(self):
         self.xy_pos = [0, 0]
         self.xy_vel = [0, 0]
-        self.theta = [0]
-        self.ang_vel_z = [0]
+        self.theta = 0
+        self.ang_vel_z = 0
 
     def get_obs_dict(self):
         pos = [*self.xy_pos, 0]

@@ -1,4 +1,4 @@
-from opensimplex import OpenSimplex
+import opensimplex
 import time
 import numpy as np
 
@@ -8,20 +8,20 @@ class SimplexNoise:
         self.dim = dim
         self.smoothness = smoothness
         self.multiplier = multiplier
-        self.noisefun = OpenSimplex(seed=int((time.time() % 1) * 10000000))
+        self.set_seed(int((time.time() % 1) * 10000000))
 
     def reset(self):
         self.idx = 0
 
     def set_seed(self, seed):
-        self.noisefun = OpenSimplex(seed=seed)
+        opensimplex.seed(seed)
 
     def gen_noise_seq(self, n=100):
         return np.array([self.__call__() for _ in range(n)])
 
     def __call__(self):
         self.idx += 1
-        noise = np.array([(self.noisefun.noise2d(x=self.idx / self.smoothness, y=i))
+        noise = np.array([(opensimplex.noise2(x=self.idx / self.smoothness, y=i))
                          for i in range(self.dim)], dtype=np.float64)
         return np.clip(noise * self.multiplier, -1, 1).astype(dtype=np.float64)
 
@@ -42,4 +42,4 @@ if __name__ == "__main__":
 
     noisegenerator = SimplexNoise(dim=1, smoothness=100, multiplier=2)
     noisevec = noisegenerator.gen_noise_seq(10)
-    #plotnoise()
+    plotnoise()

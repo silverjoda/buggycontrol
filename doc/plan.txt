@@ -2,7 +2,6 @@ Plan:
 
 Thurs:
 - Make buggy env RL-ready (rew, traj gen, etc)
-- Make buggy RL raining script
 - Debug and test buggy env imitation learning
 
 Friday:

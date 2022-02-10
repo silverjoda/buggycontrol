@@ -45,5 +45,20 @@
     <body name="waypoint9" pos="-10 0 0" mocap="true">
     <geom conaffinity="0" condim="3" size=".05" type="sphere" mass="1" rgba="1 0 0 1"/>
     </body>
+    <body name="waypoint10" pos="-10 0 0" mocap="true">
+    <geom conaffinity="0" condim="3" size=".05" type="sphere" mass="1" rgba="1 0 0 1"/>
+    </body>
+    <body name="waypoint11" pos="-10 0 0" mocap="true">
+    <geom conaffinity="0" condim="3" size=".05" type="sphere" mass="1" rgba="1 0 0 1"/>
+    </body>
+    <body name="waypoint12" pos="-10 0 0" mocap="true">
+    <geom conaffinity="0" condim="3" size=".05" type="sphere" mass="1" rgba="1 0 0 1"/>
+    </body>
+    <body name="waypoint13" pos="-10 0 0" mocap="true">
+    <geom conaffinity="0" condim="3" size=".05" type="sphere" mass="1" rgba="1 0 0 1"/>
+    </body>
+    <body name="waypoint14" pos="-10 0 0" mocap="true">
+    <geom conaffinity="0" condim="3" size=".05" type="sphere" mass="1" rgba="1 0 0 1"/>
+    </body>
   </worldbody>
 </mujoco> 

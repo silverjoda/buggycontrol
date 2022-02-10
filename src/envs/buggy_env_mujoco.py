@@ -23,7 +23,7 @@ class BuggyEnv(gym.Env):
 
         self.sim, self.engine = self.load_random_env()
 
-        self.obs_dim = self.config["state_dim"] + self.config["n_trajectory_pts"] * 2 + self.config["allow_latent_input"] * self.config["latent_dim"] + self.config["allow_lte"]
+        self.obs_dim = self.config["state_dim"] + self.config["n_traj_pts"] * 2 + self.config["allow_latent_input"] * self.config["latent_dim"] + self.config["allow_lte"]
         self.act_dim = 2
 
         if self.config["allow_lte"]:
@@ -93,7 +93,6 @@ class BuggyEnv(gym.Env):
 
         # Get new observation
         obs_dict = self.engine.get_obs_dict()
-        state_vec = self.engine.get_state_vec()
         complete_obs_vec = self.engine.get_complete_obs_vec()
 
         # calculate reward
@@ -118,11 +117,13 @@ class BuggyEnv(gym.Env):
         self.engine.render()
 
     def demo(self):
+        self.reset()
         while True:
-            self.engine.step([0,0])
+            _, r, _, _ = self.step([0.1,0.1])
             if self.config["render"]:
                 self.engine.render()
             time.sleep(1. / self.config["rate"])
+
 
 if __name__ == "__main__":
     config = load_config(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_env_mujoco.yaml"))
