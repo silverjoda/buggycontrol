@@ -1,10 +1,9 @@
 Plan:
 
-Thurs:
-- Make buggy env RL-ready (rew, traj gen, etc)
-- Debug and test buggy env imitation learning
 
 Friday:
+- Debug and visualize ss-traj training
+- Try RL on buggy env
 - Gather large dataset for model learning
 - Train model
 - Train the rest

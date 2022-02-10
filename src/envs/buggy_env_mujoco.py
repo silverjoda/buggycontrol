@@ -2,9 +2,9 @@ import gym
 import torch as T
 from gym import spaces
 
-from engines import *
+from src.envs.engines import *
 from src.policies import LTE
-from xml_gen import *
+from src.envs.xml_gen import *
 
 
 class BuggyEnv(gym.Env):

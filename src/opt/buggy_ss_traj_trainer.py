@@ -12,7 +12,7 @@ from src.utils import load_config
 class BuggySSTrajectoryTrainer:
     def __init__(self):
         self.config = load_config(os.path.join(os.path.dirname(__file__), "configs/buggy_ss_traj_trainer.yaml"))
-        self.noise = SimplexNoise(dim=2, smoothness=100, multiplier=2)
+        self.noise = SimplexNoise(dim=2, smoothness=150, multiplier=2)
 
         self.x_file_path = os.path.join(os.path.dirname(__file__), "X.pkl")
         self.y_file_path = os.path.join(os.path.dirname(__file__), "Y.pkl")
@@ -28,8 +28,10 @@ class BuggySSTrajectoryTrainer:
         return rnd_action_vec
 
     def gather_ss_dataset(self):
+        # TODO: continue here
         # Make buggy env
-        env = BuggyEnv()
+        config = load_config(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_env_mujoco.yaml"))
+        env = BuggyEnv(config)
 
         X = []
         Y = []
