@@ -109,7 +109,7 @@ def gen_car_xml(params):
   <compiler angle="radian" />
   <size njmax="500" nconmax="300"/>
   <option timestep="0.001" integrator="RK4" solver="Newton" o_solimp="0 0.95 0.001 0.5 2" o_solref="0.02 1" o_margin="0"/>
-  <include file="cars/base_car/buddy.xml"/>
+  <include file="cars/base_car/buddy_rnd.xml"/>
   <asset>
     <texture name="texplane" type="2d" builtin="checker" rgb1="0.26 0.12 0.36" rgb2="0.23 0.09 0.33" width="512" height="512" mark="cross" markrgb=".8 .8 .8"/>
     <texture name="texgeom" type="cube" builtin="flat" mark="cross" width="127" height="1278" rgb1="0.8 0.6 0.4" rgb2="0.8 0.6 0.4" markrgb="1 1 1" random="0.01"/>

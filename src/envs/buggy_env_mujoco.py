@@ -1,16 +1,11 @@
-import os
-import time
-
 import gym
-import mujoco_py
-import numpy as np
-import yaml
-from gym import spaces
-from xml_gen import *
-from src.policies import LTE
 import torch as T
-from src.utils import load_config
+from gym import spaces
+
 from engines import *
+from src.policies import LTE
+from xml_gen import *
+
 
 class BuggyEnv(gym.Env):
     metadata = {
@@ -41,28 +36,32 @@ class BuggyEnv(gym.Env):
     def load_random_env(self):
         # 0: friction (0.4), 1: steering_range (0.38), 2: body mass (3.47), 3: kv (3000), 4: gear (0.003)
         random_param_scale_offset_list = [[0.15, 0.4],[0.1, 0.38], [1, 3.5],[1000, 3000], [0.001, 0.003]]
-        self.scaled_random_params = [np.clip(np.random.randn(), 1, 1) for i in range(len(random_param_scale_offset_list))]
-        self.sim_random_params = [np.clip(np.random.randn(), 1, 1) * rso[0] + rso[1] for rso in random_param_scale_offset_list]
+        self.scaled_random_params = list(np.clip(np.random.randn(len(random_param_scale_offset_list)), -1, 1))
+        self.sim_random_params = [np.clip(np.random.randn(), -1, 1) * rso[0] + rso[1] for rso in random_param_scale_offset_list]
 
         if self.config["allow_lte"]:
             self.random_params = np.concatenate([self.sim_random_params, np.array([-1])])
-            if np.random.rand() < self.config["lte_prob"]:
-                self.scaled_random_params = [0,0,0,0,0,1.]
-                self.sim_random_params = [0,0,0,0,0,1.]
+
+        if self.config["allow_lte"] and np.random.rand() < self.config["lte_prob"]:
+            self.scaled_random_params = [0,0,0,0,0,1.]
+            self.sim_random_params = [0,0,0,0,0,1.]
             model = mujoco_py.load_model_from_path(self.car_template_path)
             sim = mujoco_py.MjSim(model, nsubsteps=self.config['n_substeps'])
             engine = LTEEngine(self.config, sim, self.lte)
         else:
-            buddy_xml = gen_buddy_xml(self.random_params)
-            with open(self.buddy_rnd_path, "w") as out_file:
-                for s in buddy_xml.splitlines():
-                    out_file.write(s)
-
-            car_xml = gen_car_xml(self.random_params)
-            with open(self.car_rnd_path, "w") as out_file:
-                for s in car_xml.splitlines():
-                    out_file.write(s)
-            model = mujoco_py.load_model_from_path(self.car_template_path)
+            if self.config["randomize_env"]:
+                buddy_xml = gen_buddy_xml(self.random_params)
+                with open(self.buddy_rnd_path, "w") as out_file:
+                    for s in buddy_xml.splitlines():
+                        out_file.write(s)
+                car_xml = gen_car_xml(self.random_params)
+                model = mujoco_py.load_model_from_xml(car_xml)
+                # with open(self.car_rnd_path, "w") as out_file:
+                #     for s in car_xml.splitlines():
+                #         out_file.write(s)
+                # model = mujoco_py.load_model_from_path(self.car_rnd_path)
+            else:
+                model = mujoco_py.load_model_from_path(self.car_template_path)
             sim = mujoco_py.MjSim(model, nsubsteps=self.config['n_substeps'])
             engine = MujocoEngine(self.config, sim)
 
@@ -75,7 +74,10 @@ class BuggyEnv(gym.Env):
         return self.engine.get_state_vec()
 
     def get_complete_obs_vec(self):
-        return self.engine.get_complete_obs_vec()
+        complete_obs_vec = self.engine.get_complete_obs_vec()
+        if self.config["allow_latent_input"]:
+            complete_obs_vec += self.scaled_random_params
+        return complete_obs_vec
 
     def get_reward(self, obs_dict, wp_visited):
         pos = obs_dict["pos"]

@@ -3,6 +3,7 @@
 "n_substeps" : 10
 "state_dim" : 3
 "n_traj_pts" : 15
+"randomize_env" : False
 "allow_latent_input" : False
 "latent_dim" : 5
 "allow_lte" : False
