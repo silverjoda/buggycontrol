@@ -6,6 +6,7 @@ import time
 from src.opt.simplex_noise import SimplexNoise
 from src.utils import load_config
 from copy import deepcopy
+import math as m
 
 class Engine:
     def __init__(self, config, mujoco_sim):
@@ -63,10 +64,26 @@ class Engine:
     def get_complete_obs_vec(self):
         state = self.get_state_vec()
         wps = self.wp_list[self.cur_wp_idx:self.cur_wp_idx + self.config["n_traj_pts"]]
+        wps_buggy_frame = self.transform_wp_to_buggy_frame(wps, self.get_obs_dict())
         wps_contiguous = []
-        for w in wps:
+        for w in wps_buggy_frame:
             wps_contiguous.extend(w)
         return state + wps_contiguous
+
+    def transform_wp_to_buggy_frame(self, wp_list, buggy_obs):
+        wp_arr = np.array(wp_list)
+        wp_arr_centered = wp_arr - np.array(buggy_obs["pos"][0:1])
+        buggy_q = buggy_obs["ori_q"]
+        _, _, theta = self.q2e(*buggy_q)
+        t_mat = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+        wp_buggy = np.matmul(t_mat, wp_arr_centered.T).T
+        return wp_buggy
+
+    def q2e(self, w, x, y, z):
+        pitch = -m.asin(2.0 * (x * z - w * y))
+        roll = m.atan2(2.0 * (w * x + y * z), w * w - x * x - y * y + z * z)
+        yaw = m.atan2(2.0 * (w * z + x * y), w * w + x * x - y * y - z * z)
+        return (roll, pitch, yaw)
 
     def generate_random_traj(self):
         self.noise = SimplexNoise(dim=1, smoothness=200, multiplier=1)

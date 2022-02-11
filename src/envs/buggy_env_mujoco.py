@@ -3,8 +3,8 @@ import torch as T
 from gym import spaces
 
 from src.envs.engines import *
-from src.policies import LTE
 from src.envs.xml_gen import *
+from src.policies import LTE
 
 
 class BuggyEnv(gym.Env):
@@ -118,12 +118,19 @@ class BuggyEnv(gym.Env):
         self.engine.render()
 
     def demo(self):
-        self.reset()
         while True:
-            _, r, _, _ = self.step([0.4,0.0]) # turn, throttle
-            if self.config["render"]:
-                self.engine.render()
-            time.sleep(1. / self.config["rate"])
+            self.reset()
+            cum_rew = 0
+            while True:
+                zero_act = [0.0, -1.0]
+                rnd_act = np.random.rand(2) * 2 - 1
+                _, r, done, _ = self.step(zero_act) # turn, throttle
+                cum_rew += r
+                if self.config["render"]:
+                    self.engine.render()
+                    time.sleep(1. / self.config["rate"])
+                if done: break
+            print("Cumulative rew: {}".format(cum_rew))
 
 if __name__ == "__main__":
     config = load_config(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_env_mujoco.yaml"))

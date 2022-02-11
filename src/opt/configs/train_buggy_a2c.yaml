@@ -1,5 +1,5 @@
 # Train config
-"train" : False
+"train" : True
 "render" : False
 "default_session_ID" : "TRN"
 "cma_std" : 0.3
