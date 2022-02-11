@@ -9,6 +9,7 @@ from src.envs.buggy_env_mujoco import BuggyEnv
 from src.policies import MLP, RNN
 from src.utils import load_config
 import math as m
+from imitation.data.types import Trajectory
 
 class BuggySSTrajectoryTrainer:
     def __init__(self):
@@ -22,6 +23,8 @@ class BuggySSTrajectoryTrainer:
         self.x_file_path = os.path.join(dir_path, "X.pkl")
         self.y_file_path = os.path.join(dir_path, "Y.pkl")
         self.p_file_path = os.path.join(dir_path, "P.pkl")
+
+        self.traj_file_path = os.path.join(dir_path, "traj.pkl")
 
     def generate_random_action_vec(self):
         # noise -1,1
@@ -72,6 +75,12 @@ class BuggySSTrajectoryTrainer:
         pickle.dump(X, open(self.x_file_path, "wb"))
         pickle.dump(Y, open(self.y_file_path, "wb"))
         pickle.dump(P, open(self.p_file_path, "wb"))
+
+        X = np.concatenate([X, X[-2:-1]], axis=0)
+        traj_list = []
+        traj = Trajectory(obs=X, acts=Y, infos=None, terminal=False)
+        traj_list.append(traj)
+        pickle.dump(traj_list, open(self.traj_file_path, "wb"))
 
     def make_trn_examples_from_traj(self, obs_list, act_list):
         X = []
@@ -198,5 +207,5 @@ class BuggySSTrajectoryTrainer:
 
 if __name__ == "__main__":
     bt = BuggySSTrajectoryTrainer()
-    #bt.gather_ss_dataset()
-    bt.train_imitator_on_dataset()
+    bt.gather_ss_dataset()
+    #bt.train_imitator_on_dataset()

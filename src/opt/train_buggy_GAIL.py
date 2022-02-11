@@ -12,6 +12,7 @@ from imitation.algorithms.adversarial import airl, gail
 from imitation.data import rollout
 from imitation.rewards import reward_nets
 from imitation.util import logger, util
+from imitation.data.types import Trajectory
 
 def load_transitions():
     # Load pickled test demonstrations.
@@ -88,6 +89,6 @@ if __name__=="__main__":
     tempdir_path = pathlib.Path(tempdir.name)
     print(f"All Tensorboards and logging are being written inside {tempdir_path}/.")
 
-    #train_bc(venv, transitions, tempdir_path)
-    train_airl(venv, transitions, tempdir_path)
+    train_bc(venv, transitions, tempdir_path)
+    #train_airl(venv, transitions, tempdir_path)
     #train_gail(venv, transitions, tempdir_path)
