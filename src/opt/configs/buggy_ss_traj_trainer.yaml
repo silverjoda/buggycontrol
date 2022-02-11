@@ -1,5 +1,5 @@
 "n_traj" : 10
-"traj_len" : 600
+"traj_len" : 1000
 "traj_sampling_dist" : 0.15
 "traj_jump_iters" : 100
 "traj_jump_dist" : 50
@@ -8,7 +8,7 @@
 "policy_lr" : 0.001
 "param_estimator_lr" : 0.003
 "w_decay" : 0.001
-"trn_iters" : 100
+"trn_iters" : 1000
 "batchsize" : 128
 "recurrent_batchsize" : 10
 "n_latent_params" : 5

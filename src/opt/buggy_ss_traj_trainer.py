@@ -65,9 +65,9 @@ class BuggySSTrajectoryTrainer:
             P.extend([env.scaled_random_params] * len(x))
 
         # Save as npy dataset
-        X = np.concatenate(X)
-        Y = np.concatenate(Y)
-        P = np.concatenate(P)
+        X = np.array(X)
+        Y = np.array(Y)
+        P = np.array(P)
 
         pickle.dump(X, open(self.x_file_path, "wb"))
         pickle.dump(Y, open(self.y_file_path, "wb"))
@@ -76,7 +76,7 @@ class BuggySSTrajectoryTrainer:
     def make_trn_examples_from_traj(self, obs_list, act_list):
         X = []
         Y = []
-        for current_state_idx in range(0, len(obs_list) - 200, self.config["traj_jump_dist"]):
+        for current_state_idx in range(0, len(obs_list) - 300, self.config["traj_jump_dist"]):
             rnd_offset = np.random.randint(1, 20)
 
             # Iterate over trajectory and append every *dist* points
@@ -95,8 +95,9 @@ class BuggySSTrajectoryTrainer:
                         obs_list[current_state_idx]["vel"][1],
                         obs_list[current_state_idx]["ang_vel"][2]]
 
-            X.append(state_vec + current_trajectory)
-            Y.append(act_list[current_state_idx])
+            if len(current_trajectory) == 2 * self.config["n_traj_pts"]:
+                X.append(state_vec + current_trajectory)
+                Y.append(act_list[current_state_idx])
 
         return X, Y
 
@@ -125,20 +126,20 @@ class BuggySSTrajectoryTrainer:
 
         # Prepare policy and training
         policy = MLP(obs_dim=X.shape[1], act_dim=2)
-        optim = T.optim.Adam(params=policy.parameters(), lr=self.config['lr'], weight_decay=self.config['w_decay'])
+        optim = T.optim.Adam(params=policy.parameters(), lr=self.config['policy_lr'], weight_decay=self.config['w_decay'])
         lossfun = T.nn.MSELoss()
 
         for i in range(self.config["trn_iters"]):
             rnd_indeces = np.random.choice(np.arange(len(X)), self.config["batchsize"], replace=False)
-            x = X[rnd_indeces]
-            y = Y[rnd_indeces]
+            x = T.tensor(X[rnd_indeces], dtype=T.float32)
+            y = T.tensor(Y[rnd_indeces], dtype=T.float32)
             y_ = policy(x)
             loss = lossfun(y_, y)
             loss.backward()
             optim.step()
             optim.zero_grad()
             if i % 50 == 0:
-                print("Iter {}/{}, loss: {}".format(i, self.config['iters'], loss.data))
+                print("Iter {}/{}, loss: {}".format(i, self.config['trn_iters'], loss.data))
         print("Done training, saving model")
         if not os.path.exists("agents"):
             os.makedirs("agents")
@@ -173,7 +174,7 @@ class BuggySSTrajectoryTrainer:
             param_est_loss = lossfun(p_, p)
 
             y_ = policy(T.concat([x_T, p_T], dim=1))
-            policy_loss = lossfun(y_, y)
+            policy_loss = lossfun(y_, y_T)
 
             total_loss = policy_loss + param_est_loss
             total_loss.backward()
@@ -185,7 +186,7 @@ class BuggySSTrajectoryTrainer:
                 estimator_optim.zero_grad()
 
             if i % 50 == 0:
-                print("Iter {}/{}, loss: {}".format(i, self.config['iters'], loss.data))
+                print("Iter {}/{}, policy_loss: {}, param_est_loss: {}".format(i, self.config['iters'], policy_loss.data, param_est_loss.data))
         print("Done training, saving model")
         if not os.path.exists("agents"):
             os.makedirs("agents")
@@ -197,4 +198,5 @@ class BuggySSTrajectoryTrainer:
 
 if __name__ == "__main__":
     bt = BuggySSTrajectoryTrainer()
-    bt.gather_ss_dataset()
+    #bt.gather_ss_dataset()
+    bt.train_imitator_on_dataset()
