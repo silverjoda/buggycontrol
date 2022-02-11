@@ -86,10 +86,11 @@ class BuggyEnv(gym.Env):
         r = wp_visited - dist_between_cur_wp * 0.1
         return r
 
-    def step(self, action):
+    def step(self, act):
         self.step_ctr += 1
 
-        done, wp_visited = self.engine.step(action)
+        scaled_act = [act[0], act[1] * 0.5 + 0.5]
+        done, wp_visited = self.engine.step(scaled_act)
 
         # Get new observation
         obs_dict = self.engine.get_obs_dict()
@@ -119,11 +120,10 @@ class BuggyEnv(gym.Env):
     def demo(self):
         self.reset()
         while True:
-            _, r, _, _ = self.step([0.1,0.1])
+            _, r, _, _ = self.step([0.4,0.0]) # turn, throttle
             if self.config["render"]:
                 self.engine.render()
             time.sleep(1. / self.config["rate"])
-
 
 if __name__ == "__main__":
     config = load_config(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_env_mujoco.yaml"))

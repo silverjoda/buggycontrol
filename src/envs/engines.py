@@ -66,7 +66,7 @@ class Engine:
         wps_contiguous = []
         for w in wps:
             wps_contiguous.extend(w)
-        return state + wps
+        return state + wps_contiguous
 
     def generate_random_traj(self):
         self.noise = SimplexNoise(dim=1, smoothness=200, multiplier=1)
@@ -152,7 +152,6 @@ class MujocoEngine(Engine):
         wps = self.wp_list[self.cur_wp_idx:self.cur_wp_idx + self.config["n_traj_pts"]]
         return {"pos" : pos, "ori_q" : ori_q, "ori_mat" : ori_mat, "vel" : vel, "ang_vel" : ang_vel, "wp_list" : wps}
 
-
 class LTEEngine(Engine):
     def __init__(self, config, mujoco_sim, lte):
         super().__init__(config, mujoco_sim)
@@ -217,7 +216,8 @@ class LTEEngine(Engine):
         ori_mat = np.eye(3)
         vel = [*self.xy_vel, 0]
         ang_vel = [0, 0, self.ang_vel_z]
-        return {"pos": pos, "ori_q": ori_q, "ori_mat": ori_mat, "vel": vel, "ang_vel": ang_vel}
+        wps = self.wp_list[self.cur_wp_idx:self.cur_wp_idx + self.config["n_traj_pts"]]
+        return {"pos": pos, "ori_q": ori_q, "ori_mat": ori_mat, "vel": vel, "ang_vel": ang_vel, "wp_list": wps}
 
 if __name__ == "__main__":
     car_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/one_car.xml")

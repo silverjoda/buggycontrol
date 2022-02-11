@@ -39,7 +39,6 @@ if __name__ == "__main__":
         plt.plot(np.arange(n), gen_noise(n=n)[:, ])
         plt.show()
 
-
     noisegenerator = SimplexNoise(dim=1, smoothness=100, multiplier=2)
     noisevec = noisegenerator.gen_noise_seq(10)
     plotnoise()

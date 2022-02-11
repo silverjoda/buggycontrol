@@ -3,6 +3,7 @@ Plan:
 
 Friday:
 - Debug and visualize ss-traj training
+- Add trajectory observation transformation to buggy frame!
 - Try RL on buggy env
 - Gather large dataset for model learning
 - Train model

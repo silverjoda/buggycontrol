@@ -1,7 +1,8 @@
 "n_traj" : 10
 "traj_len" : 600
-"traj_sampling_dist" : 0.1
+"traj_sampling_dist" : 0.15
 "traj_jump_iters" : 100
+"traj_jump_dist" : 50
 "n_traj_pts" : 15
 "add_action_to_traj" : False
 "policy_lr" : 0.001
