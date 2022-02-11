@@ -2,9 +2,6 @@ Plan:
 
 
 Friday:
-- Debug and visualize ss-traj training
-- Add trajectory observation transformation to buggy frame!
-- Try RL on buggy env
 - Gather large dataset for model learning
 - Train model
 - Train the rest
@@ -12,9 +9,4 @@ Friday:
 - Fit mujoco simulation to data
 
 
-- Make visual comparison of fitted Mujoco and learned data engine and ground truth
-- Compare policies learned on mujoco and learned engine on real platform
-- Can we use learned model to optimize a trajectory (with geometrical constraints) slightly for faster time?
-    . First try in simulation
-    . If works in simulation, obtain a hokuyo and try on real platform
 

@@ -83,8 +83,8 @@ class BuggyEnv(gym.Env):
         pos = obs_dict["pos"]
         cur_wp = obs_dict["wp_list"][self.engine.cur_wp_idx]
         dist_between_cur_wp = np.sqrt(np.square(pos[0] - cur_wp[0]) + np.square(pos[1] - cur_wp[1]))
-        r = wp_visited - dist_between_cur_wp * 0.1
-        return r
+        r = wp_visited - dist_between_cur_wp * 0.05
+        return r, dist_between_cur_wp
 
     def step(self, act):
         self.step_ctr += 1
@@ -97,10 +97,10 @@ class BuggyEnv(gym.Env):
         complete_obs_vec = self.engine.get_complete_obs_vec()
 
         # calculate reward
-        r = self.get_reward(obs_dict, wp_visited)
+        r, dist_to_cur_wp = self.get_reward(obs_dict, wp_visited)
 
         # Calculate termination
-        done = done or self.step_ctr > self.config["max_steps"]
+        done = done or dist_to_cur_wp > 1.0 or self.step_ctr > self.config["max_steps"]
 
         return complete_obs_vec, r, done, {}
 
