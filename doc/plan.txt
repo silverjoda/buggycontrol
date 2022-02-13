@@ -1,5 +1,6 @@
 Plan:
 
+- Write sequential model training (under models own distribution)
 - Throughly debug buggy model dataset creation
 - Train buggy model
 
