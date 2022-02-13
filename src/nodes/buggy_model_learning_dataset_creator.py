@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
+import os
 import pickle
 import time
 
 import numpy as np
 from buggycontrol.msg import Actions
 from nav_msgs.msg import Odometry
-
-from utils import *
+from src.utils import *
+from src.utils_ros import *
+import rospy
 
 class BagfileConverter:
     def __init__(self):
@@ -64,7 +66,7 @@ class BagfileConverter:
             #lin_vel_diff_x = (next_lin_vel.x - current_lin_vel.x) * time_correction_factor
             #lin_vel_diff_y = (next_lin_vel.y - current_lin_vel.y) * time_correction_factor
 
-            ang_vel_diff_z = (next_ang_vel.z - current_ang_vel.z) * time_correction_factor
+            #ang_vel_diff_z = (next_ang_vel.z - current_ang_vel.z) * time_correction_factor
 
             # Assemble observation and label
             x = np.array([current_act_msg.throttle,

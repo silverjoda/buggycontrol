@@ -1,12 +1,8 @@
 Plan:
 
+- Throughly debug buggy model dataset creation
+- Train buggy model
 
-Friday:
-- Gather large dataset for model learning
-- Train model
-- Train the rest
-- Make new meat grinder ring which is taller
-- Fit mujoco simulation to data
 
 
 

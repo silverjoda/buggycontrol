@@ -12,7 +12,7 @@ from nav_msgs.msg import Odometry
 import tf2_ros
 import os
 
-from policies import *
+from src.policies import *
 
 def rotate_vector_by_quat(v, q):
     qm = tf.transformations.quaternion_matrix([q.x, q.y, q.z, q.w])[:3, :3]
@@ -61,7 +61,7 @@ if __name__=="__main__":
                 turn = deepcopy(act_msg.turn)
 
         # Predict velocity update
-        policy_input = T.tensor([throttle, turn, buggy_lin_vel_x, buggy_lin_vel_y, buggy_ang_vel_z])
+        policy_input = T.tensor([throttle, turn, buggy_lin_vel_x, buggy_lin_vel_y, buggy_ang_vel_z], dtype=T.float32)
         with T.no_grad():
             pred_vel = policy(policy_input)
         x_vel, y_vel, z_ang_vel = pred_vel.numpy()

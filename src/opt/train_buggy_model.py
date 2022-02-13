@@ -59,7 +59,7 @@ class ModelTrainer:
 
 if __name__=="__main__":
     import yaml
-    with open(os.path.join(os.path.dirname(__file__), "../configs/train_buggy_model.yaml"), 'r') as f:
+    with open(os.path.join(os.path.dirname(__file__), "configs/train_buggy_model.yaml"), 'r') as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
 
     dataset = ModelDataset()
