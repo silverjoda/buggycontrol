@@ -1,10 +1,15 @@
 import os
-import yaml
-import rospy
-from geometry_msgs.msg import TransformStamped, Quaternion, Vector3
-import numpy as np
+import sys
 import threading
 from copy import deepcopy
+
+import numpy as np
+import rospy
+import tf
+import tf2_ros
+import yaml
+from geometry_msgs.msg import TransformStamped, Quaternion, Vector3
+
 
 def subscriber_factory(topic_name, topic_type):
     class RosSubscriber:
@@ -13,21 +18,29 @@ def subscriber_factory(topic_name, topic_type):
             self.lock = threading.Lock()
             self.cb = None
             self.msg = None
+            self.ctr = 0
         def get_msg(self, copy_msg=False):
             with self.lock:
                 if copy_msg:
                     return deepcopy(self.msg)
                 return self.msg
+        def get_ctr(self):
+            with self.lock:
+                return deepcopy(self.ctr)
 
     def msg_cb_wrapper(subscriber):
         def msg_cb(msg):
             with subscriber.lock:
                 subscriber.msg = msg
+                subscriber.ctr += 1
+                #if subscriber.ctr % 10 == 0 and subscriber.topic_name=="/camera/odom/sample":
+                #    print(msg)
+                #    print(subscriber.ctr)
         return msg_cb
     subscriber = RosSubscriber(topic_name)
     rospy.Subscriber(topic_name,
                      topic_type,
-                     msg_cb_wrapper(subscriber), queue_size=7)
+                     msg_cb_wrapper(subscriber), queue_size=1)
     return subscriber
 
 def vector3tonumpy(v):
@@ -37,14 +50,12 @@ def vector3tonumpy(v):
     """
     return np.array([v.x, v.y, v.z])
 
-
 def invquaterniontonumpy(q):
     """
     :param q: rotation as a ros quaternion
     :return: inversed quaternion x,y,z,-w as a numpy array
     """
     return np.array([q.x, q.y, q.z, -q.w])
-
 
 def quaterniontonumpy(q):
     """
@@ -83,6 +94,25 @@ def make_tf(frame, child, pos, q):
     t.transform.rotation.w = q[3]
     return t
 
+def get_static_tf(source_frame, target_frame):
+    tfBuffer = tf2_ros.Buffer()
+    tflistener = tf2_ros.TransformListener(tfBuffer)
+    while True:
+        try:
+            trans = tfBuffer.lookup_transform(target_frame,
+                                              source_frame,
+                                              rospy.Time(0),
+                                              rospy.Duration(0))
+            break
+        except (tf2_ros.LookupException, tf2_ros.ConnectivityException, tf2_ros.ExtrapolationException) as err:
+            rospy.logwarn_throttle(1, "ros_utils tf lookup could not lookup tf: {}".format(err))
+            continue
+    return trans
+
+def rotate_vector_by_quat(v, q):
+    qm = tf.transformations.quaternion_matrix([q.x, q.y, q.z, q.w])[:3, :3]
+    new_v = np.matmul(qm, np.array([v.x, v.y, v.z]))
+    return Vector3(x=new_v[0], y=new_v[1], z=new_v[2])
 
 def loadconfig(path):
     """
@@ -94,7 +124,6 @@ def loadconfig(path):
             return yaml.load(stream=f, Loader=yaml.FullLoader)
         except IOError as e:
             sys.exit("FAILED TO LOAD CONFIG {}: {}".format(path,e))
-
 
 def loaddefaultconfig():
     """

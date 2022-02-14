@@ -6,7 +6,7 @@ from copy import deepcopy
 import numpy as np
 import rospy
 import tf.transformations
-from buggycontrol.msg import Actions
+from buggycontrol.msg import ActionsStamped
 from geometry_msgs.msg import Vector3, PoseWithCovariance, Pose, Quaternion, TwistStamped, Twist, TransformStamped
 from nav_msgs.msg import Odometry
 import tf2_ros
@@ -42,7 +42,7 @@ if __name__=="__main__":
     pub_twist = rospy.Publisher("pred/twist_base_link", TwistStamped, queue_size=5)
     pub_odom = rospy.Publisher("pred/odom_base_link", Odometry, queue_size=5)
     rospy.Subscriber("actions",
-                     Actions,
+                     ActionsStamped,
                      cb,
                      queue_size=3)
 
@@ -65,7 +65,6 @@ if __name__=="__main__":
         with T.no_grad():
             pred_vel = policy(policy_input)
         x_vel, y_vel, z_ang_vel = pred_vel.numpy()
-        print(x_vel, y_vel, z_ang_vel)
 
         buggy_lin_vel_x = x_vel
         buggy_lin_vel_y = y_vel

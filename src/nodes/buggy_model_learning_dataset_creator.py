@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
-import os
 import pickle
 import time
 
-import numpy as np
-from buggycontrol.msg import Actions
-from nav_msgs.msg import Odometry
-from src.utils import *
-from src.utils_ros import *
 import rospy
+from buggycontrol.msg import ActionsStamped
+from nav_msgs.msg import Odometry
+
+from src.utils_ros import *
+from threading import Lock
+
+import message_filters
 
 class BagfileConverter:
     def __init__(self):
@@ -35,18 +36,45 @@ class BagfileConverter:
     def init_ros(self):
         rospy.init_node("bagfile_converter")
 
-        self.gt_odometry_sub = subscriber_factory("/gt/base_link_odom", Odometry)
-        self.actions_sub = subscriber_factory("/actions", Actions)
+        self.gt_odometry_list = []
+        self.gt_odometry_lock = Lock()
+        self.gt_odometry_msg = None
+        #self.gt_odometry_sub = rospy.Subscriber("/camera/odom/sample", Odometry, callback=self.gt_odometry_cb, queue_size=12)
+        self.gt_odometry_sub = message_filters.Subscriber("/camera/odom/sample", Odometry)
 
-        self.ros_rate = rospy.Rate(200)
+        self.actions_list = []
+        self.actions_lock = Lock()
+        self.actions_msg = None
+        #self.actions_sub = rospy.Subscriber("/actions", Actions, callback=self.actions_cb, queue_size=15)
+        self.actions_sub  = message_filters.Subscriber("/actions_stamped", ActionsStamped)
+
+        ts = message_filters.ApproximateTimeSynchronizer([self.gt_odometry_sub, self.actions_sub], 15, 0.1)
+        #ts = message_filters.ApproximateTimeSynchronizer([self.gt_odometry_sub, self.actions_sub], 10, 0.1, allow_headerless=True)
+        ts.registerCallback(self.input_cb)
+
+        self.bl_to_rs_trans = get_static_tf("base_link", "camera_pose_frame")
         time.sleep(0.3)
 
-    def get_delta(self, msg_cur, msg_next):
-        return np.maximum(msg_next.header.stamp.secs - msg_cur.header.stamp.secs + \
-                (msg_next.header.stamp.nsecs - msg_cur.header.stamp.nsecs) / 1000000000., 0.00001)
+    def input_cb(self, odom_msg, act_msg):
+        self.gt_odometry_list.append(odom_msg)
+        self.actions_list.append(act_msg)
+
+    def gt_odometry_cb(self, msg):
+        with self.gt_odometry_lock:
+            self.gt_odometry_msg = msg
+        with self.actions_lock:
+            if self.actions_msg is not None:
+                self.gt_odometry_list.append(msg)
+
+    def actions_cb(self, msg):
+        with self.actions_lock:
+            self.actions_msg = msg
+        with self.gt_odometry_lock:
+            if self.gt_odometry_msg is not None:
+                self.actions_list.append(msg)
 
     def process_dataset(self, dataset_dict_list):
-        dt = 0.005
+        #dt = 0.005
         x_list = []
         y_list = []
         for i in range(len(dataset_dict_list) - 1):
@@ -54,8 +82,8 @@ class BagfileConverter:
             current_odom_msg = dataset_dict_list[i]["odom_msg"]
             next_odom_msg = dataset_dict_list[i+1]["odom_msg"]
 
-            time_delta = self.get_delta(current_odom_msg, next_odom_msg)
-            time_correction_factor = np.clip(dt / time_delta, 0.8, 1.2)
+            #time_delta = self.get_delta(current_odom_msg, next_odom_msg)
+            #time_correction_factor = np.clip(dt / time_delta, 0.8, 1.2)
 
             # Calculate velocity delta from current to next odom
             current_lin_vel = current_odom_msg.twist.twist.linear
@@ -86,25 +114,34 @@ class BagfileConverter:
 
         return X, Y
 
+    def rotate_twist(self, odom_msg, tx):
+        # Transform the twist in the odom message
+        odom_msg.twist.twist.linear = rotate_vector_by_quat(odom_msg.twist.twist.linear,
+                                                            tx.transform.rotation)
+
+        odom_msg.twist.twist.angular = rotate_vector_by_quat(odom_msg.twist.twist.angular,
+                                                             tx.transform.rotation)
+
+        odom_msg.pose.pose.position.x -= tx.transform.translation.x
+        odom_msg.pose.pose.position.y -= tx.transform.translation.y
+        odom_msg.pose.pose.position.z -= tx.transform.translation.z
+
     def gather(self):
-        # Wait until all subscribers have a message to begin
-        while not rospy.is_shutdown():
-            if np.all([s.get_msg() is not None for s in [self.gt_odometry_sub, self.actions_sub]]): break
+        print("Started gathering")
+
+        # Wait until user kills
+        rospy.spin()
+
+        print("Gathered: {} action and {} odom messages".format(len(self.actions_list), len(self.gt_odometry_list)))
+
+        for i in range(np.minimum(len(self.actions_list), len(self.gt_odometry_list))):
+            self.rotate_twist(self.gt_odometry_list[i], self.bl_to_rs_trans)
 
         dataset_dict_list = []
-        # Do the gathering
-        print("Started gathering")
-        while not rospy.is_shutdown():
-            # Get messages from all subscribers
-            dataset_dict = {}
-            act_msg = self.actions_sub.get_msg(copy_msg=True)
-            odom_msg = self.gt_odometry_sub.get_msg(copy_msg=True)
-            dataset_dict["act_msg"] = act_msg
-            dataset_dict["odom_msg"] = odom_msg
-            dataset_dict_list.append(dataset_dict)
-
-            # Maintain that 200hz
-            self.ros_rate.sleep()
+        for i in range(np.minimum(len(self.actions_list), len(self.gt_odometry_list))):
+            act_msg = self.actions_list[i]
+            odom_msg = self.gt_odometry_list[i]
+            dataset_dict_list.append({"act_msg" : act_msg, "odom_msg" : odom_msg})
 
         X, Y = self.process_dataset(dataset_dict_list)
 
