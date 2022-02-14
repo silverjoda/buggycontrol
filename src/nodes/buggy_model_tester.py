@@ -64,11 +64,10 @@ if __name__=="__main__":
         policy_input = T.tensor([throttle, turn, buggy_lin_vel_x, buggy_lin_vel_y, buggy_ang_vel_z], dtype=T.float32)
         with T.no_grad():
             pred_vel = policy(policy_input)
-        x_vel, y_vel, z_ang_vel = pred_vel.numpy()
+        buggy_lin_vel_x, buggy_lin_vel_y, buggy_ang_vel_z = pred_vel.numpy()
+        #buggy_lin_vel_x = np.maximum(buggy_lin_vel_x, 0)
 
-        buggy_lin_vel_x = x_vel
-        buggy_lin_vel_y = y_vel
-        buggy_ang_vel_z = z_ang_vel
+        #print(buggy_lin_vel_x, buggy_lin_vel_y, buggy_ang_vel_z)
 
         # Transform linear velocities to base_link frame
         base_link_linear = rotate_vector_by_quat(Vector3(x=buggy_lin_vel_x, y=buggy_lin_vel_y, z=buggy_ang_vel_z),
@@ -77,7 +76,6 @@ if __name__=="__main__":
         # Modify integrated pose using twist message
         integrated_pose.position.x += base_link_linear.x * delta
         integrated_pose.position.y += base_link_linear.y * delta
-        integrated_pose.position.z += 0
         i_q = integrated_pose.orientation
         i_e = list(tf.transformations.euler_from_quaternion([i_q.x, i_q.y, i_q.z, i_q.w]))
         i_e[2] += buggy_ang_vel_z * delta

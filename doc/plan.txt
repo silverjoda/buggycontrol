@@ -1,9 +1,9 @@
 Plan:
 
-- Rewrite the bagfile read through callbacks appending to global lists (no for loop)
+- Check dataset in detail (throttle, turn ranges and velocities).
+- Find out why there is a reverse in turn during testing
+- Add state estimators to actions during training and inference
 - Write sequential model training (under models own distribution)
-- Throughly debug buggy model dataset creation
-- Train buggy model
 
 
 
