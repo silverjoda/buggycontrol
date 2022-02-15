@@ -9,19 +9,40 @@ class ModelDataset:
         self.X, self.Y = self.load_dataset()
 
     def load_dataset(self):
-        self.x_data_list = []
-        self.y_data_list = []
+        x_data_list = []
+        y_data_list = []
         dataset_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data/dataset/")
         for i in range(100):
             fp_X = os.path.join(dataset_dir, "X_{}.pkl".format(i))
             fp_Y = os.path.join(dataset_dir, "Y_{}.pkl".format(i))
             if os.path.exists(fp_X):
                 # self.data_dict_list.extend(pickle.load(open(file_path, "rb"), encoding='latin1'))
-                self.x_data_list.append(pickle.load(open(fp_X, "rb")))
-                self.y_data_list.append(pickle.load(open(fp_Y, "rb")))
+                x_data_list.append(pickle.load(open(fp_X, "rb")))
+                y_data_list.append(pickle.load(open(fp_Y, "rb")))
 
-        X = np.concatenate(self.x_data_list)
-        Y = np.concatenate(self.y_data_list)
+        # Make tensor out of loaded list
+        X_raw = np.concatenate(x_data_list)
+        Y = np.concatenate(y_data_list)
+
+        # Turn throttle and turn into real estimated values
+        X = np.copy(X_raw)
+        throttle_queue = [0] * 20
+        turn_queue = [0] * 15
+        for i in range(len(X_raw)):
+            throttle_queue.append(X_raw[i, 0])
+            turn_queue.append(X_raw[i, 1])
+            del throttle_queue[0]
+            del turn_queue[0]
+            X[i, 0] = np.mean(throttle_queue)
+            X[i, 1] = np.mean(turn_queue)
+
+        # Condition the data
+        X[X[:, 0] < 0.05, 0] = 0
+        X[np.abs(X[:, 1]) < 0.01, 1] = 0
+        X[np.abs(X[:, 2]) < 0.03, 2] = 0
+        X[np.abs(X[:, 3]) < 0.03, 3] = 0
+        X[np.abs(X[:, 4]) < 0.01, 4] = 0
+
         n_data_points = len(X)
         assert n_data_points > 100
         print("Loaded dataset with {} points".format(n_data_points))

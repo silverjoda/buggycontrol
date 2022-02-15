@@ -51,6 +51,7 @@ if __name__=="__main__":
     buggy_lin_vel_y = 0.
     buggy_ang_vel_z = 0.
 
+
     delta = 0.005
     throttle = 0.
     turn = 0.
@@ -66,9 +67,13 @@ if __name__=="__main__":
         with T.no_grad():
             pred_vel = policy(policy_input)
         buggy_lin_vel_x, buggy_lin_vel_y, buggy_ang_vel_z = pred_vel.numpy()
-        #buggy_lin_vel_x = np.maximum(buggy_lin_vel_x, 0)
 
-        #print(buggy_lin_vel_x, buggy_lin_vel_y, buggy_ang_vel_z)
+        # Condition the output
+        buggy_lin_vel_x = np.maximum(buggy_lin_vel_x, 0)
+        if np.abs(buggy_lin_vel_x) < 0.01 and np.abs(buggy_lin_vel_y) < 0.01:
+            buggy_ang_vel_z = 0
+
+        #print(throttle, turn, buggy_lin_vel_x, buggy_lin_vel_y, buggy_ang_vel_z)
 
         # Transform linear velocities to base_link frame
         base_link_linear = rotate_vector_by_quat(Vector3(x=buggy_lin_vel_x, y=buggy_lin_vel_y, z=buggy_ang_vel_z),
