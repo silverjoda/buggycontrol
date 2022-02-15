@@ -65,9 +65,7 @@ Visualization Manager:
           Value: true
         camera_pose_frame:
           Value: true
-        imu:
-          Value: true
-        imu_link:
+        odom:
           Value: true
       Marker Alpha: 1
       Marker Scale: 1
@@ -76,8 +74,10 @@ Visualization Manager:
       Show Axes: true
       Show Names: true
       Tree:
-        camera_odom_frame:
+        odom:
           base_link:
+            {}
+          camera_odom_frame:
             {}
       Update Interval: 0
       Value: true
@@ -154,8 +154,8 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Class: rviz/Orbit
-      Distance: 21.45747184753418
+      Class: rviz/ThirdPersonFollower
+      Distance: 4.0107622146606445
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -163,18 +163,38 @@ Visualization Manager:
         Value: false
       Field of View: 0.7853981852531433
       Focal Point:
-        X: 3.519649028778076
-        Y: 1.6142301559448242
-        Z: 0.8787305355072021
+        X: 0
+        Y: 0
+        Z: 0
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.60479736328125
-      Target Frame: camera_link
-      Yaw: 2.0835936069488525
-    Saved: ~
+      Pitch: 0.5003984570503235
+      Target Frame: base_link
+      Yaw: 0.07539860159158707
+    Saved:
+      - Class: rviz/Orbit
+        Distance: 3.826505422592163
+        Enable Stereo Rendering:
+          Stereo Eye Separation: 0.05999999865889549
+          Stereo Focal Distance: 1
+          Swap Stereo Eyes: false
+          Value: false
+        Field of View: 0.7853981852531433
+        Focal Point:
+          X: 0.4182223379611969
+          Y: -0.32947099208831787
+          Z: -0.04595240578055382
+        Focal Shape Fixed Size: true
+        Focal Shape Size: 0.05000000074505806
+        Invert Z Axis: false
+        Name: Orbit
+        Near Clip Distance: 0.009999999776482582
+        Pitch: 0.3997974693775177
+        Target Frame: base_link
+        Yaw: 1.8885921239852905
 Window Geometry:
   Displays:
     collapsed: false

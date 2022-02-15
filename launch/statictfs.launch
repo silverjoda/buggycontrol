@@ -1,4 +1,5 @@
 <launch>
-  <node pkg="tf2_ros" type="static_transform_publisher" name="rs_to_bl_tf" args="-0.1 0 0.1 0.0 -1.0 0 0 camera_pose_frame base_link"/>
+  <node pkg="tf2_ros" type="static_transform_publisher" name="rs_to_bl_tf" args="-0.1 0 -0.1 0 0 1 0 camera_pose_frame base_link"/>
+  <node pkg="tf2_ros" type="static_transform_publisher" name="rs_odom_t_odom" args="0 0 0 0 0 1 0 odom camera_odom_frame"/>
 </launch>
 

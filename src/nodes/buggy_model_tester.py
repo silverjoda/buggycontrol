@@ -34,6 +34,7 @@ if __name__=="__main__":
     agent_path = os.path.join(os.path.dirname(__file__), "../opt/agents/buggy_lte.p")
     policy.load_state_dict(T.load(agent_path), strict=False)
 
+    print("Starting buggy tester node")
     rospy.init_node("predicted_buggy_pose_publisher")
     tfBuffer = tf2_ros.Buffer()
     tflistener = tf2_ros.TransformListener(tfBuffer)
@@ -90,13 +91,13 @@ if __name__=="__main__":
 
         odom_msg = Odometry()
         odom_msg.header.stamp = rospy.Time(0)
-        odom_msg.header.frame_id = "camera_odom_frame"
+        odom_msg.header.frame_id = "odom"
         odom_msg.pose = PoseWithCovariance(pose=integrated_pose)
         pub_odom.publish(odom_msg)
 
         t = TransformStamped()
         t.header.stamp = rospy.Time.now()
-        t.header.frame_id = "camera_odom_frame"
+        t.header.frame_id = "odom"
         t.child_frame_id = "base_link"
         t.transform.translation.x = odom_msg.pose.pose.position.x
         t.transform.translation.y = odom_msg.pose.pose.position.y

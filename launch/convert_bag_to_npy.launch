@@ -1,5 +1,7 @@
 <launch>
+  <param name="use_sim_time" value="true" />
+  <arg name="create_dataset" default="true" />
   <include file="$(find buggycontrol)/launch/statictfs.launch"/>
-  <node pkg="buggycontrol" type="pose_republisher.py" name="pose_republisher" output="screen"/>
-  <node pkg="buggycontrol" type="buggy_model_learning_dataset_creator.py" name="dataset_creator" output="screen"/>
+  <node pkg="buggycontrol" type="act_republisher.py" name="act_republisher" output="screen"/>
+  <node pkg="buggycontrol" type="buggy_model_learning_dataset_creator.py" name="dataset_creator" output="screen" if="$(arg create_dataset)"/>
 </launch>

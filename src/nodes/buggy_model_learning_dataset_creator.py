@@ -29,10 +29,6 @@ class BagfileConverter:
             if not os.path.exists(x_file_path):
                 return x_file_path, y_file_path
 
-    def save_dataset(self, X, Y, file_paths):
-        pickle.dump(X, open(file_paths[0], "wb"))
-        pickle.dump(Y, open(file_paths[1], "wb"))
-
     def init_ros(self):
         rospy.init_node("bagfile_converter")
 
@@ -52,7 +48,7 @@ class BagfileConverter:
         #ts = message_filters.ApproximateTimeSynchronizer([self.gt_odometry_sub, self.actions_sub], 10, 0.1, allow_headerless=True)
         ts.registerCallback(self.input_cb)
 
-        self.bl_to_rs_trans = get_static_tf("base_link", "camera_pose_frame")
+        self.bl_to_rs_trans = get_static_tf("odom", "camera_odom_frame")
         time.sleep(0.3)
 
     def input_cb(self, odom_msg, act_msg):
@@ -72,6 +68,40 @@ class BagfileConverter:
         with self.gt_odometry_lock:
             if self.gt_odometry_msg is not None:
                 self.actions_list.append(msg)
+
+    def rotate_twist(self, odom_msg, tx):
+        # Transform the twist in the odom message
+        odom_msg.twist.twist.linear = rotate_vector_by_quat(odom_msg.twist.twist.linear,
+                                                            tx.transform.rotation)
+
+        odom_msg.twist.twist.angular = rotate_vector_by_quat(odom_msg.twist.twist.angular,
+                                                             tx.transform.rotation)
+
+        odom_msg.pose.pose.position.x -= tx.transform.translation.x
+        odom_msg.pose.pose.position.y -= tx.transform.translation.y
+        odom_msg.pose.pose.position.z -= tx.transform.translation.z
+
+    def gather(self):
+        print("Started gathering")
+
+        # Wait until user kills
+        rospy.spin()
+
+        print("Gathered: {} action and {} odom messages".format(len(self.actions_list), len(self.gt_odometry_list)))
+
+        for i in range(len(self.gt_odometry_list)):
+            self.rotate_twist(self.gt_odometry_list[i], self.bl_to_rs_trans)
+
+        dataset_dict_list = []
+        for i in range(np.minimum(len(self.actions_list), len(self.gt_odometry_list))):
+            act_msg = self.actions_list[i]
+            odom_msg = self.gt_odometry_list[i]
+            dataset_dict_list.append({"act_msg" : act_msg, "odom_msg" : odom_msg})
+
+        X, Y = self.process_dataset(dataset_dict_list)
+
+        print("Saving dataset")
+        self.save_dataset(X, Y, self.xy_dataset_paths)
 
     def process_dataset(self, dataset_dict_list):
         #dt = 0.005
@@ -114,39 +144,10 @@ class BagfileConverter:
 
         return X, Y
 
-    def rotate_twist(self, odom_msg, tx):
-        # Transform the twist in the odom message
-        odom_msg.twist.twist.linear = rotate_vector_by_quat(odom_msg.twist.twist.linear,
-                                                            tx.transform.rotation)
+    def save_dataset(self, X, Y, file_paths):
+        pickle.dump(X, open(file_paths[0], "wb"))
+        pickle.dump(Y, open(file_paths[1], "wb"))
 
-        odom_msg.twist.twist.angular = rotate_vector_by_quat(odom_msg.twist.twist.angular,
-                                                             tx.transform.rotation)
-
-        odom_msg.pose.pose.position.x -= tx.transform.translation.x
-        odom_msg.pose.pose.position.y -= tx.transform.translation.y
-        odom_msg.pose.pose.position.z -= tx.transform.translation.z
-
-    def gather(self):
-        print("Started gathering")
-
-        # Wait until user kills
-        rospy.spin()
-
-        print("Gathered: {} action and {} odom messages".format(len(self.actions_list), len(self.gt_odometry_list)))
-
-        for i in range(np.minimum(len(self.actions_list), len(self.gt_odometry_list))):
-            self.rotate_twist(self.gt_odometry_list[i], self.bl_to_rs_trans)
-
-        dataset_dict_list = []
-        for i in range(np.minimum(len(self.actions_list), len(self.gt_odometry_list))):
-            act_msg = self.actions_list[i]
-            odom_msg = self.gt_odometry_list[i]
-            dataset_dict_list.append({"act_msg" : act_msg, "odom_msg" : odom_msg})
-
-        X, Y = self.process_dataset(dataset_dict_list)
-
-        print("Saving dataset")
-        self.save_dataset(X, Y, self.xy_dataset_paths)
 
 if __name__=="__main__":
     bagfile_converter = BagfileConverter()
