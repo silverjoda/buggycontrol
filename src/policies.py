@@ -28,9 +28,18 @@ class MLP(nn.Module):
         self.fc2 = T.nn.Linear(self.hid_dim, self.hid_dim, bias=True)
         self.fc3 = T.nn.Linear(self.hid_dim, self.act_dim, bias=True)
 
+        T.nn.init.xavier_uniform_(self.fc1.weight)
+        self.fc1.bias.data.fill_(0.01)
+
+        T.nn.init.xavier_uniform_(self.fc2.weight)
+        self.fc2.bias.data.fill_(0.01)
+
+        T.nn.init.xavier_uniform_(self.fc3.weight)
+        self.fc3.bias.data.fill_(0.01)
+
     def forward(self, x):
-        fc1 = T.tanh(self.fc1(x))
-        fc2 = T.tanh(self.fc2(fc1))
+        fc1 = T.relu(self.fc1(x))
+        fc2 = T.relu(self.fc2(fc1))
         out = self.fc3(fc2)
         return out
 

@@ -84,7 +84,7 @@ if __name__=="__main__":
         config = yaml.load(f, Loader=yaml.FullLoader)
 
     dataset = ModelDataset()
-    policy = MLP(obs_dim=5, act_dim=3, hid_dim=128)
+    policy = MLP(obs_dim=5, act_dim=3, hid_dim=256)
     model_trainer = ModelTrainer(config, dataset, policy)
 
     # Train
