@@ -1,7 +1,21 @@
 Plan:
 
-- Add state estimators to actions during training and inference
-- Write sequential model training (under models own distribution)
+# Mission: Obtain High performing buggy agent:
+- Debug self supervised env.
+- Debug RL env
+- Try GAIL
+
+# Mission: Transfer
+- Obtain well trained model
+- Train RMA-style
+- Compare RMA-style with trained model transfer
+
+# Mission: Trajectory optimization using TEP
+- Code up a moose test problem using gradient barrier functions
+- Debug the trajectory optimization problem
+- train TEP
+- Test TEP trajectory optimization
+
 
 
 
