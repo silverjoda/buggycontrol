@@ -5,7 +5,7 @@ from gym import spaces
 from src.envs.engines import *
 from src.envs.xml_gen import *
 from src.policies import LTE
-
+import mujoco_py
 
 class BuggyEnv(gym.Env):
     metadata = {

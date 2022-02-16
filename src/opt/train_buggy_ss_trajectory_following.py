@@ -9,7 +9,7 @@ from src.envs.buggy_env_mujoco import BuggyEnv
 from src.policies import MLP, RNN
 from src.utils import load_config
 import math as m
-from imitation.data.types import Trajectory
+#from imitation.data.types import Trajectory
 
 class BuggySSTrajectoryTrainer:
     def __init__(self):
@@ -78,9 +78,9 @@ class BuggySSTrajectoryTrainer:
 
         X = np.concatenate([X, X[-2:-1]], axis=0)
         traj_list = []
-        traj = Trajectory(obs=X, acts=Y, infos=None, terminal=False)
-        traj_list.append(traj)
-        pickle.dump(traj_list, open(self.traj_file_path, "wb"))
+        #traj = Trajectory(obs=X, acts=Y, infos=None, terminal=False)
+        #traj_list.append(traj)
+        #pickle.dump(traj_list, open(self.traj_file_path, "wb"))
 
     def make_trn_examples_from_traj(self, obs_list, act_list):
         X = []
