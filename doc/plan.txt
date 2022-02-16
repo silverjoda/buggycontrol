@@ -1,6 +1,7 @@
 Plan:
 
 # Mission: Obtain High performing buggy agent:
+- Put RL to train
 - Debug self supervised env.
 - Try GAIL
 
