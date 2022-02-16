@@ -64,7 +64,11 @@ class Engine:
     def get_complete_obs_vec(self):
         state = self.get_state_vec()
         wps = self.wp_list[self.cur_wp_idx:self.cur_wp_idx + self.config["n_traj_pts"]]
+        #print("WAYPOINTS:")
+        #print(wps)
         wps_buggy_frame = self.transform_wp_to_buggy_frame(wps, self.get_obs_dict())
+        #print(wps_buggy_frame)
+
         wps_contiguous = []
         for w in wps_buggy_frame:
             wps_contiguous.extend(w)
@@ -72,10 +76,10 @@ class Engine:
 
     def transform_wp_to_buggy_frame(self, wp_list, buggy_obs):
         wp_arr = np.array(wp_list)
-        wp_arr_centered = wp_arr - np.array(buggy_obs["pos"][0:1])
+        wp_arr_centered = wp_arr - np.array(buggy_obs["pos"][0:2])
         buggy_q = buggy_obs["ori_q"]
         _, _, theta = self.q2e(*buggy_q)
-        t_mat = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
+        t_mat = np.array([[np.cos(-theta), -np.sin(-theta)], [np.sin(-theta), np.cos(-theta)]])
         wp_buggy = np.matmul(t_mat, wp_arr_centered.T).T
         return wp_buggy
 
@@ -86,7 +90,7 @@ class Engine:
         return (roll, pitch, yaw)
 
     def generate_random_traj(self):
-        self.noise = SimplexNoise(dim=1, smoothness=200, multiplier=1)
+        self.noise = SimplexNoise(dim=1, smoothness=self.config["traj_smoothness"], multiplier=1)
         traj_pts = []
         current_xy = np.zeros(2)
 

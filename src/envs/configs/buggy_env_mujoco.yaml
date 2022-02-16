@@ -11,3 +11,4 @@
 "wp_sample_dist" : 0.15
 "wp_reach_dist" : 0.2
 "max_steps" : 700
+"traj_smoothness" : 400

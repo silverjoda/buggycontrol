@@ -25,8 +25,7 @@ class BuggyTrajFollowerTrainer:
         if self.config["train"]:
             t1 = time.time()
             try:
-                self.model.learn(total_timesteps=self.config["iters"], callback=self.checkpoint_callback,
-                                 log_interval=1)
+                self.model.learn(total_timesteps=self.config["iters"], callback=self.checkpoint_callback, log_interval=1)
             except KeyboardInterrupt:
                 print("User interrupted training procedure")
             t2 = time.time()
@@ -35,6 +34,7 @@ class BuggyTrajFollowerTrainer:
             pprint(self.config)
 
             self.env.save(self.stats_path)
+
             self.model.save("agents/{}_SB_policy".format(self.config["session_ID"]))
             self.env.close()
 

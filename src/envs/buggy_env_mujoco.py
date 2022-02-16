@@ -6,6 +6,7 @@ from src.envs.engines import *
 from src.envs.xml_gen import *
 from src.policies import LTE
 import mujoco_py
+from src.opt.simplex_noise import SimplexNoise
 
 class BuggyEnv(gym.Env):
     metadata = {
@@ -21,9 +22,8 @@ class BuggyEnv(gym.Env):
         self.car_template_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/one_car.xml")
         self.car_rnd_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/one_car_rnd.xml")
 
-        self.sim, self.engine = self.load_random_env()
-
-        self.obs_dim = self.config["state_dim"] + self.config["n_traj_pts"] * 2 + self.config["allow_latent_input"] * self.config["latent_dim"] + self.config["allow_lte"]
+        self.obs_dim = self.config["state_dim"] + self.config["n_traj_pts"] * 2 + self.config["allow_latent_input"] * \
+                       self.config["latent_dim"] + self.config["allow_lte"]
         self.act_dim = 2
 
         if self.config["allow_lte"]:
@@ -33,11 +33,13 @@ class BuggyEnv(gym.Env):
         self.observation_space = spaces.Box(low=-7, high=7, shape=(self.obs_dim,), dtype=np.float32)
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(self.act_dim,), dtype=np.float32)
 
+        self.sim, self.engine = self.load_random_env()
+
     def load_random_env(self):
         # 0: friction (0.4), 1: steering_range (0.38), 2: body mass (3.47), 3: kv (3000), 4: gear (0.003)
-        random_param_scale_offset_list = [[0.15, 0.4],[0.1, 0.38], [1, 3.5],[1000, 3000], [0.001, 0.003]]
-        self.scaled_random_params = list(np.clip(np.random.randn(len(random_param_scale_offset_list)), -1, 1))
-        self.sim_random_params = [np.clip(np.random.randn(), -1, 1) * rso[0] + rso[1] for rso in random_param_scale_offset_list]
+        random_param_scale_offset_list = [[0.15, 0.4], [0.1, 0.38], [1, 3.5], [1000, 3000], [0.001, 0.003]]
+        self.scaled_random_params = list(np.clip(np.random.randn(len(random_param_scale_offset_list)) * 0.5, -1, 1))
+        self.sim_random_params = [self.scaled_random_params[i] * rso[0] + rso[1] for i, rso in enumerate(random_param_scale_offset_list)]
 
         if self.config["allow_lte"]:
             self.random_params = np.concatenate([self.sim_random_params, np.array([-1])])
@@ -83,12 +85,13 @@ class BuggyEnv(gym.Env):
         pos = obs_dict["pos"]
         cur_wp = obs_dict["wp_list"][self.engine.cur_wp_idx]
         dist_between_cur_wp = np.sqrt(np.square(pos[0] - cur_wp[0]) + np.square(pos[1] - cur_wp[1]))
-        r = wp_visited - dist_between_cur_wp * 0.05
+        r = wp_visited * 3 - dist_between_cur_wp * 0.05
         return r, dist_between_cur_wp
 
     def step(self, act):
         self.step_ctr += 1
 
+        # Turn, throttle
         scaled_act = [act[0], act[1] * 0.5 + 0.5]
         done, wp_visited = self.engine.step(scaled_act)
 
@@ -119,16 +122,19 @@ class BuggyEnv(gym.Env):
 
     def demo(self):
         while True:
+            self.noise = SimplexNoise(dim=2, smoothness=30, multiplier=1.6)
             self.reset()
             cum_rew = 0
             while True:
                 zero_act = [0.0, -1.0]
-                rnd_act = np.random.rand(2) * 2 - 1
-                _, r, done, _ = self.step(zero_act) # turn, throttle
+                rnd_act = np.clip(self.noise(), -1, 1)
+                _, r, done, _ = self.step(rnd_act) # turn, throttle
+                #print(r)
                 cum_rew += r
                 if self.config["render"]:
                     self.engine.render()
                     time.sleep(1. / self.config["rate"])
+
                 if done: break
             print("Cumulative rew: {}".format(cum_rew))
 

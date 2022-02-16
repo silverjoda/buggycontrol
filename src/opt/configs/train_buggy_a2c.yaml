@@ -1,6 +1,6 @@
 # Train config
-"train" : True
-"render" : False
+"train" : False
+"render" : True
 "default_session_ID" : "TRN"
 "cma_std" : 0.3
 "iters" : 4000000
