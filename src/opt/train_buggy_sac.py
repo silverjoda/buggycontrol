@@ -20,7 +20,7 @@ class BuggyTrajFollowerTrainer:
 
         self.config = self.read_configs()
         self.env_fun = buggy_env_mujoco.BuggyEnv
-        self.N_cores = 6
+        self.N_cores = 1
 
         self.env, self.model, self.checkpoint_callback, self.stats_path = self.setup_train()
 
@@ -102,7 +102,7 @@ class BuggyTrajFollowerTrainer:
                     env=normed_env,
                     buffer_size=self.config["buffer_size"],
                     learning_starts=self.config["learning_starts"],
-                    action_noise=ou_noise,
+                    action_noise=None,
                     ent_coef=self.config["ent_coef"],
                     gamma=self.config["gamma"],
                     tau=self.config["tau"],

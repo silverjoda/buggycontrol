@@ -3,7 +3,7 @@
 "render" : False
 "default_session_ID" : "TRN"
 "cma_std" : 0.3
-"iters" : 100000
+"iters" : 400000
 "n_trials" : 2000
 
 "algo_name" : "TD3"

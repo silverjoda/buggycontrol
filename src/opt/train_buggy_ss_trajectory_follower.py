@@ -13,7 +13,8 @@ import math as m
 
 class BuggySSTrajectoryTrainer:
     def __init__(self):
-        self.config = load_config(os.path.join(os.path.dirname(__file__), "configs/buggy_ss_traj_trainer.yaml"))
+        self.config = load_config(os.path.join(os.path.dirname(__file__),
+                                               "configs/train_buggy_ss_trajectory_follower.yaml"))
         self.noise = SimplexNoise(dim=2, smoothness=150, multiplier=2.)
 
         dir_path = os.path.join(os.path.dirname(__file__), "supervised_trajs")

@@ -29,7 +29,8 @@ class Engine:
             self.cur_mujoco_wp_idx = (self.cur_mujoco_wp_idx + 1) % self.config["n_traj_pts"]
 
             # Update wp visually in mujoco
-            self.update_wp_visuals()
+            if self.config["render"]:
+                self.update_wp_visuals()
 
             wp_visited = True
 
