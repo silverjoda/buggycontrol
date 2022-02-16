@@ -2,7 +2,6 @@ Plan:
 
 # Mission: Obtain High performing buggy agent:
 - Debug self supervised env.
-- Debug RL env
 - Try GAIL
 
 # Mission: Transfer

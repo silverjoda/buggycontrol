@@ -6,7 +6,8 @@ from pprint import pprint
 import numpy as np
 import torch as T
 import yaml
-from stable_baselines3 import SAC
+from stable_baselines3 import TD3
+from stable_baselines3.td3.policies import MlpPolicy
 from stable_baselines3.common.callbacks import CheckpointCallback, CallbackList
 from stable_baselines3.common.noise import OrnsteinUhlenbeckActionNoise
 from stable_baselines3.common.vec_env import VecNormalize, SubprocVecEnv, DummyVecEnv, VecMonitor
@@ -20,7 +21,6 @@ class BuggyTrajFollowerTrainer:
 
         self.config = self.read_configs()
         self.env_fun = buggy_env_mujoco.BuggyEnv
-        self.N_cores = 6
 
         self.env, self.model, self.checkpoint_callback, self.stats_path = self.setup_train()
 
@@ -41,7 +41,7 @@ class BuggyTrajFollowerTrainer:
             self.env.close()
 
         if not self.config["train"]:
-            self.model = SAC.load("agents/{}_SB_policy".format(self.config["session_ID"]))
+            self.model = TD3.load("agents/{}_SB_policy".format(self.config["session_ID"]))
 
             vec_env = DummyVecEnv(env_fns=[lambda: self.env_fun(self.config)] * 1)
             monitor_env = VecMonitor(vec_env)
@@ -53,7 +53,7 @@ class BuggyTrajFollowerTrainer:
             print(f"Total test rew: {total_rew / N_test}")
 
     def read_configs(self):
-        with open(os.path.join(os.path.dirname(__file__), "configs/train_buggy_sac.yaml"), 'r') as f:
+        with open(os.path.join(os.path.dirname(__file__), "configs/train_buggy_td3.yaml"), 'r') as f:
             algo_config = yaml.load(f, Loader=yaml.FullLoader)
         with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_env_mujoco.yaml"), 'r') as f:
             env_config = yaml.load(f, Loader=yaml.FullLoader)
@@ -82,8 +82,8 @@ class BuggyTrajFollowerTrainer:
         else:
             self.config["session_ID"] = self.config["default_session_ID"]
 
-        #vec_env = DummyVecEnv(env_fns=[lambda : elf.env_fun(self.config)] * self.N_cores)
-        vec_env = SubprocVecEnv(env_fns=[lambda : self.env_fun(self.config) for _ in range(self.N_cores)] , start_method="fork")
+        vec_env = DummyVecEnv(env_fns=[lambda : self.env_fun(self.config)])
+        #vec_env = SubprocVecEnv(env_fns=[lambda : self.env_fun(self.config) for _ in range(self.config["n_envs"])] , start_method="fork")
         monitor_env = VecMonitor(vec_env)
         normed_env = VecNormalize(venv=monitor_env, training=True, norm_obs=True, norm_reward=True)
 
@@ -98,13 +98,14 @@ class BuggyTrajFollowerTrainer:
 
         #self.visualize_ou_noise(ou_noise)
 
-        model = SAC(policy=self.config["policy_name"],
+        model = TD3(policy=MlpPolicy,
                     env=normed_env,
                     buffer_size=self.config["buffer_size"],
                     learning_starts=self.config["learning_starts"],
                     action_noise=ou_noise,
-                    ent_coef=self.config["ent_coef"],
                     gamma=self.config["gamma"],
+                    target_policy_noise=self.config["target_policy_noise"],
+                    target_noise_clip=self.config["target_noise_clip"],
                     tau=self.config["tau"],
                     learning_rate=self.config["learning_rate"],
                     verbose=self.config["verbose"],

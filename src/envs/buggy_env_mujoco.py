@@ -92,7 +92,7 @@ class BuggyEnv(gym.Env):
         self.step_ctr += 1
 
         # Turn, throttle
-        scaled_act = [act[0], act[1] * 0.5 + 0.5]
+        scaled_act = [np.clip(act[0] * 0.4, -0.4, 0.4), act[1] * 0.5 + 0.5]
         done, wp_visited = self.engine.step(scaled_act)
 
         # Get new observation
@@ -104,6 +104,9 @@ class BuggyEnv(gym.Env):
 
         # Calculate termination
         done = done or dist_to_cur_wp > 1.0 or self.step_ctr > self.config["max_steps"]
+
+        #if self.config["render"]:
+        #    self.render()
 
         return complete_obs_vec, r, done, {}
 
