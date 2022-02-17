@@ -64,21 +64,19 @@ class Engine:
 
     def get_complete_obs_vec(self):
         state = self.get_state_vec()
+        obs_dict = self.get_obs_dict()
         wps = self.wp_list[self.cur_wp_idx:self.cur_wp_idx + self.config["n_traj_pts"]]
-        #print("WAYPOINTS:")
-        #print(wps)
-        wps_buggy_frame = self.transform_wp_to_buggy_frame(wps, self.get_obs_dict())
-        #print(wps_buggy_frame)
+        wps_buggy_frame = self.transform_wp_to_buggy_frame(wps, obs_dict["pos"], obs_dict["ori_q"])
 
         wps_contiguous = []
         for w in wps_buggy_frame:
             wps_contiguous.extend(w)
         return state + wps_contiguous
 
-    def transform_wp_to_buggy_frame(self, wp_list, buggy_obs):
+    def transform_wp_to_buggy_frame(self, wp_list, pos, ori_q):
         wp_arr = np.array(wp_list)
-        wp_arr_centered = wp_arr - np.array(buggy_obs["pos"][0:2])
-        buggy_q = buggy_obs["ori_q"]
+        wp_arr_centered = wp_arr - np.array(pos[0:2])
+        buggy_q = ori_q
         _, _, theta = self.q2e(*buggy_q)
         t_mat = np.array([[np.cos(-theta), -np.sin(-theta)], [np.sin(-theta), np.cos(-theta)]])
         wp_buggy = np.matmul(t_mat, wp_arr_centered.T).T
@@ -131,6 +129,11 @@ class Engine:
         for i in range(self.config["n_traj_pts"]):
             self.mujoco_sim.data.set_mocap_pos(f"waypoint{i}", np.hstack((self.wp_list[i], [0])))
 
+    def set_wp_visuals_externally(self, traj):
+        assert len(traj) == self.config["n_traj_pts"]
+        for i in range(self.config["n_traj_pts"]):
+            self.mujoco_sim.data.set_mocap_pos(f"waypoint{i}", np.hstack((traj[i], [0])))
+
     def update_wp_visuals(self):
         self.mujoco_sim.data.set_mocap_pos(f"waypoint{self.cur_mujoco_wp_idx - 1}", np.hstack((self.wp_list[self.cur_wp_idx + self.config["n_traj_pts"] - 1], [0])))
 
@@ -172,7 +175,8 @@ class MujocoEngine(Engine):
         vel = self.mujoco_sim.data.body_xvelp[self.bodyid].copy()
         ang_vel = self.mujoco_sim.data.body_xvelr[self.bodyid].copy()
         wps = self.wp_list[self.cur_wp_idx:self.cur_wp_idx + self.config["n_traj_pts"]]
-        return {"pos" : pos, "ori_q" : ori_q, "ori_mat" : ori_mat, "vel" : vel, "ang_vel" : ang_vel, "wp_list" : wps}
+        wps_buggy_frame = self.transform_wp_to_buggy_frame(wps, pos, ori_q)
+        return {"pos" : pos, "ori_q" : ori_q, "ori_mat" : ori_mat, "vel" : vel, "ang_vel" : ang_vel, "wp_list" : wps_buggy_frame}
 
 class LTEEngine(Engine):
     def __init__(self, config, mujoco_sim, lte):

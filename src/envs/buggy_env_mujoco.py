@@ -103,7 +103,7 @@ class BuggyEnv(gym.Env):
         r, dist_to_cur_wp = self.get_reward(obs_dict, wp_visited)
 
         # Calculate termination
-        done = done or dist_to_cur_wp > 1.0 or self.step_ctr > self.config["max_steps"]
+        done = done or dist_to_cur_wp > 0.5 or self.step_ctr > self.config["max_steps"]
 
         #if self.config["render"]:
         #    self.render()

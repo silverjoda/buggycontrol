@@ -1,5 +1,6 @@
 import os
 import pickle
+import time
 
 import numpy as np
 import torch as T
@@ -9,13 +10,13 @@ from src.envs.buggy_env_mujoco import BuggyEnv
 from src.policies import MLP, RNN
 from src.utils import load_config
 import math as m
-#from imitation.data.types import Trajectory
+from imitation.data.types import Trajectory
 
 class BuggySSTrajectoryTrainer:
     def __init__(self):
         self.config = load_config(os.path.join(os.path.dirname(__file__),
                                                "configs/train_buggy_ss_trajectory_follower.yaml"))
-        self.noise = SimplexNoise(dim=2, smoothness=150, multiplier=2.)
+        self.noise = SimplexNoise(dim=2, smoothness=300, multiplier=1.7)
 
         dir_path = os.path.join(os.path.dirname(__file__), "supervised_trajs")
         if not os.path.exists(dir_path):
@@ -57,36 +58,45 @@ class BuggySSTrajectoryTrainer:
 
                 # Get random action
                 rnd_act = self.noise()
+
+                # Condition act (turn, throttle)
+                rnd_act[0] *= 0.4
+                rnd_act[1] += 0.5
+
                 act_list.append(rnd_act)
 
-                obs, _, _, _ = env.step(rnd_act)
+                _, _, _, _ = env.step(rnd_act)
+
+                # DEBUG
+                # env.render()
+                # time.sleep(0.01)
 
             # make dataset out of given traj
-            x, y = self.make_trn_examples_from_traj(obs_list, act_list)
+            x, y = self.make_trn_examples_from_traj(env, obs_list, act_list)
 
             X.extend(x)
             Y.extend(y)
             P.extend([env.scaled_random_params] * len(x))
 
         # Save as npy dataset
-        X = np.array(X)
-        Y = np.array(Y)
-        P = np.array(P)
+        X_arr = np.array(X)
+        Y_arr = np.array(Y)
+        P_arr = np.array(P)
 
-        pickle.dump(X, open(self.x_file_path, "wb"))
-        pickle.dump(Y, open(self.y_file_path, "wb"))
-        pickle.dump(P, open(self.p_file_path, "wb"))
+        pickle.dump(X_arr, open(self.x_file_path, "wb"))
+        pickle.dump(Y_arr, open(self.y_file_path, "wb"))
+        pickle.dump(P_arr, open(self.p_file_path, "wb"))
 
-        X = np.concatenate([X, X[-2:-1]], axis=0)
         traj_list = []
-        #traj = Trajectory(obs=X, acts=Y, infos=None, terminal=False)
-        #traj_list.append(traj)
-        #pickle.dump(traj_list, open(self.traj_file_path, "wb"))
+        for x, y in zip(X, Y):
+            traj = Trajectory(obs=np.array(x), acts=y, infos=None)
+            traj_list.append(traj)
+        pickle.dump(traj_list, open(self.traj_file_path, "wb"))
 
-    def make_trn_examples_from_traj(self, obs_list, act_list):
+    def make_trn_examples_from_traj(self, env, obs_list, act_list):
         X = []
         Y = []
-        for current_state_idx in range(0, len(obs_list) - 300, self.config["traj_jump_dist"]):
+        for current_state_idx in range(0, len(obs_list) - 200, self.config["traj_jump_dist"]):
             rnd_offset = np.random.randint(1, 20)
 
             # Iterate over trajectory and append every *dist* points
@@ -94,37 +104,34 @@ class BuggySSTrajectoryTrainer:
             current_trajectory = []
             for ti in range(current_state_idx + rnd_offset, len(obs_list)):
                 if self.get_dist_between_pts(obs_list[ti]["pos"], obs_list[current_anchor_idx]["pos"]) > self.config["traj_sampling_dist"]:
-                    # Transform wp to buggy frame
-                    wp_buggy_frame = self.transform_wp_to_buggy_frame(obs_list[ti]["pos"], obs_list[current_anchor_idx])
-
-                    current_trajectory.extend(wp_buggy_frame)
+                    wp = obs_list[ti]["pos"][0:2]
+                    current_trajectory.append(wp)
                     current_anchor_idx = ti
-                if len(current_trajectory) == 2 * self.config["n_traj_pts"]: break
+                if len(current_trajectory) == self.config["n_traj_pts"]: break
 
-            state_vec = [obs_list[current_state_idx]["vel"][0],
-                        obs_list[current_state_idx]["vel"][1],
-                        obs_list[current_state_idx]["ang_vel"][2]]
+            if len(current_trajectory) == self.config["n_traj_pts"]:
+                state_vec = [obs_list[current_state_idx]["vel"][0],
+                             obs_list[current_state_idx]["vel"][1],
+                             obs_list[current_state_idx]["ang_vel"][2]]
+                current_trajectory_buggy_frame = env.engine.transform_wp_to_buggy_frame(current_trajectory,
+                                                                                        obs_list[current_state_idx][
+                                                                                            "pos"],
+                                                                                        obs_list[current_state_idx][
+                                                                                            "ori_q"])
 
-            if len(current_trajectory) == 2 * self.config["n_traj_pts"]:
-                X.append(state_vec + current_trajectory)
+                X.append(state_vec + list(current_trajectory_buggy_frame.reshape(-1)))
                 Y.append(act_list[current_state_idx])
+
+            # DEBUG
+            # env.engine.set_wp_visuals_externally(current_trajectory)
+            # env.engine.step([0,0])
+            # env.render()
+            # time.sleep(3)
+        # DEBUG
+        #exit()
 
         return X, Y
 
-    def transform_wp_to_buggy_frame(self, wp, buggy_obs):
-        wp_x = wp[0] - buggy_obs["pos"][0]
-        wp_y = wp[1] - buggy_obs["pos"][1]
-        buggy_q = buggy_obs["ori_q"]
-        _, _, theta = self.q2e(*buggy_q)
-        t_mat = np.array([[np.cos(theta), -np.sin(theta)], [np.sin(theta), np.cos(theta)]])
-        wp_buggy = np.matmul(t_mat, np.array([wp_x, wp_y]))
-        return wp_buggy
-
-    def q2e(self, w, x, y, z):
-        pitch = -m.asin(2.0 * (x * z - w * y))
-        roll = m.atan2(2.0 * (w * x + y * z), w * w - x * x - y * y + z * z)
-        yaw = m.atan2(2.0 * (w * z + x * y), w * w + x * x - y * y - z * z)
-        return (roll, pitch, yaw)
 
     def get_dist_between_pts(self, p1, p2):
         return np.sqrt(np.square(p1[0] - p2[0]) + np.square(p1[1] - p2[1]))

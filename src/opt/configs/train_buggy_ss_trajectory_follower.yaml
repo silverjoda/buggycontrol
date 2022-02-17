@@ -1,5 +1,5 @@
 "n_traj" : 10
-"traj_len" : 1000
+"traj_len" : 600
 "traj_sampling_dist" : 0.15
 "traj_jump_iters" : 100
 "traj_jump_dist" : 50
