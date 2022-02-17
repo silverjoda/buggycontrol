@@ -1,16 +1,15 @@
 import os
 import pickle
-import time
 
 import numpy as np
 import torch as T
+from imitation.data.types import Trajectory
 
-from src.opt.simplex_noise import SimplexNoise
 from src.envs.buggy_env_mujoco import BuggyEnv
+from src.opt.simplex_noise import SimplexNoise
 from src.policies import MLP, RNN
 from src.utils import load_config
-import math as m
-from imitation.data.types import Trajectory
+
 
 class BuggySSTrajectoryTrainer:
     def __init__(self):
@@ -74,7 +73,7 @@ class BuggySSTrajectoryTrainer:
             # make dataset out of given traj
             x, y = self.make_trn_examples_from_traj(env, obs_list, act_list)
 
-            if len(x) < 100:
+            if len(x) < self.config["contiguous_traj_len"]:
                 continue
 
             X.append(np.array(x))
@@ -133,14 +132,13 @@ class BuggySSTrajectoryTrainer:
 
         return X, Y
 
-
     def get_dist_between_pts(self, p1, p2):
         return np.sqrt(np.square(p1[0] - p2[0]) + np.square(p1[1] - p2[1]))
 
     def train_imitator_on_dataset(self):
         # Load dataset
-        X = np.load(self.x_file_path)
-        Y = np.load(self.y_file_path)
+        X = np.load(self.x_file_path, allow_pickle=True)
+        Y = np.load(self.y_file_path, allow_pickle=True)
 
         n_traj = X.shape[0]
         obs_dim = X.shape[2]
