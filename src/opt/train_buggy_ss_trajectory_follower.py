@@ -1,9 +1,19 @@
 import os
 import pickle
+import tempfile
+import pathlib
+from stable_baselines3.common.vec_env import VecNormalize, SubprocVecEnv, DummyVecEnv, VecMonitor
+
 
 import numpy as np
+import seals  # noqa: F401
+import stable_baselines3 as sb3
 import torch as T
+from imitation.algorithms.adversarial import gail
+from imitation.data import rollout
 from imitation.data.types import Trajectory
+from imitation.rewards import reward_nets
+from imitation.util import logger
 
 from src.envs.buggy_env_mujoco import BuggyEnv
 from src.opt.simplex_noise import SimplexNoise
@@ -220,10 +230,42 @@ class BuggySSTrajectoryTrainer:
         T.save(policy.state_dict(), "agents/buggy_imitator.p")
         T.save(param_estimator.state_dict(), "agents/buggy_latent_param_estimator.p")
 
+    def load_transitions(self):
+        with open(self.traj_file_path, "rb") as f:
+            trajectories = pickle.load(f)
+            transitions = rollout.flatten_trajectories(trajectories)
+        return transitions
+
+    def train_gail(self):
+        transitions = self.load_transitions()
+        tempdir = tempfile.TemporaryDirectory(prefix="quickstart")
+        tempdir_path = pathlib.Path(tempdir.name)
+        print(f"All Tensorboards and logging are being written inside {tempdir_path}/.")
+
+        # Make buggy env
+        config = load_config(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_env_mujoco.yaml"))
+        venv = DummyVecEnv(env_fns=[lambda: BuggyEnv(config) for _ in range(1)])
+
+        gail_logger = logger.configure(tempdir_path / "GAIL/")
+        gail_reward_net = reward_nets.BasicRewardNet(
+            observation_space=venv.observation_space,
+            action_space=venv.action_space,
+        )
+        gail_trainer = gail.GAIL(
+            venv=venv,
+            demonstrations=transitions,
+            demo_batch_size=32,
+            gen_algo=sb3.PPO("MlpPolicy", venv, verbose=1, n_steps=1024),
+            reward_net=gail_reward_net,
+            custom_logger=gail_logger,
+        )
+        gail_trainer.train(total_timesteps=2048)
+
     def visualize_imitator(self):
         pass
 
 if __name__ == "__main__":
     bt = BuggySSTrajectoryTrainer()
     #bt.gather_ss_dataset()
-    bt.train_imitator_on_dataset()
+    #bt.train_imitator_on_dataset()
+    bt.train_gail()
