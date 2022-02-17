@@ -8,7 +8,8 @@
 "policy_lr" : 0.001
 "param_estimator_lr" : 0.003
 "w_decay" : 0.001
-"trn_iters" : 50000
+"trn_iters" : 5000
 "batchsize" : 128
 "recurrent_batchsize" : 10
 "n_latent_params" : 5
+"mlp_hid_dim" : 256

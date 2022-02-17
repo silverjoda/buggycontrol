@@ -12,6 +12,7 @@ from imitation.data.types import Trajectory
 from imitation.rewards import reward_nets
 from imitation.util import logger
 from stable_baselines3.common.vec_env import DummyVecEnv
+from stable_baselines3.common.policies import ActorCriticPolicy
 
 from src.envs.buggy_env_mujoco import BuggyEnv
 from src.opt.simplex_noise import SimplexNoise
@@ -35,6 +36,9 @@ class BuggySSTrajectoryTrainer:
 
         self.traj_file_path = os.path.join(dir_path, "traj.pkl")
 
+        config = load_config(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_env_mujoco.yaml"))
+        self.env = BuggyEnv(config)
+
     def generate_random_action_vec(self):
         # noise -1,1
         rnd_action_vec = self.noise.gen_noise_seq()
@@ -45,22 +49,18 @@ class BuggySSTrajectoryTrainer:
         return rnd_action_vec
 
     def gather_ss_dataset(self):
-        # Make buggy env
-        config = load_config(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_env_mujoco.yaml"))
-        env = BuggyEnv(config)
-
         X = []
         Y = []
         P = []
 
         # loop:
         for i in range(self.config["n_traj"]):
-            _ = env.reset()
+            _ = self.env.reset()
             obs_list = []
             act_list = []
 
             for j in range(self.config["traj_len"]):
-                obs_dict = env.get_obs_dict()
+                obs_dict = self.env.get_obs_dict()
                 obs_list.append(obs_dict)
 
                 # Get random action
@@ -72,21 +72,21 @@ class BuggySSTrajectoryTrainer:
 
                 act_list.append(rnd_act)
 
-                _, _, _, _ = env.step(rnd_act)
+                _, _, _, _ = self.env.step(rnd_act)
 
                 # DEBUG
                 # env.render()
                 # time.sleep(0.01)
 
             # make dataset out of given traj
-            x, y = self.make_trn_examples_from_traj(env, obs_list, act_list)
+            x, y = self.make_trn_examples_from_traj(self.env, obs_list, act_list)
 
             if len(x) < self.config["contiguous_traj_len"]:
                 continue
 
             X.append(np.array(x))
             Y.append(np.array(y))
-            P.append(np.array([env.scaled_random_params] * len(x)))
+            P.append(np.array([self.env.scaled_random_params] * len(x)))
 
         # Save as npy dataset
         X_arr = np.array(X)
@@ -160,7 +160,7 @@ class BuggySSTrajectoryTrainer:
         Y_val = Y[split_idx:].reshape([-1, act_dim])
 
         # Prepare policy and training
-        policy = MLP(obs_dim=obs_dim, act_dim=act_dim, hid_dim=256)
+        policy = MLP(obs_dim=obs_dim, act_dim=act_dim, hid_dim=self.config["mlp_hid_dim"])
         optim = T.optim.Adam(params=policy.parameters(), lr=self.config['policy_lr'], weight_decay=self.config['w_decay'])
         lossfun = T.nn.MSELoss()
 
@@ -261,13 +261,51 @@ class BuggySSTrajectoryTrainer:
             reward_net=gail_reward_net,
             custom_logger=gail_logger,
         )
-        gail_trainer.train(total_timesteps=10000)
 
-    def visualize_imitator(self):
-        pass
+        gail_trainer.train(total_timesteps=1028)
+
+        print("Done training, saving model")
+        if not os.path.exists("agents"):
+            os.makedirs("agents")
+        T.save(gail_trainer.policy.state_dict(), "agents/gail_policy.p")
+
+        venv.close()
+
+    def visualize_policy(self, policy, is_gail, render=True, print_rew=True):
+        total_rew = 0
+
+        for _ in range(100):
+            obs = self.env.reset()
+            episode_rew = 0
+            while True:
+                action = policy(T.tensor(obs, dtype=T.float32).unsqueeze(0))
+                if is_gail:
+                    action = action[0]
+                obs, reward, done, info = self.env.step(action.detach().numpy()[0])
+                episode_rew += reward
+                total_rew += reward
+                if render:
+                    self.env.render()
+                if done:
+                    if print_rew:
+                        print(episode_rew)
+                    break
+        return total_rew
+
 
 if __name__ == "__main__":
     bt = BuggySSTrajectoryTrainer()
     #bt.gather_ss_dataset()
-    bt.train_imitator_on_dataset()
+    #bt.train_imitator_on_dataset()
     #bt.train_gail()
+
+    #s Test
+    policy = MLP(obs_dim=33, act_dim=2, hid_dim=bt.config["mlp_hid_dim"])
+    policy.load_state_dict(T.load("agents/buggy_imitator.p"), strict=False)
+    gail_policy = ActorCriticPolicy(observation_space=bt.env.observation_space,
+                                    action_space=bt.env.action_space,
+                                    lr_schedule=lambda x : 0.001, net_arch=[64, 64])
+    gail_policy.load_state_dict(T.load("agents/gail_policy.p"), strict=False)
+
+    #bt.visualize_policy(policy, is_gail=False, render=True)
+    #bt.visualize_policy(gail_policy, is_gail=True, render=True)
