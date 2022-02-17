@@ -16,7 +16,7 @@ from imitation.data.types import Trajectory
 
 def load_transitions():
     # Load pickled test demonstrations.
-    path = "/home/tim/SW/imitation/tests/testdata/expert_models/cartpole_0/rollouts/final.pkl"
+    path = "/home/silverjoda/SW/imitation/tests/testdata/expert_models/cartpole_0/rollouts/final.pkl"
     #path = "supervised_trajs/trajs.pkl"
     with open(path, "rb") as f:
         # This is a list of `imitation.data.types.Trajectory`, where
@@ -89,6 +89,6 @@ if __name__=="__main__":
     tempdir_path = pathlib.Path(tempdir.name)
     print(f"All Tensorboards and logging are being written inside {tempdir_path}/.")
 
-    train_bc(venv, transitions, tempdir_path)
+    #train_bc(venv, transitions, tempdir_path)
     #train_airl(venv, transitions, tempdir_path)
-    #train_gail(venv, transitions, tempdir_path)
+    train_gail(venv, transitions, tempdir_path)

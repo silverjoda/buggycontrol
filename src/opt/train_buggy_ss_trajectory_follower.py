@@ -259,7 +259,7 @@ class BuggySSTrajectoryTrainer:
             reward_net=gail_reward_net,
             custom_logger=gail_logger,
         )
-        gail_trainer.train(total_timesteps=2048)
+        gail_trainer.train(total_timesteps=10000)
 
     def visualize_imitator(self):
         pass
