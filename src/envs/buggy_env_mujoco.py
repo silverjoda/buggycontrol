@@ -83,7 +83,7 @@ class BuggyEnv(gym.Env):
 
     def get_reward(self, obs_dict, wp_visited):
         pos = obs_dict["pos"]
-        cur_wp = obs_dict["wp_list"][self.engine.cur_wp_idx]
+        cur_wp = self.engine.wp_list[self.engine.cur_wp_idx]
         dist_between_cur_wp = np.sqrt(np.square(pos[0] - cur_wp[0]) + np.square(pos[1] - cur_wp[1]))
         r = wp_visited * 3 - dist_between_cur_wp * 0.05
         return r, dist_between_cur_wp

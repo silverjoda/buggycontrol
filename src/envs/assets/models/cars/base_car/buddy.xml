@@ -25,7 +25,7 @@
       </default>
       
       <default class="buddy_suspension">
-        <joint type="slide" axis="0 0 1" frictionloss="0.001" stiffness="500.0" springref="-0.05" damping="12.5" armature="0.01" limited="false"/>
+        <joint type="slide" axis="0 0 1" frictionloss="0.003" stiffness="700.0" springref="-0.05" damping="18.5" armature="0.01" limited="false"/>
       </default>
   </default>
   

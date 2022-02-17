@@ -1,0 +1,6 @@
+<launch>
+  <arg name="enable_mujoco_env_tester" default="true" />
+  <node name="joyNode" pkg="joy" type="joy_node" output="screen" />
+  <node name="joyconverterNode" pkg="buggycontrol" type="joyconverter.py" output="screen" />
+  <node pkg="buggycontrol" type="mujoco_env_tester.py" name="mujoco_env_tester" output="screen"  if="$(arg enable_mujoco_env_tester)"/>
+</launch>

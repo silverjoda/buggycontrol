@@ -25,12 +25,12 @@ class Engine:
         wp_visited = False
         # Check if wp is reached
         if self.dist_between_wps(pos, self.wp_list[self.cur_wp_idx]) < self.config["wp_reach_dist"]:
-            self.cur_wp_idx += 1
-            self.cur_mujoco_wp_idx = (self.cur_mujoco_wp_idx + 1) % self.config["n_traj_pts"]
-
             # Update wp visually in mujoco
             if self.config["render"]:
                 self.update_wp_visuals()
+
+            self.cur_wp_idx += 1
+            self.cur_mujoco_wp_idx = (self.cur_mujoco_wp_idx + 1) % self.config["n_traj_pts"]
 
             wp_visited = True
 
@@ -135,7 +135,7 @@ class Engine:
             self.mujoco_sim.data.set_mocap_pos(f"waypoint{i}", np.hstack((traj[i], [0])))
 
     def update_wp_visuals(self):
-        self.mujoco_sim.data.set_mocap_pos(f"waypoint{self.cur_mujoco_wp_idx - 1}", np.hstack((self.wp_list[self.cur_wp_idx + self.config["n_traj_pts"] - 1], [0])))
+        self.mujoco_sim.data.set_mocap_pos(f"waypoint{self.cur_mujoco_wp_idx }", np.hstack((self.wp_list[self.cur_wp_idx + self.config["n_traj_pts"]], [0])))
 
     def demo(self):
         self.reset()
