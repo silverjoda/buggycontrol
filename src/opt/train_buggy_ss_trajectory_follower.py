@@ -1,12 +1,9 @@
 import os
+import pathlib
 import pickle
 import tempfile
-import pathlib
-from stable_baselines3.common.vec_env import VecNormalize, SubprocVecEnv, DummyVecEnv, VecMonitor
-
 
 import numpy as np
-import seals  # noqa: F401
 import stable_baselines3 as sb3
 import torch as T
 from imitation.algorithms.adversarial import gail
@@ -14,6 +11,7 @@ from imitation.data import rollout
 from imitation.data.types import Trajectory
 from imitation.rewards import reward_nets
 from imitation.util import logger
+from stable_baselines3.common.vec_env import DummyVecEnv
 
 from src.envs.buggy_env_mujoco import BuggyEnv
 from src.opt.simplex_noise import SimplexNoise
@@ -101,7 +99,7 @@ class BuggySSTrajectoryTrainer:
 
         traj_list = []
         for x, y in zip(X, Y):
-            traj = Trajectory(obs=x, acts=y[:-1], infos=None)
+            traj = Trajectory(obs=x, acts=y[:-1], infos=None, terminal=False)
             traj_list.append(traj)
         pickle.dump(traj_list, open(self.traj_file_path, "wb"))
 
@@ -150,17 +148,19 @@ class BuggySSTrajectoryTrainer:
         X = np.load(self.x_file_path, allow_pickle=True)
         Y = np.load(self.y_file_path, allow_pickle=True)
 
+        print("Dataset shapes: ", X.shape, Y.shape)
+
         n_traj = X.shape[0]
         obs_dim = X.shape[2]
         act_dim = Y.shape[2]
         split_idx = int(n_traj * 0.8)
         X_trn = X[0:split_idx].reshape([-1, obs_dim])
-        Y_trn = X[0:split_idx].reshape([-1, act_dim])
+        Y_trn = Y[0:split_idx].reshape([-1, act_dim])
         X_val = X[split_idx:].reshape([-1, obs_dim])
         Y_val = Y[split_idx:].reshape([-1, act_dim])
 
         # Prepare policy and training
-        policy = MLP(obs_dim=obs_dim, act_dim=act_dim)
+        policy = MLP(obs_dim=obs_dim, act_dim=act_dim, hid_dim=256)
         optim = T.optim.Adam(params=policy.parameters(), lr=self.config['policy_lr'], weight_decay=self.config['w_decay'])
         lossfun = T.nn.MSELoss()
 
@@ -168,15 +168,17 @@ class BuggySSTrajectoryTrainer:
             rnd_indeces = np.random.choice(np.arange(len(X_trn)), self.config["batchsize"], replace=False)
             x = T.tensor(X_trn[rnd_indeces], dtype=T.float32)
             y = T.tensor(Y_trn[rnd_indeces], dtype=T.float32)
+
             y_ = policy(x)
             loss = lossfun(y_, y)
             loss.backward()
             optim.step()
             optim.zero_grad()
-            if i % 50 == 0:
-                y_val_ = policy(T.tensor(X_val, dtype=T.float32))
-                val_loss = lossfun(y_val_, T.tensor(Y_val, dtype=T.float32))
-                print("Iter {}/{}, trn_loss: {}, val_loss: {}".format(i, self.config['trn_iters'], loss.data, val_loss.data))
+            if i % 100 == 0:
+                with T.no_grad():
+                    y_val_ = policy(T.tensor(X_val, dtype=T.float32))
+                    val_loss = lossfun(y_val_, T.tensor(Y_val, dtype=T.float32))
+                    print("Iter {}/{}, trn_loss: {}, val_loss: {}".format(i, self.config['trn_iters'], loss.data, val_loss.data))
         print("Done training, saving model")
         if not os.path.exists("agents"):
             os.makedirs("agents")
@@ -267,5 +269,5 @@ class BuggySSTrajectoryTrainer:
 if __name__ == "__main__":
     bt = BuggySSTrajectoryTrainer()
     #bt.gather_ss_dataset()
-    #bt.train_imitator_on_dataset()
-    bt.train_gail()
+    bt.train_imitator_on_dataset()
+    #bt.train_gail()
