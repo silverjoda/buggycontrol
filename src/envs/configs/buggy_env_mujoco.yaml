@@ -9,6 +9,6 @@
 "allow_lte" : False
 "lte_prob" : 0.3
 "wp_sample_dist" : 0.17
-"wp_reach_dist" : 0.2
+"wp_reach_dist" : 0.3
 "max_steps" : 300
 "traj_smoothness" : 400

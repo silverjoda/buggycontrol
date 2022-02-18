@@ -347,9 +347,9 @@ class BuggySSTrajectoryTrainer:
 
 if __name__ == "__main__":
     bt = BuggySSTrajectoryTrainer()
-    bt.gather_ss_dataset()
-    bt.train_imitator_on_dataset()
-    bt.train_gail()
+    #bt.gather_ss_dataset()
+    #bt.train_imitator_on_dataset()
+    #bt.train_gail()
     bt.train_airl()
     exit()
 
@@ -367,4 +367,4 @@ if __name__ == "__main__":
 
     #bt.visualize_policy(policy, is_gail=False, render=True)
     #bt.visualize_policy(gail_policy, is_gail=True, render=True)
-    bt.visualize_policy(airl_policy, is_gail=True, render=True)
+    #bt.visualize_policy(airl_policy, is_gail=True, render=True)

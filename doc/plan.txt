@@ -1,9 +1,7 @@
 Plan:
 
 # Mission: Obtain High performing buggy agent:
-- Check that expert trajectories and buggy env are the same in obs/action space (ranges: turn -0.4,0.4, throttle 0:1)
-- Make visualization of obtained trajectories in gathered trajectories
-- Make test script on gathered trajectories
+- Add turn and throttle state estimator in buggyenv and data gathering script
 - Obtain well trained model
 
 # Mission: Transfer

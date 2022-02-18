@@ -6,7 +6,7 @@ from pprint import pprint
 import torch as T
 import yaml
 from stable_baselines3 import A2C
-from stable_baselines3.common.callbacks import CheckpointCallback, CallbackList
+from stable_baselines3.common.callbacks import CheckpointCallback, CallbackList, EvalCallback, StopTrainingOnRewardThreshold
 from stable_baselines3.common.vec_env import VecNormalize, SubprocVecEnv, DummyVecEnv, VecMonitor
 
 from src.envs import buggy_env_mujoco
@@ -81,6 +81,10 @@ class BuggyTrajFollowerTrainer:
         checkpoint_callback = CheckpointCallback(save_freq=300000,
                                                  save_path='agents_cp/',
                                                  name_prefix=self.config["session_ID"], verbose=1)
+
+        #eval_env = gym.make('Pendulum-v1')
+        #callback_on_best = StopTrainingOnRewardThreshold(reward_threshold=-200, verbose=1)
+        #eval_callback = EvalCallback(eval_env, callback_on_new_best=callback_on_best, verbose=1)
 
         model = A2C(policy=self.config["policy_name"],
                     env=normed_env,
