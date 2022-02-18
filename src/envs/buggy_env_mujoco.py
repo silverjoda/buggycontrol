@@ -30,7 +30,7 @@ class BuggyEnv(gym.Env):
             self.lte = LTE(obs_dim=self.config["state_dim"] + self.act_dim, act_dim=self.config["state_dim"])
             self.lte.load_state_dict(T.load("agents/buggy_lte.p"), strict=False)
 
-        self.observation_space = spaces.Box(low=-7, high=7, shape=(self.obs_dim,), dtype=np.float32)
+        self.observation_space = spaces.Box(low=-10, high=10, shape=(self.obs_dim,), dtype=np.float32)
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(self.act_dim,), dtype=np.float32)
 
         self.sim, self.engine = self.load_random_env()

@@ -2,6 +2,7 @@ import os
 import pathlib
 import pickle
 import tempfile
+import time
 
 import numpy as np
 import stable_baselines3 as sb3
@@ -20,12 +21,13 @@ from src.policies import MLP, RNN
 from src.utils import load_config
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 T.set_num_threads(1)
+GLOBAL_DEBUG = False
 
 class BuggySSTrajectoryTrainer:
     def __init__(self):
         self.config = load_config(os.path.join(os.path.dirname(__file__),
                                                "configs/train_buggy_ss_trajectory_follower.yaml"))
-        self.noise = SimplexNoise(dim=2, smoothness=300, multiplier=1.7)
+        self.noise = SimplexNoise(dim=2, smoothness=30, multiplier=1.0)
 
         dir_path = os.path.join(os.path.dirname(__file__), "supervised_trajs")
         if not os.path.exists(dir_path):
@@ -68,16 +70,16 @@ class BuggySSTrajectoryTrainer:
                 rnd_act = self.noise()
 
                 # Condition act (turn, throttle)
-                rnd_act[0] *= 0.4
-                rnd_act[1] += 0.5
+                rnd_act[0] = np.clip(rnd_act[0], -1, 1)
+                rnd_act[1] = np.clip(rnd_act[1] + 0.5, -1, 1)
 
                 act_list.append(rnd_act)
 
                 _, _, _, _ = self.env.step(rnd_act)
 
-                # DEBUG
-                # env.render()
-                # time.sleep(0.01)
+                if GLOBAL_DEBUG:
+                    self.env.render()
+                    time.sleep(0.008)
 
             # make dataset out of given traj
             x, y = self.make_trn_examples_from_traj(self.env, obs_list, act_list)
@@ -89,6 +91,10 @@ class BuggySSTrajectoryTrainer:
             Y.append(np.array(y))
             P.append(np.array([self.env.scaled_random_params] * len(x)))
 
+            if i % 10 == 0:
+                print("Trajectory gathering: {}\{}".format(i, self.config["n_traj"]))
+
+        print("Saving trajectories")
         # Save as npy dataset
         X_arr = np.array(X)
         Y_arr = np.array(Y)
@@ -130,14 +136,14 @@ class BuggySSTrajectoryTrainer:
                     X.append(state_vec + list(current_trajectory_buggy_frame.reshape(-1)))
                     Y.append(act_list[current_state_idx])
                     break
-
-            # DEBUG
-            # env.engine.set_wp_visuals_externally(current_trajectory)
-            # env.engine.step([0,0])
-            # env.render()
-            # time.sleep(3)
-        # DEBUG
-        #exit()
+        #
+        #     if GLOBAL_DEBUG:
+        #         env.engine.set_wp_visuals_externally(current_trajectory)
+        #         env.engine.step([0,0])
+        #         env.render()
+        #         time.sleep(3)
+        # if GLOBAL_DEBUG:
+        #     exit()
 
         return X, Y
 
@@ -341,11 +347,11 @@ class BuggySSTrajectoryTrainer:
 
 if __name__ == "__main__":
     bt = BuggySSTrajectoryTrainer()
-    #bt.gather_ss_dataset()
-    #bt.train_imitator_on_dataset()
-    #bt.train_gail()
+    bt.gather_ss_dataset()
+    bt.train_imitator_on_dataset()
+    bt.train_gail()
     bt.train_airl()
-    #exit()
+    exit()
 
     # Test
     policy = MLP(obs_dim=33, act_dim=2, hid_dim=bt.config["mlp_hid_dim"])
@@ -361,4 +367,4 @@ if __name__ == "__main__":
 
     #bt.visualize_policy(policy, is_gail=False, render=True)
     #bt.visualize_policy(gail_policy, is_gail=True, render=True)
-    #bt.visualize_policy(airl_policy, is_gail=True, render=True)
+    bt.visualize_policy(airl_policy, is_gail=True, render=True)

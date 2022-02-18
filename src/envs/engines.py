@@ -94,18 +94,19 @@ class Engine:
         current_xy = np.zeros(2)
 
         # Generate fine grained trajectory
-        for i in range(1000):
+        for i in range(2000):
             noise = 5 * self.noise()[0]
             current_xy += np.array([0.01 * np.cos(noise), 0.01 * np.sin(noise)])
             traj_pts.append(deepcopy(current_xy))
 
         # Sample equidistant points
         wp_list = []
-        current_wp = [0, 0]
-        for t in traj_pts:
-            if self.dist_between_wps(t, current_wp) > self.config["wp_sample_dist"]:
-                current_wp = t
-                wp_list.append(t)
+        cum_wp_dist = 0
+        for i in range(1, len(traj_pts)):
+            cum_wp_dist += self.dist_between_wps(traj_pts[i], traj_pts[i-1])
+            if cum_wp_dist > self.config["wp_sample_dist"]:
+                wp_list.append(traj_pts[i])
+                cum_wp_dist = 0
 
         # Debug plot
         #self.plot_traj(traj_pts, wp_list)

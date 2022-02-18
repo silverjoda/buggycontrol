@@ -1,5 +1,5 @@
 "rate" : 100
-"render" : False
+"render" : True
 "n_substeps" : 10
 "state_dim" : 3
 "n_traj_pts" : 15
@@ -8,7 +8,7 @@
 "latent_dim" : 5
 "allow_lte" : False
 "lte_prob" : 0.3
-"wp_sample_dist" : 0.15
+"wp_sample_dist" : 0.17
 "wp_reach_dist" : 0.2
 "max_steps" : 300
 "traj_smoothness" : 400
