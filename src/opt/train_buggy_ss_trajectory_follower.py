@@ -11,14 +11,15 @@ from imitation.data import rollout
 from imitation.data.types import Trajectory
 from imitation.rewards import reward_nets
 from imitation.util import logger
-from stable_baselines3.common.vec_env import DummyVecEnv
+from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from stable_baselines3.common.policies import ActorCriticPolicy
 
 from src.envs.buggy_env_mujoco import BuggyEnv
 from src.opt.simplex_noise import SimplexNoise
 from src.policies import MLP, RNN
 from src.utils import load_config
-
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
+T.set_num_threads(1)
 
 class BuggySSTrajectoryTrainer:
     def __init__(self):
@@ -246,8 +247,9 @@ class BuggySSTrajectoryTrainer:
 
         # Make buggy env
         config = load_config(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_env_mujoco.yaml"))
-        venv = DummyVecEnv(env_fns=[lambda: BuggyEnv(config) for _ in range(1)])
-        
+        #venv = DummyVecEnv(env_fns=[lambda: BuggyEnv(config) for _ in range(1)])
+        venv = SubprocVecEnv(env_fns=[lambda : BuggyEnv(config) for _ in range(6)] , start_method="fork")
+
         os.environ["CUDA_VISIBLE_DEVICES"]=""
         gail_logger = logger.configure(tempdir_path / "GAIL/")
         gail_reward_net = reward_nets.BasicRewardNet(
@@ -258,20 +260,20 @@ class BuggySSTrajectoryTrainer:
             venv=venv,
             demonstrations=transitions,
             demo_batch_size=32,
-            gen_algo=sb3.PPO("MlpPolicy", venv, verbose=1, n_steps=1024),
+            gen_algo=sb3.PPO("MlpPolicy", venv, verbose=1, n_steps=1024, policy_kwargs=dict(net_arch=[self.config["mlp_hid_dim"], self.config["mlp_hid_dim"]])),
             reward_net=gail_reward_net,
             custom_logger=gail_logger,
         )
 
         gail_trainer.train(total_timesteps=self.config["gail_iters"])
 
-        #self.visualize_policy(gail_trainer.policy, is_gail=True, render=True)
-        #exit()
-
         print("Done training, saving model")
         if not os.path.exists("agents"):
             os.makedirs("agents")
         T.save(gail_trainer.policy.state_dict(), "agents/gail_policy.p")
+
+        self.visualize_policy(gail_trainer.policy, is_gail=True, render=True)
+        exit()
 
         venv.close()
 
@@ -283,7 +285,8 @@ class BuggySSTrajectoryTrainer:
 
         # Make buggy env
         config = load_config(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_env_mujoco.yaml"))
-        venv = DummyVecEnv(env_fns=[lambda: BuggyEnv(config) for _ in range(1)])
+        #venv = DummyVecEnv(env_fns=[lambda: BuggyEnv(config) for _ in range(1)])
+        venv = SubprocVecEnv(env_fns=[lambda : BuggyEnv(config) for _ in range(6)] , start_method="fork")
 
         os.environ["CUDA_VISIBLE_DEVICES"] = ""
         airl_logger = logger.configure(tempdir_path / "AIRL/")
@@ -296,7 +299,7 @@ class BuggySSTrajectoryTrainer:
             venv=venv,
             demonstrations=transitions,
             demo_batch_size=32,
-            gen_algo=sb3.PPO("MlpPolicy", venv, verbose=1, n_steps=1024),
+            gen_algo=sb3.PPO("MlpPolicy", venv, verbose=1, n_steps=1024, policy_kwargs=dict(net_arch=[self.config["mlp_hid_dim"], self.config["mlp_hid_dim"]])),
             reward_net=airl_reward_net,
             custom_logger=airl_logger,
         )
@@ -307,6 +310,10 @@ class BuggySSTrajectoryTrainer:
         if not os.path.exists("agents"):
             os.makedirs("agents")
         T.save(airl_trainer.policy.state_dict(), "agents/airl_policy.p")
+
+        self.visualize_policy(airl_trainer.policy, is_gail=True, render=True)
+        exit()
+
 
         venv.close()
 
@@ -336,22 +343,22 @@ if __name__ == "__main__":
     bt = BuggySSTrajectoryTrainer()
     #bt.gather_ss_dataset()
     #bt.train_imitator_on_dataset()
-    bt.train_gail()
+    #bt.train_gail()
     bt.train_airl()
-    exit()
+    #exit()
 
     # Test
     policy = MLP(obs_dim=33, act_dim=2, hid_dim=bt.config["mlp_hid_dim"])
     policy.load_state_dict(T.load("agents/buggy_imitator.p"), strict=False)
     gail_policy = ActorCriticPolicy(observation_space=bt.env.observation_space,
                                     action_space=bt.env.action_space,
-                                    lr_schedule=lambda x : 0.001, net_arch=[64, 64])
+                                    lr_schedule=lambda x : 0.001, net_arch=[bt.config["mlp_hid_dim"], bt.config["mlp_hid_dim"]])
     gail_policy.load_state_dict(T.load("agents/gail_policy.p"), strict=False)
     airl_policy = ActorCriticPolicy(observation_space=bt.env.observation_space,
                                     action_space=bt.env.action_space,
-                                    lr_schedule=lambda x: 0.001, net_arch=[64, 64])
+                                    lr_schedule=lambda x: 0.001, net_arch=[bt.config["mlp_hid_dim"], bt.config["mlp_hid_dim"]])
     airl_policy.load_state_dict(T.load("agents/airl_policy.p"), strict=False)
 
     #bt.visualize_policy(policy, is_gail=False, render=True)
     #bt.visualize_policy(gail_policy, is_gail=True, render=True)
-    bt.visualize_policy(airl_policy, is_gail=True, render=True)
+    #bt.visualize_policy(airl_policy, is_gail=True, render=True)

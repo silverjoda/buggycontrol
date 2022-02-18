@@ -1,10 +1,14 @@
 Plan:
 
 # Mission: Obtain High performing buggy agent:
-- Lower the CG of the buggy
-- Find out how to modify policy arch of gail
+- Get High performing agent!
 
 # Mission: Transfer
+- Check what caused mujoco a2c list out of index error in engines (line 138)
+- Check why there is a cap on 301 steps in the env (is there a done condition that depends on the remaining traj that activates?)
+- Check that expert trajectories and buggy env are the same in obs/action space (ranges: turn -0.4,0.4, throttle 0:1)
+- Make visualization of obtained trajectories in gathered trajectories
+- Make test script on gathered trajectories
 - Obtain well trained model
 - Train RMA-style
 - Compare RMA-style with trained model transfer

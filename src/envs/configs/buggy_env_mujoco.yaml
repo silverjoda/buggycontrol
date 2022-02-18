@@ -1,5 +1,5 @@
 "rate" : 100
-"render" : True
+"render" : False
 "n_substeps" : 10
 "state_dim" : 3
 "n_traj_pts" : 15
