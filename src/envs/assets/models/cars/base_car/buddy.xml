@@ -9,15 +9,15 @@
   
   <default>
       <default class="buddy_wheel_collision">
-        <geom type="ellipsoid"  size="0.05 0.03 0.05"  friction="0.7 0.005 0.0001" condim="3" contype="1" conaffinity="0" mass="0.498952" solimp="0 0.95 0.001 0.5 2" solref="0.02 1" margin="0"/>
+        <geom type="ellipsoid"  size="0.05 0.03 0.05"  friction="1.1 0.005 0.0001" condim="4" contype="1" conaffinity="0" mass="0.3" solimp="0 0.95 0.001 0.5 2" solref="0.02 1" margin="0"/>
       </default> 
       
       <default class="buddy_wheel_visual">
-        <geom type="ellipsoid"  size="0.09 0.09 0.2"  friction="0.6 0.005 0.0001" condim="3" contype="1" conaffinity="0" mesh="buddy_mushr_wheel" mass="0.498952"/>
+        <geom type="ellipsoid" size="0.09 0.09 0.2"  friction="0.6 0.005 0.0001" condim="1" contype="0" conaffinity="0" mesh="buddy_mushr_wheel" mass="0.01"/>
       </default>
       
       <default class="buddy_steering">
-        <joint type="hinge" axis="0 0 1" limited="true" frictionloss="0.01" damping="0.001" armature="0.0002" range="-0.38 0.38"/>
+        <joint type="hinge" axis="0 0 1" limited="true" frictionloss="0.06" damping="0.03" armature="0.0001" range="-0.38 0.38"/>
       </default>
     
       <default class="buddy_throttle">
@@ -25,7 +25,7 @@
       </default>
       
       <default class="buddy_suspension">
-        <joint type="slide" axis="0 0 1" frictionloss="0.003" stiffness="700.0" springref="-0.05" damping="18.5" armature="0.01" limited="false"/>
+        <joint type="slide" axis="0 0 1" frictionloss="0.004" stiffness="900.0" springref="-0.05" damping="26" armature="0.01" limited="false"/>
       </default>
   </default>
   
@@ -34,12 +34,9 @@
       <camera name="buddy_third_person" mode="fixed" pos="-1 0 1" xyaxes="0 -1 0 0.707 0 0.707"/>
       <joint type="free"/>
 
-      <camera name="buddy_realsense_d435i" mode="fixed" pos="-0.005 0 .165" euler="0 4.712 4.712"/>
-      <site name="buddy_imu" pos="-0.005 0 .165"/>
+      <!-- <site name="buddy_imu" pos="-0.005 0 .165"/> -->
 
-      <geom pos="0 0 0.094655" type="mesh" mass="3.542137" mesh="buddy_mushr_base_nano"/>
-      <geom name="buddy_realsense_d435i" size="0.012525 0.045 0.0125" pos="0.0123949 0 0.162178" mass="0.072" type="box"/>
-      <geom name="buddy_ydlidar" pos="-0.035325 0 0.202405" type="mesh" mass="0.180" mesh="buddy_mushr_ydlidar"/>
+      <geom pos="0 0 0.05" contype="0" type="mesh" mass="2.5" mesh="buddy_mushr_base_nano"/>
 
       <body name="buddy_steering_wheel" pos="0.1385 0 0.0488">
         <joint class="buddy_steering" name="buddy_steering_wheel"/>
@@ -75,7 +72,7 @@
     </body>
   </worldbody>
   <actuator>
-    <position class="buddy_steering" kp="25.0" name="buddy_steering_pos" joint="buddy_steering_wheel"/>
+    <position class="buddy_steering" kp="15.0" name="buddy_steering_pos" joint="buddy_steering_wheel"/>
     <velocity kv="3000" gear="0.003" forcelimited="true" forcerange="-2000 2000" name="buddy_throttle_velocity" tendon="buddy_throttle"/>
   </actuator>
   <equality>
@@ -93,9 +90,9 @@
       <joint joint="buddy_wheel_br_throttle" coef="0.5"/>
     </fixed>
   </tendon>
-  <sensor>
+  <!-- <sensor>
     <accelerometer name="buddy_accelerometer" site="buddy_imu" />
     <gyro name="buddy_gyro" site="buddy_imu" />
     <velocimeter name="buddy_velocimeter" site="buddy_imu" />
-  </sensor>
+  </sensor> -->
 </mujoco>
