@@ -1,5 +1,5 @@
 # Train config
-"train" : True
+"train" : False
 "render" : True
 "default_session_ID" : "TRN"
 "iters" : 10000000

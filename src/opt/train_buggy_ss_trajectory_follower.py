@@ -21,7 +21,7 @@ from src.policies import MLP, RNN
 from src.utils import load_config
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 T.set_num_threads(1)
-GLOBAL_DEBUG = False
+GLOBAL_DEBUG = True
 
 class BuggySSTrajectoryTrainer:
     def __init__(self):
@@ -82,7 +82,10 @@ class BuggySSTrajectoryTrainer:
                     time.sleep(0.008)
 
             # make dataset out of given traj
-            x, y = self.make_trn_examples_from_traj(self.env, obs_list, act_list)
+            if self.config["traj_sample_mode"] == "uniform":
+                x, y = self.make_trn_examples_from_traj(self.env, obs_list, act_list)
+            else:
+                x, y = self.make_trn_examples_from_traj_time_based(self.env, obs_list, act_list)
 
             if len(x) < self.config["contiguous_traj_len"]:
                 continue
@@ -146,6 +149,43 @@ class BuggySSTrajectoryTrainer:
         #         time.sleep(3)
         # if GLOBAL_DEBUG:
         #     exit()
+
+        return X, Y
+
+    def make_trn_examples_from_traj_time_based(self, env, obs_list, act_list):
+        X = []
+        Y = []
+
+        for current_state_idx in range(self.config["contiguous_traj_len"]):
+            current_trajectory = []
+            start_idx = current_state_idx + 1
+            for ti in range(start_idx, len(obs_list)):
+                if (ti - start_idx) % 10 == 0 and ti > 0:
+                    current_trajectory.append(obs_list[ti]["pos"][0:2])
+                if len(current_trajectory) == self.config["n_waypoints"]:
+                    # Add state + trajectory observation to list
+                    state_vec = [obs_list[current_state_idx]["turn_angle"],
+                                 obs_list[current_state_idx]["rear_wheel_speed"],
+                                 obs_list[current_state_idx]["vel"][0],
+                                 obs_list[current_state_idx]["vel"][1],
+                                 obs_list[current_state_idx]["ang_vel"][2]]
+                    current_trajectory_buggy_frame = env.engine.transform_wp_to_buggy_frame(current_trajectory,
+                                                                                            obs_list[current_state_idx][
+                                                                                                "pos"],
+                                                                                            obs_list[current_state_idx][
+                                                                                                "ori_q"])
+
+                    X.append(state_vec + list(current_trajectory_buggy_frame.reshape(-1)))
+                    Y.append(act_list[current_state_idx])
+                    break
+
+            if GLOBAL_DEBUG:
+                env.engine.set_wp_visuals_externally(current_trajectory)
+                env.engine.step([0,0])
+                env.render()
+                time.sleep(3)
+        if GLOBAL_DEBUG:
+            exit()
 
         return X, Y
 
@@ -349,15 +389,16 @@ class BuggySSTrajectoryTrainer:
 
 if __name__ == "__main__":
     bt = BuggySSTrajectoryTrainer()
-    #bt.gather_ss_dataset()
+    bt.gather_ss_dataset()
     #bt.train_imitator_on_dataset()
     #bt.train_gail()
     #bt.train_airl()
-    exit()
+    #exit()
 
     # Test
     policy = MLP(obs_dim=35, act_dim=2, hid_dim=bt.config["mlp_hid_dim"])
     policy.load_state_dict(T.load("agents/buggy_imitator.p"), strict=False)
+
     gail_policy = ActorCriticPolicy(observation_space=bt.env.observation_space,
                                     action_space=bt.env.action_space,
                                     lr_schedule=lambda x : 0.001, net_arch=[bt.config["mlp_hid_dim"], bt.config["mlp_hid_dim"]])
@@ -369,4 +410,4 @@ if __name__ == "__main__":
 
     #bt.visualize_policy(policy, is_gail=False, render=True)
     #bt.visualize_policy(gail_policy, is_gail=True, render=True)
-    #bt.visualize_policy(airl_policy, is_gail=True, render=True)
+    bt.visualize_policy(airl_policy, is_gail=True, render=True)

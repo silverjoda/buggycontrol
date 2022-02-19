@@ -1,7 +1,7 @@
 Plan:
 
 # Mission: Obtain High performing buggy agent:
-- Looks like velocity observations are not in buggy frame (big problem)
+- Train gail/airl with 8mln iters
 - Try doing gail/airl with time-sampled trajectories instead of distance
 - Obtain well trained model
 
