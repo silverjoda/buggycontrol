@@ -1,9 +1,12 @@
 Plan:
 
-# Mission: Obtain High performing buggy agent:
-- Train gail/airl with 8mln iters
-- Try doing gail/airl with time-sampled trajectories instead of distance
-- Obtain well trained model
+# Mission: Obtain High(er) performing buggy agent:
+- Add reward scheduling
+- Train for more iters
+- Change reward to give 1 for waypoint visitation
+- Change reward slightly to make tighter waypoint visiting
+- Increase max steps to 400 or 500
+- Optimize RL parameters using optuna
 
 # Mission: Transfer
 - Train RMA-style

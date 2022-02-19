@@ -60,5 +60,11 @@
     <body name="waypoint14" pos="-10 0 0" mocap="true">
     <geom contype="0" conaffinity="0" condim="3" size=".05" type="sphere" mass="1" rgba="1 0 0 1"/>
     </body>
+    <body name="barrier1" pos="10 0 0" mocap="true">
+    <geom contype="0" conaffinity="0" condim="3" size=".05 0.5 .2" type="box" mass="1" rgba="0 0 1 1"/>
+    </body>
+    <body name="barrier2" pos="10 0 0" mocap="true">
+    <geom contype="0" conaffinity="0" condim="3" size=".05 0.5 .2" type="box" mass="1" rgba="0 0 1 1"/>
+    </body>
   </worldbody>
 </mujoco> 

@@ -1,7 +1,8 @@
-"n_traj" : 1000
+"n_traj" : 3000
 "traj_len" : 600
 "traj_sampling_dist" : 0.17
 "traj_jump_iters" : 100
+"traj_sample_mode" : "time_based"
 "contiguous_traj_len" : 300
 "n_waypoints" : 15
 "add_action_to_traj" : False

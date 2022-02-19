@@ -69,6 +69,13 @@ class BuggyEnv(gym.Env):
 
         return sim, engine
 
+    def set_barrier_positions(self, p1, p2):
+        self.sim.data.set_mocap_pos("barrier1", p1 + [0.2])
+        self.sim.data.set_mocap_pos("barrier2", p2 + [0.2])
+
+    def set_trajectory_pts(self, traj_pts):
+        pass
+
     def get_obs_dict(self):
         return self.engine.get_obs_dict()
 
@@ -128,6 +135,8 @@ class BuggyEnv(gym.Env):
         while True:
             self.noise = SimplexNoise(dim=2, smoothness=30, multiplier=1.6)
             self.reset()
+
+            self.set_barrier_positions([4, 0.0], [5.5, 1.0])
             cum_rew = 0
             while True:
                 zero_act = [0.0, -1.0]

@@ -21,7 +21,7 @@ from src.policies import MLP, RNN
 from src.utils import load_config
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 T.set_num_threads(1)
-GLOBAL_DEBUG = True
+GLOBAL_DEBUG = False
 
 class BuggySSTrajectoryTrainer:
     def __init__(self):
@@ -307,8 +307,8 @@ class BuggySSTrajectoryTrainer:
         gail_trainer = gail.GAIL(
             venv=venv,
             demonstrations=transitions,
-            demo_batch_size=32,
-            gen_algo=sb3.PPO("MlpPolicy", venv, verbose=1, n_steps=1024, policy_kwargs=dict(net_arch=[self.config["mlp_hid_dim"], self.config["mlp_hid_dim"]])),
+            demo_batch_size=64,
+            gen_algo=sb3.PPO("MlpPolicy", venv, verbose=1, learning_rate=1e-4, n_steps=2048, policy_kwargs=dict(net_arch=[self.config["mlp_hid_dim"], self.config["mlp_hid_dim"]])),
             reward_net=gail_reward_net,
             custom_logger=gail_logger,
         )
@@ -389,7 +389,7 @@ class BuggySSTrajectoryTrainer:
 
 if __name__ == "__main__":
     bt = BuggySSTrajectoryTrainer()
-    bt.gather_ss_dataset()
+    #bt.gather_ss_dataset()
     #bt.train_imitator_on_dataset()
     #bt.train_gail()
     #bt.train_airl()
@@ -410,4 +410,4 @@ if __name__ == "__main__":
 
     #bt.visualize_policy(policy, is_gail=False, render=True)
     #bt.visualize_policy(gail_policy, is_gail=True, render=True)
-    bt.visualize_policy(airl_policy, is_gail=True, render=True)
+    #bt.visualize_policy(airl_policy, is_gail=True, render=True)
