@@ -92,7 +92,7 @@ class BuggySSTrajectoryTrainer:
             P.append(np.array([self.env.scaled_random_params] * len(x)))
 
             if i % 10 == 0:
-                print("Trajectory gathering: {}\{}".format(i, self.config["n_traj"]))
+                print("Trajectory gathering: {}/{}".format(i, self.config["n_traj"]))
 
         print("Saving trajectories")
         # Save as npy dataset
@@ -124,7 +124,9 @@ class BuggySSTrajectoryTrainer:
                     cum_wp_dist = 0
                 if len(current_trajectory) == self.config["n_waypoints"]:
                     # Add state + trajectory observation to list
-                    state_vec = [obs_list[current_state_idx]["vel"][0],
+                    state_vec = [obs_list[current_state_idx]["turn_angle"],
+                                 obs_list[current_state_idx]["rear_wheel_speed"],
+                                 obs_list[current_state_idx]["vel"][0],
                                  obs_list[current_state_idx]["vel"][1],
                                  obs_list[current_state_idx]["ang_vel"][2]]
                     current_trajectory_buggy_frame = env.engine.transform_wp_to_buggy_frame(current_trajectory,
@@ -350,11 +352,11 @@ if __name__ == "__main__":
     #bt.gather_ss_dataset()
     #bt.train_imitator_on_dataset()
     #bt.train_gail()
-    bt.train_airl()
+    #bt.train_airl()
     exit()
 
     # Test
-    policy = MLP(obs_dim=33, act_dim=2, hid_dim=bt.config["mlp_hid_dim"])
+    policy = MLP(obs_dim=35, act_dim=2, hid_dim=bt.config["mlp_hid_dim"])
     policy.load_state_dict(T.load("agents/buggy_imitator.p"), strict=False)
     gail_policy = ActorCriticPolicy(observation_space=bt.env.observation_space,
                                     action_space=bt.env.action_space,

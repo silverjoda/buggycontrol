@@ -60,7 +60,9 @@ class Engine:
         obs_dict = self.get_obs_dict()
         vel = obs_dict['vel']
         ang_vel = obs_dict['ang_vel']
-        return [vel[0], vel[1], ang_vel[2]]
+        turn_angle = obs_dict['turn_angle']
+        rear_wheel_speed = obs_dict['rear_wheel_speed']
+        return [turn_angle, rear_wheel_speed, vel[0], vel[1], ang_vel[2]]
 
     def get_complete_obs_vec(self):
         state = self.get_state_vec()
@@ -141,11 +143,23 @@ class Engine:
     def demo(self):
         self.reset()
         while True:
-            self.step([0.1, 0.1])
-            self.render()
-            #print(self.get_obs_dict())
-            time.sleep(0.01)
-            #print(self.cur_wp_idx, self.cur_mujoco_wp_idx)
+            acts = [[0.0, 0.0], [0.0, 0.9], [-0.0, -0.9], [0.3, 0.9], [-0.3, 0.9]]
+            for a in acts:
+                for i in range(100):
+                    self.step(a)
+                    self.render()
+                    #print(self.get_obs_dict()["vel"])
+                    #time.sleep(0.001)
+
+                    #print(self.get_state_vec())
+
+                    q_vel_list = self.mujoco_sim.get_state().qvel[0:3]
+                    q_mat = np.reshape(self.mujoco_sim.data.body_xmat[self.bodyid], (3, 3))
+                    q_vel_buggy = np.matmul(np.linalg.inv(q_mat), q_vel_list[:, np.newaxis])
+
+                    #print(q_vel_buggy[0:2, 0])
+                    #print(self.mujoco_sim.data.body_xvelr[self.bodyid].copy()[2])
+                    #print(self.cur_wp_idx, self.cur_mujoco_wp_idx)
 
 class MujocoEngine(Engine):
     def __init__(self, config, mujoco_sim):
@@ -158,9 +172,13 @@ class MujocoEngine(Engine):
         self.mujoco_sim.forward()
         self.mujoco_sim.step()
 
+        # Update hidden states
+        self.update_estimators(action)
+
         return self.step_trajectory(self.mujoco_sim.data.body_xpos[self.bodyid].copy()[0:2])
 
     def reset(self):
+        self.reset_estimators()
         self.mujoco_sim.reset()
         self.reset_trajectory()
 
@@ -169,15 +187,29 @@ class MujocoEngine(Engine):
             self.viewer = mujoco_py.MjViewerBasic(self.mujoco_sim)
         self.viewer.render()
 
+    def update_estimators(self, act):
+        # turn: -0.4,0.4, throttle: 0,1
+        turn, throttle = act
+        if turn >= 0:
+            pass
+            #self.turn_est = np.clip(self.turn_est + turn, -0.4, np.minimum(0.4))
+
+    def reset_estimators(self):
+        self.turn_est = 0
+        self.thrttle_est = 0
+
     def get_obs_dict(self):
         pos = self.mujoco_sim.data.body_xpos[self.bodyid].copy()
         ori_q = self.mujoco_sim.data.body_xquat[self.bodyid].copy()
-        ori_mat = self.mujoco_sim.data.body_xquat[self.bodyid].copy()
-        vel = self.mujoco_sim.data.body_xvelp[self.bodyid].copy()
+        ori_mat = np.reshape(self.mujoco_sim.data.body_xmat[self.bodyid], (3, 3))
+        vel_glob = self.mujoco_sim.data.body_xvelp[self.bodyid].copy()
+        vel_buggy = np.matmul(ori_mat.T, vel_glob[:, np.newaxis])[:, 0]
         ang_vel = self.mujoco_sim.data.body_xvelr[self.bodyid].copy()
         wps = self.wp_list[self.cur_wp_idx:self.cur_wp_idx + self.config["n_traj_pts"]]
         wps_buggy_frame = self.transform_wp_to_buggy_frame(wps, pos, ori_q)
-        return {"pos" : pos, "ori_q" : ori_q, "ori_mat" : ori_mat, "vel" : vel, "ang_vel" : ang_vel, "wp_list" : wps_buggy_frame}
+        turn_angle = np.clip(self.mujoco_sim.get_state().qpos[7] * 2.5, -1, 1)
+        rear_wheel_speed = np.clip(((self.mujoco_sim.get_state().qvel[14] + self.mujoco_sim.get_state().qvel[16]) / 2.) / 200, -1, 1)
+        return {"pos" : pos, "ori_q" : ori_q, "ori_mat" : ori_mat, "vel" : vel_buggy, "ang_vel" : ang_vel, "wp_list" : wps_buggy_frame, "turn_angle" : turn_angle, "rear_wheel_speed" : rear_wheel_speed}
 
 class LTEEngine(Engine):
     def __init__(self, config, mujoco_sim, lte):

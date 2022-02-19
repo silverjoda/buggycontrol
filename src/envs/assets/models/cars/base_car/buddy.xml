@@ -73,7 +73,7 @@
   </worldbody>
   <actuator>
     <position class="buddy_steering" kp="15.0" name="buddy_steering_pos" joint="buddy_steering_wheel"/>
-    <velocity kv="3000" gear="0.003" forcelimited="true" forcerange="-2000 2000" name="buddy_throttle_velocity" tendon="buddy_throttle"/>
+    <velocity kv="3000" gear="0.005" forcelimited="true" forcerange="-1400 1400" name="buddy_throttle_velocity" tendon="buddy_throttle"/>
   </actuator>
   <equality>
     <!-- taylor expansion of delta_l = arctan(L/(L/tan(delta) - W/2)) with L,W in reference to kinematic car model -->

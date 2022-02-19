@@ -1,7 +1,8 @@
 Plan:
 
 # Mission: Obtain High performing buggy agent:
-- Add turn and throttle state estimator in buggyenv and data gathering script
+- Looks like velocity observations are not in buggy frame (big problem)
+- Try doing gail/airl with time-sampled trajectories instead of distance
 - Obtain well trained model
 
 # Mission: Transfer
