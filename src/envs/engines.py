@@ -20,6 +20,12 @@ class Engine:
         self.cur_mujoco_wp_idx = 0
         self.set_wp_visuals()
 
+    def set_trajectory(self, traj):
+        self.wp_list = traj
+        self.cur_wp_idx = 0
+        self.cur_mujoco_wp_idx = 0
+        self.set_wp_visuals()
+
     def step_trajectory(self, pos):
         done = False
         wp_visited = False
@@ -90,7 +96,7 @@ class Engine:
         yaw = m.atan2(2.0 * (w * z + x * y), w * w + x * x - y * y - z * z)
         return (roll, pitch, yaw)
 
-    def generate_random_traj(self):
+    def generate_random_traj(self, traj_pts=None):
         self.noise = SimplexNoise(dim=1, smoothness=self.config["traj_smoothness"], multiplier=1)
         traj_pts = []
         current_xy = np.zeros(2)

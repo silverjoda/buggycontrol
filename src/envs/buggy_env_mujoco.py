@@ -136,7 +136,7 @@ class BuggyEnv(gym.Env):
             self.noise = SimplexNoise(dim=2, smoothness=30, multiplier=1.6)
             self.reset()
 
-            self.set_barrier_positions([4, 0.0], [5.5, 1.0])
+            self.set_barrier_positions([4.0, 0.0], [6.0, 1.0])
             cum_rew = 0
             while True:
                 zero_act = [0.0, -1.0]
