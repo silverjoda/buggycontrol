@@ -111,7 +111,7 @@ class BuggyEnv(gym.Env):
 
         # Calculate termination
         #done = done or dist_to_cur_wp > 0.5 or self.step_ctr > self.config["max_steps"]
-        done = self.step_ctr > self.config["max_steps"]
+        done = done or self.step_ctr > self.config["max_steps"]
 
         #if self.config["render"]:
         #    self.render()

@@ -38,17 +38,22 @@ class MooseTestOptimizer:
         self.env_config = load_config(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_env_mujoco.yaml"))
         self.env, self.venv, self.sb_model = self.load_model_and_env(self.env_config)
 
-        self.b1_pos, self.b2_pos = [4, 0.0], [5.5, 1.0]
+        self.b1_pos, self.b2_pos = [4, 0.5], [6, 0.5]
 
         #self.barrier_loss_fun = self.barriers_lf()
 
     def test_agent(self, render=True, print_rew=True):
         total_rew = 0
+
+        traj = self.generate_initial_traj()
+        traj = self.optimize_traj_dist(traj, n_iters=1000)
+        exit()
+
         for _ in range(100):
             # Reset
             obs = self.venv.reset()
-            self.traj = self.generate_initial_traj()
-            self.env.engine.set_trajectory(self.traj)
+
+            self.env.engine.set_trajectory(traj)
             self.env.set_barrier_positions([4.0, 0.0], [6.0, 1.0])
 
             episode_rew = 0
@@ -64,6 +69,60 @@ class MooseTestOptimizer:
                         print(episode_rew)
                     break
         return total_rew
+
+    def optimize_traj_dist(self, traj, n_iters=1):
+        mse_loss = T.nn.MSELoss()
+
+        def explf(a, b):
+            return 1. / T.exp_(10 * T.abs(a - b))
+
+        traj_T = [T.tensor(pt, dtype=T.float32, requires_grad=True) for pt in traj]
+
+        # Plot
+        import matplotlib.pyplot as plt
+        plt.ion()
+        figure, ax = plt.subplots(figsize=(8, 6))
+        line1, = ax.plot(list(zip(*traj))[0], list(zip(*traj))[1])
+        ax.scatter([4,6],[.5,.5])
+        #
+
+        for i in range(n_iters):
+            b1_T = T.tensor(self.b1_pos, requires_grad=False)
+            b2_T = T.tensor(self.b2_pos, requires_grad=False)
+
+            # Barrier constraints
+            barrier_loss_list = []
+            for xy_T in traj_T:
+                barrier_loss_list.append( (explf(xy_T, b1_T) + explf(xy_T, b2_T)) * 0.01)
+
+            # End point stretched out as much as possible
+            final_pt_loss = mse_loss(traj_T[-1], T.tensor([12., 0])) * 0.2
+
+            # Minimize square distance between points
+            inter_pt_loss_list = []
+            for i in range(len(traj_T) - 1):
+                inter_pt_loss_list.append(mse_loss(traj_T[i], traj_T[i + 1]) * 0.9)
+
+            total_loss = T.stack(barrier_loss_list).sum() + final_pt_loss + T.stack(inter_pt_loss_list).sum()
+            total_loss.backward()
+
+            with T.no_grad():
+                for pt in traj_T[1:]:
+                    pt -= pt.grad * 0.01
+
+            # PLOT
+            x, y = list(zip(*[t.detach().numpy() for t in traj_T]))
+            line1.set_xdata(x)
+            line1.set_ydata(y)
+
+            figure.canvas.draw()
+
+            figure.canvas.flush_events()
+            #time.sleep(0.1)
+            #
+
+        optimized_traj = [pt.detach().numpy() for pt in traj_T]
+        return optimized_traj
 
     def load_model_and_env(self, env_config):
         # Policy + VF
@@ -90,7 +149,12 @@ class MooseTestOptimizer:
         # import matplotlib.pyplot as plt
         # plt.plot(x, y)
         # plt.show()
-        # exit()
+
+        #import matplotlib.pyplot as plt
+        #x = np.linspace(0, 1, N)
+        #plt.plot(x, 1. / np.exp(10 * np.abs(x - .5)))
+        #plt.show()
+        #exit()
 
         ftraj = list(zip(x, y))
 
@@ -117,29 +181,6 @@ class MooseTestOptimizer:
     def set_visual_traj_env(self):
         pass
 
-    def barriers_lf(self, traj):
-        mse_loss = T.nn.MSELoss()
-        total_loss = T.tensor(0., requires_grad=True)
-
-        b1_T = T.tensor(self.b1_pos, requires_grad=False)
-        b2_T = T.tensor(self.b2_pos, requires_grad=False)
-
-        traj_T = [T.tensor(pt, dtype=T.float32, requires_grad=True) for pt in traj]
-        # Barrier constraints
-        for xy_T in traj_T:
-            total_loss = total_loss + mse_loss(xy_T, b1_T) + mse_loss(xy_T, b2_T)
-
-        # Initial point has to stay put
-
-        # End point stretched out as much as possible
-        end_pt_loss = -traj_T[-1, 0]
-
-        # Minimize square distance between points
-        inter_pt_loss = T.tensor(0., requires_grad=True)
-        for i in range(len(traj_T) - 1):
-            inter_pt_loss = inter_pt_loss + mse_loss(xy_T[i], xy_T[i+1])
-
-        return total_loss
 
 
 if __name__ == "__main__":
