@@ -46,7 +46,7 @@ class MooseTestOptimizer:
         total_rew = 0
 
         traj = self.generate_initial_traj()
-        traj = self.optimize_traj_dist(traj, n_iters=1000)
+        traj = self.optimize_traj_dist(traj, n_iters=10000)
         exit()
 
         for _ in range(100):
@@ -81,9 +81,9 @@ class MooseTestOptimizer:
         # Plot
         import matplotlib.pyplot as plt
         plt.ion()
-        figure, ax = plt.subplots(figsize=(8, 6))
-        line1, = ax.plot(list(zip(*traj))[0], list(zip(*traj))[1])
-        ax.scatter([4,6],[.5,.5])
+        figure, ax = plt.subplots(figsize=(14, 6))
+        line1, = ax.plot(list(zip(*traj))[0], list(zip(*traj))[1], marker="o")
+        ax.scatter([4,6,15], [.5,.5, 0], s=200, c=['r', 'r', 'w'])
         #
 
         for i in range(n_iters):
@@ -93,22 +93,22 @@ class MooseTestOptimizer:
             # Barrier constraints
             barrier_loss_list = []
             for xy_T in traj_T:
-                barrier_loss_list.append( (explf(xy_T, b1_T) + explf(xy_T, b2_T)) * 0.01)
+                barrier_loss_list.append( (explf(xy_T, b1_T) + explf(xy_T, b2_T)) * 0.1)
 
             # End point stretched out as much as possible
-            final_pt_loss = mse_loss(traj_T[-1], T.tensor([12., 0])) * 0.2
+            final_pt_loss = mse_loss(traj_T[-1], T.tensor([13., 0.])) * 0.1
 
             # Minimize square distance between points
             inter_pt_loss_list = []
             for i in range(len(traj_T) - 1):
-                inter_pt_loss_list.append(mse_loss(traj_T[i], traj_T[i + 1]) * 0.9)
+                inter_pt_loss_list.append(mse_loss(traj_T[i], traj_T[i + 1]) * 0.5)
 
-            total_loss = T.stack(barrier_loss_list).sum() + final_pt_loss + T.stack(inter_pt_loss_list).sum()
+            total_loss = T.stack(barrier_loss_list).sum() + T.stack(inter_pt_loss_list).sum() + final_pt_loss
             total_loss.backward()
 
             with T.no_grad():
                 for pt in traj_T[1:]:
-                    pt -= pt.grad * 0.01
+                    pt -= pt.grad * 0.03
 
             # PLOT
             x, y = list(zip(*[t.detach().numpy() for t in traj_T]))

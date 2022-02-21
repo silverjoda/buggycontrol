@@ -14,8 +14,8 @@ Plan:
 - Try RL with difficult initial state distribution predictor to help with difficult environments
 
 # Mission: Trajectory optimization using TEP
-- Code up a moose test problem using gradient barrier functions
-- Debug the trajectory optimization problem
+- Try second order methods to optimize shortest path between two points
+- If above doesn't work, use another method to generate shortest traj
 - train TEP
 - Test TEP trajectory optimization
 
