@@ -7,11 +7,6 @@ import time
 import numpy as np
 import stable_baselines3 as sb3
 import torch as T
-from imitation.algorithms.adversarial import gail, airl
-from imitation.data import rollout
-from imitation.data.types import Trajectory
-from imitation.rewards import reward_nets
-from imitation.util import logger
 from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
 from stable_baselines3.common.policies import ActorCriticPolicy
 
@@ -45,7 +40,6 @@ class MooseTestOptimizer:
 
         self.b1_pos, self.b2_pos = [4, 0.0], [5.5, 1.0]
 
-        #
         #self.barrier_loss_fun = self.barriers_lf()
 
     def test_agent(self, render=True, print_rew=True):
@@ -71,7 +65,6 @@ class MooseTestOptimizer:
                     break
         return total_rew
 
-
     def load_model_and_env(self, env_config):
         # Policy + VF
         sb_model = A2C.load(f"agents/{self.policy_ID}_SB_policy")
@@ -90,11 +83,14 @@ class MooseTestOptimizer:
         N = 500
         x = np.linspace(0, 10, N)
         y = np.zeros_like(x)
-        y[N // 2 - 100:N // 2 + 100] = np.sin((x[N // 2 - 100:N // 2 + 100] - 3) * 3.1415 * 0.5)
+        y[N // 2 - 200:N // 2 + 200] = np.sin((x[N // 2 - 200:N // 2 + 200] - 1) * 3.1415 * 0.25)
+        windowing_func = 6. / np.exp(1.2 * np.abs(x - 5))
+        y = y * windowing_func
 
         # import matplotlib.pyplot as plt
         # plt.plot(x, y)
         # plt.show()
+        # exit()
 
         ftraj = list(zip(x, y))
 

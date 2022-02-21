@@ -362,7 +362,6 @@ class BuggySSTrajectoryTrainer:
         self.visualize_policy(airl_trainer.policy, is_gail=True, render=True)
         exit()
 
-
         venv.close()
 
     def visualize_policy(self, policy, is_gail, render=True, print_rew=True):

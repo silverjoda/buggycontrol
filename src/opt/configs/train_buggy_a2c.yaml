@@ -1,8 +1,8 @@
 # Train config
-"train" : False
+"train" : True
 "render" : True
 "default_session_ID" : "TRN"
-"iters" : 10000000
+"iters" : 10000
 "n_trials" : 2000
 
 # RL algo
