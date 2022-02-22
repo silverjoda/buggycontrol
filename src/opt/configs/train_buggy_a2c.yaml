@@ -2,19 +2,19 @@
 "train" : True
 "render" : True
 "default_session_ID" : "TRN"
-"iters" : 3000000
+"iters" : 20000000
 "n_trials" : 2000
 
 # RL algo
 "algo_name" : "A2C"
 "policy_name" : "MlpPolicy" # "MlpLstmPolicy", "MlpPolicy"
 "n_envs" : 6
-"gamma" : 0.999
+"gamma" : 0.995
 "n_steps" : 30
 "vf_coef" : 0.6
 "ent_coef" : 0.00001
-"max_grad_norm" : 0.5
-"learning_rate" : 0.0007
+"max_grad_norm" : 0.3
+"learning_rate" : 0.0002
 "alpha" : 0.99
 "epsilon" : 0.00001
 "verbose" : 1
