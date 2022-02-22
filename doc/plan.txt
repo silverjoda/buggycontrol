@@ -1,10 +1,14 @@
 Plan:
 
 # Mission: Obtain High(er) performing buggy agent:
+- Write optuna optimization scipt
 - Train for more iters
 - Optimize RL parameters using optuna
 
 # Mission: Transfer
+- Write data gathering script in mujoco
+- Learn model in mujoco and test
+- Implement meta learning for model learning
 - Train RMA-style
 - Compare RMA-style with trained model transfer
 - Try RL with difficult initial state distribution predictor to help with difficult environments

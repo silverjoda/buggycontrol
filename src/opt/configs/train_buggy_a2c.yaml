@@ -2,7 +2,7 @@
 "train" : True
 "render" : True
 "default_session_ID" : "TRN"
-"iters" : 20000000
+"iters" : 2000000
 "n_trials" : 2000
 
 # RL algo
@@ -14,7 +14,7 @@
 "vf_coef" : 0.6
 "ent_coef" : 0.00001
 "max_grad_norm" : 0.3
-"learning_rate" : 0.0002
+"learning_rate" : 0.0001
 "alpha" : 0.99
 "epsilon" : 0.00001
 "verbose" : 1
