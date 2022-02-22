@@ -1,7 +1,6 @@
 Plan:
 
 # Mission: Obtain High(er) performing buggy agent:
-- Add reward scheduling
 - Train for more iters
 - Change reward to give 1 for waypoint visitation
 - Change reward slightly to make tighter waypoint visiting

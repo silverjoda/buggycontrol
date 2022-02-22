@@ -14,6 +14,8 @@ from src.envs.buggy_env_mujoco import BuggyEnv
 from src.opt.simplex_noise import SimplexNoise
 from src.policies import MLP, RNN
 from src.utils import load_config
+import math as m
+
 
 import os
 import random
@@ -28,6 +30,9 @@ from stable_baselines3.common.vec_env import VecNormalize, SubprocVecEnv, DummyV
 
 from src.envs import buggy_env_mujoco
 from src.utils import merge_dicts
+import matplotlib.pyplot as plt
+plt.ion()
+
 
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 T.set_num_threads(1)
@@ -46,11 +51,13 @@ class MooseTestOptimizer:
         total_rew = 0
 
         traj = self.generate_initial_traj()
-        traj = self.optimize_traj_dist(traj, n_iters=10000)
+        #traj = self.optimize_traj_dist(traj, n_iters=1000)
+        traj = self.optimize_traj_exec(traj, self.sb_model.policy, n_iters=1000)
         exit()
 
         for _ in range(100):
-            # Reset
+            #traj = self.optimize_traj_dist(traj, n_iters=30)
+
             obs = self.venv.reset()
 
             self.env.engine.set_trajectory(traj)
@@ -70,56 +77,198 @@ class MooseTestOptimizer:
                     break
         return total_rew
 
-    def optimize_traj_dist(self, traj, n_iters=1):
-        mse_loss = T.nn.MSELoss()
+    def transform_wp_to_buggy_frame(self, wp_arr_T, pos, ori_q):
+        wp_arr_centered = wp_arr_T - T.tensor(pos[0:2])
+        _, _, theta = self.q2e(*ori_q)
+        t_mat = T.tensor([[np.cos(-theta), -np.sin(-theta)], [np.sin(-theta), np.cos(-theta)]])
+        wp_buggy = T.matmul(t_mat, wp_arr_centered.T).T
+        return wp_buggy
 
-        def explf(a, b):
-            return 1. / T.exp_(10 * T.abs(a - b))
+    def q2e(self, w, x, y, z):
+        pitch = -m.asin(2.0 * (x * z - w * y))
+        roll = m.atan2(2.0 * (w * x + y * z), w * w - x * x - y * y + z * z)
+        yaw = m.atan2(2.0 * (w * z + x * y), w * w + x * x - y * y - z * z)
+        return (roll, pitch, yaw)
 
-        traj_T = [T.tensor(pt, dtype=T.float32, requires_grad=True) for pt in traj]
+    def optimize_traj_exec(self, traj, etp, n_iters=1):
+        def clipped_mse(a, b):
+            loss = T.minimum(T.sqrt(T.square(a[0] - b[0]) + T.square(a[1] - b[1])), T.tensor(0.5))
+            return loss
+
+        def flattened_mse(p1, p2):
+            a = T.tensor(-1e2)
+            c = T.tensor(.2)
+            x = p1 - p2
+            loss = (T.abs(a - 2.) / (a)) * (T.pow((T.square(x/c)/T.abs(a - 2)) + 1, 0.5 * a) - 1.)
+            return loss
+
+        def dist_T(a, b):
+            return T.sqrt(T.square(a[0] - b[0]) + T.square(a[1] - b[1]))
+
+        mse_lf = T.nn.MSELoss()
+        barrier_lf = flattened_mse
+
+        traj_T = T.nn.ParameterList([T.nn.Parameter(T.tensor(pt, dtype=T.float32, requires_grad=True)) for pt in traj])
+        optim = T.optim.Adam(params=traj_T, lr=0.001)
 
         # Plot
-        import matplotlib.pyplot as plt
-        plt.ion()
         figure, ax = plt.subplots(figsize=(14, 6))
         line1, = ax.plot(list(zip(*traj))[0], list(zip(*traj))[1], marker="o")
-        ax.scatter([4,6,15], [.5,.5, 0], s=200, c=['r', 'r', 'w'])
+        ax.scatter([4, 6, 17], [.5, .5, 0], s=200, c=['r', 'r', 'w'])
+
+        # self.venv.normalize_obs(numpy_obs)
+        # self.venv.unnormalize_obs(numpy_obs)
+
+        rms_mean = self.venv.obs_rms.mean
+        rms_std = self.venv.obs_rms.var
+
+        for it in range(n_iters):
+            obs = self.venv.reset()
+
+            self.env.engine.set_trajectory([t.detach().numpy() for t in traj_T])
+            self.env.set_barrier_positions([4.0, 0.0], [6.0, 1.0])
+
+            mse_loss = T.nn.MSELoss()
+
+            while True:
+                obs_dict = self.env.get_obs_dict()
+
+                # Optimize single step and keep going
+                traj_indeces = range(self.env.engine.cur_wp_idx, self.env.engine.cur_wp_idx + self.env_config["n_traj_pts"])
+                cur_traj_T = T.stack([traj_T[ti] for ti in traj_indeces])
+                cur_traj_T_buggy_frame = self.transform_wp_to_buggy_frame(cur_traj_T, obs_dict["pos"], obs_dict["ori_q"])
+                cur_state_T = T.tensor(obs[:, :5])
+                cur_obs_T = T.concat([cur_state_T, cur_traj_T_buggy_frame.resize(1, 30)], dim=1)
+
+                cur_obs_T_norm = (cur_obs_T - T.tensor(rms_mean)) / T.tensor(rms_std)
+
+                feats = etp.mlp_extractor(cur_obs_T_norm.float())[0]
+                value = etp.value_net(feats)
+
+                # etp loss
+                value_loss = -value
+
+                # Trajectory losses
+                b1_T = T.tensor(self.b1_pos, requires_grad=False)
+                b2_T = T.tensor(self.b2_pos, requires_grad=False)
+
+                # Barrier constraints
+                barrier_loss_list = []
+                for xy_T in traj_T:
+                    barrier_loss_list.append(-(barrier_lf(xy_T, b1_T) + barrier_lf(xy_T, b2_T)) * 0.06)
+
+                # End point stretched out as much as possible
+                # final_pt_loss = mse_loss(traj_T[-1], T.tensor([13., 0.])) * 0.1
+                final_pt_loss = -traj_T[-1][0] * 0.03 + T.square(traj_T[-1][1])
+
+                # Minimize square distance between points
+                inter_pt_loss_list = []
+                for i in range(len(traj_T) - 1):
+                    inter_pt_loss_list.append(mse_loss(dist_T(traj_T[i], traj_T[i + 1]), T.tensor(0.17)) * 3)
+
+                total_loss = value_loss + T.stack(inter_pt_loss_list).sum() + final_pt_loss + T.stack(barrier_loss_list).sum()
+                total_loss.backward()
+                optim.step()
+                optim.zero_grad()
+
+                # execute one step
+                action, _states = self.sb_model.predict(obs, deterministic=True)
+                obs, reward, done, info = self.venv.step(action)
+                self.venv.render()
+
+                if done:
+                    break
+
+            # PLOT
+            if it % 1 == 0:
+                x, y = list(zip(*[t.detach().numpy() for t in traj_T]))
+                line1.set_xdata(x)
+                line1.set_ydata(y)
+                figure.canvas.draw()
+                figure.canvas.flush_events()
+
+            if it % 100 == 0:
+                print(f"Iter: {it}")
+
+        optimized_traj = [pt.detach().numpy() for pt in traj_T]
+        return optimized_traj
+
+    def optimize_traj_dist(self, traj, n_iters=1):
+        def explf(a, b):
+            loss = T.clip(1. / (T.exp(10 * T.abs(a - b)) + 0.01), -1, 1)
+            return loss
+
+        def clipped_mse(a, b):
+            loss = T.minimum(T.sqrt(T.square(a[0] - b[0]) + T.square(a[1] - b[1])), T.tensor(0.5))
+            return loss
+
+        def flattened_mse(p1, p2):
+            a = T.tensor(-1e2)
+            c = T.tensor(.2)
+            x = p1 - p2
+            loss = (T.abs(a - 2.) / (a)) * (T.pow((T.square(x/c)/T.abs(a - 2)) + 1, 0.5 * a) - 1.)
+            return loss
+
+        def dist_T(a, b):
+            return T.sqrt(T.square(a[0] - b[0]) + T.square(a[1] - b[1]))
+
+        barrier_lf = flattened_mse
+
+        #traj_T = [T.tensor(pt, dtype=T.float32, requires_grad=True) for pt in traj]
+        traj_T = T.nn.ParameterList([T.nn.Parameter(T.tensor(pt, dtype=T.float32, requires_grad=True)) for pt in traj])
+
+        mse_loss = T.nn.MSELoss()
+        optim = T.optim.Adam(params=traj_T, lr=0.1)
+
+        # Plot
+        # import matplotlib.pyplot as plt
+        # plt.ion()
+        # figure, ax = plt.subplots(figsize=(14, 6))
+        # line1, = ax.plot(list(zip(*traj))[0], list(zip(*traj))[1], marker="o")
+        # ax.scatter([4,6,17], [.5,.5, 0], s=200, c=['r', 'r', 'w'])
         #
 
-        for i in range(n_iters):
+        for it in range(n_iters):
             b1_T = T.tensor(self.b1_pos, requires_grad=False)
             b2_T = T.tensor(self.b2_pos, requires_grad=False)
 
             # Barrier constraints
             barrier_loss_list = []
             for xy_T in traj_T:
-                barrier_loss_list.append( (explf(xy_T, b1_T) + explf(xy_T, b2_T)) * 0.1)
+                barrier_loss_list.append(-(barrier_lf(xy_T, b1_T) + barrier_lf(xy_T, b2_T)) * 0.06)
 
             # End point stretched out as much as possible
-            final_pt_loss = mse_loss(traj_T[-1], T.tensor([13., 0.])) * 0.1
+            #final_pt_loss = mse_loss(traj_T[-1], T.tensor([13., 0.])) * 0.1
+            final_pt_loss = -traj_T[-1][0] * 0.2 + T.square(traj_T[-1][1])
 
             # Minimize square distance between points
             inter_pt_loss_list = []
             for i in range(len(traj_T) - 1):
-                inter_pt_loss_list.append(mse_loss(traj_T[i], traj_T[i + 1]) * 0.5)
+                inter_pt_loss_list.append(mse_loss(dist_T(traj_T[i], traj_T[i + 1]), T.tensor(0.17)) * 10)
 
-            total_loss = T.stack(barrier_loss_list).sum() + T.stack(inter_pt_loss_list).sum() + final_pt_loss
+            total_loss = T.stack(inter_pt_loss_list).sum() + final_pt_loss + T.stack(barrier_loss_list).sum()
             total_loss.backward()
+            traj_T[0].grad.fill_(0)
+            #T.nn.utils.clip_grad_norm_(traj_T, 0.001)
+            optim.step()
+            optim.zero_grad()
 
-            with T.no_grad():
-                for pt in traj_T[1:]:
-                    pt -= pt.grad * 0.03
+            #with T.no_grad():
+            #    for pt in traj_T[1:]:
+            #        pt -= pt.grad * 0.03
+
+            #with T.no_grad():
 
             # PLOT
-            x, y = list(zip(*[t.detach().numpy() for t in traj_T]))
-            line1.set_xdata(x)
-            line1.set_ydata(y)
+            # if it % 30 == 0:
+            #     x, y = list(zip(*[t.detach().numpy() for t in traj_T]))
+            #     line1.set_xdata(x)
+            #     line1.set_ydata(y)
+            #     figure.canvas.draw()
+            #     figure.canvas.flush_events()
 
-            figure.canvas.draw()
-
-            figure.canvas.flush_events()
-            #time.sleep(0.1)
-            #
+            if it % 100 == 0:
+                print(f"Iter: {it}")
 
         optimized_traj = [pt.detach().numpy() for pt in traj_T]
         return optimized_traj
@@ -142,13 +291,17 @@ class MooseTestOptimizer:
         N = 500
         x = np.linspace(0, 10, N)
         y = np.zeros_like(x)
-        y[N // 2 - 200:N // 2 + 200] = np.sin((x[N // 2 - 200:N // 2 + 200] - 1) * 3.1415 * 0.25)
-        windowing_func = 6. / np.exp(1.2 * np.abs(x - 5))
+        y[N // 2 - 250:N // 2 + 250] = np.sin((x[N // 2 - 250:N // 2 + 250] - 1) * 3.1415 * 0.25)
+        windowing_func = 5 / np.exp(1.0 * np.abs(x - 5))
         y = y * windowing_func
 
+        #y = np.log(6 * np.abs(y) + 1) * np.sign(y) * 0.5
+
         # import matplotlib.pyplot as plt
+        # plt.ioff()
         # plt.plot(x, y)
         # plt.show()
+        # exit()
 
         #import matplotlib.pyplot as plt
         #x = np.linspace(0, 1, N)
