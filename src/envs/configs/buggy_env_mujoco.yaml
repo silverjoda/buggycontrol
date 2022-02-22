@@ -10,5 +10,5 @@
 "lte_prob" : 0.3
 "wp_sample_dist" : 0.17
 "wp_reach_dist" : 0.3
-"max_steps" : 300
-"traj_smoothness" : 250
+"max_steps" : 400
+"traj_smoothness" : 200

@@ -91,8 +91,14 @@ class BuggyEnv(gym.Env):
     def get_reward(self, obs_dict, wp_visited):
         pos = obs_dict["pos"]
         cur_wp = self.engine.wp_list[self.engine.cur_wp_idx]
+        if self.engine.cur_wp_idx > 0:
+            prev_wp = self.engine.wp_list[self.engine.cur_wp_idx - 1]
+        else:
+            prev_wp = cur_wp
+        path_deviation = np.abs((cur_wp[0] - prev_wp[0]) * (prev_wp[1] - pos[1]) - (prev_wp[0] - pos[0]) * (cur_wp[1] - prev_wp[1]))\
+                         / np.sqrt(np.square(cur_wp[0] - prev_wp[0]) + np.square(cur_wp[1] - prev_wp[1]))
         dist_between_cur_wp = np.sqrt(np.square(pos[0] - cur_wp[0]) + np.square(pos[1] - cur_wp[1]))
-        r = wp_visited * 3 - dist_between_cur_wp * 0.05
+        r = wp_visited * (1 / (1 + 5 * path_deviation)) - dist_between_cur_wp * 0.01
         return r, dist_between_cur_wp
 
     def step(self, act):
@@ -110,8 +116,8 @@ class BuggyEnv(gym.Env):
         r, dist_to_cur_wp = self.get_reward(obs_dict, wp_visited)
 
         # Calculate termination
-        #done = done or dist_to_cur_wp > 0.5 or self.step_ctr > self.config["max_steps"]
-        done = done or self.step_ctr > self.config["max_steps"]
+        done = done or dist_to_cur_wp > 1.5 or self.step_ctr > self.config["max_steps"]
+        #done = done or self.step_ctr > self.config["max_steps"]
 
         #if self.config["render"]:
         #    self.render()
