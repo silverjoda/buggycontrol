@@ -1,3 +1,4 @@
+"seed" :
 "rate" : 100
 "render" : True
 "n_substeps" : 10
@@ -11,4 +12,5 @@
 "wp_sample_dist" : 0.17
 "wp_reach_dist" : 0.3
 "max_steps" : 400
-"traj_smoothness" : 200
+"traj_smoothness" : 400
+"traj_smoothness_variance" : 200

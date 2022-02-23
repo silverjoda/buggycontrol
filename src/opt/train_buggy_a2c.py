@@ -93,7 +93,7 @@ class BuggyTrajFollowerTrainer:
                     vf_coef=self.config["vf_coef"],
                     ent_coef=self.config["ent_coef"],
                     max_grad_norm=self.config["max_grad_norm"],
-                    learning_rate= self.config["learning_rate"],
+                    learning_rate=self.config["learning_rate"],
                     verbose=self.config["verbose"],
                     device="cpu",
                     policy_kwargs=dict(net_arch=[self.config["policy_hid_dim"], self.config["policy_hid_dim"]]))

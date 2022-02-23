@@ -99,7 +99,7 @@ class BuggyEnv(gym.Env):
                          / np.sqrt(np.square(cur_wp[0] - prev_wp[0]) + np.square(cur_wp[1] - prev_wp[1]))
         dist_between_cur_wp = np.sqrt(np.square(pos[0] - cur_wp[0]) + np.square(pos[1] - cur_wp[1]))
 
-        r = wp_visited * (1 / (1 + 2 * path_deviation)) - dist_between_cur_wp * 0.01
+        r = wp_visited * (1 / (1 + 3 * path_deviation)) - dist_between_cur_wp * 0.03
         return r, dist_between_cur_wp
 
     def step(self, act):
@@ -137,6 +137,11 @@ class BuggyEnv(gym.Env):
 
     def render(self, mode=None):
         self.engine.render()
+
+    def seed(self, seed=None):
+        if seed is not None:
+            np.random.seed(seed)
+            self.engine.noise.set_seed(seed)
 
     def demo(self):
         while True:
