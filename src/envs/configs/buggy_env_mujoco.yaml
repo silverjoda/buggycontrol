@@ -13,4 +13,4 @@
 "wp_reach_dist" : 0.2
 "max_steps" : 400
 "traj_smoothness" : 400
-"traj_smoothness_variance" : 200
+#"traj_smoothness_variance" : 200

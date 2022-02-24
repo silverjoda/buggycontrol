@@ -4,6 +4,7 @@ Plan:
 - Try with curriculum learning.
 - Optimize RL parameters using optuna
 - Profile code using pycharm to speed up environment
+- Use pretrained traj feature extractor from supervised learning? Transformer?
 
 # Mission: Transfer
 - Write data gathering script in mujoco
@@ -14,9 +15,6 @@ Plan:
 - Try RL with difficult initial state distribution predictor to help with difficult environments
 
 # Mission: Trajectory optimization using TEP
-- Try second order methods to optimize shortest path between two points
-- If above doesn't work, use another method to generate shortest traj
-- train TEP
-- Test TEP trajectory optimization
+- Write training script for MLP and Transformer TEP from long trajectory
 
 

@@ -6,9 +6,9 @@ import torch as T
 
 class ModelDataset:
     def __init__(self):
-        self.X, self.Y = self.load_dataset()
+        self.X_trn, self.Y_trn, self.X_val, self.Y_val = self.load_mujoco_dataset()
 
-    def load_dataset(self):
+    def load_real_dataset(self):
         x_data_list = []
         y_data_list = []
         dataset_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data/dataset/")
@@ -48,14 +48,38 @@ class ModelDataset:
         print("Loaded dataset with {} points".format(n_data_points))
         return X, Y
 
+    def load_mujoco_dataset(self):
+        dataset_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data/buggy_mujoco_dataset/")
+        X = np.load(os.path.join(dataset_dir, "X.npy"))
+        Y = np.load(os.path.join(dataset_dir, "Y.npy"))
+
+        n_traj = len(X)
+        assert n_traj > 10
+        print("Loaded dataset with {} trajectories".format(n_traj))
+
+        split_pt = int(n_traj * 0.9)
+        X_trn = X[:split_pt]
+        Y_trn = Y[:split_pt]
+        X_val = X[split_pt:]
+        Y_val = Y[split_pt:]
+
+        return X_trn, Y_trn, X_val, Y_val
+
     def get_random_batch(self, batchsize, tensor=True):
-        rnd_indeces = np.random.choice(np.arange(len(self.X)), batchsize, replace=False)
-        x = self.X[rnd_indeces]
-        y = self.Y[rnd_indeces]
+        X_contig = self.X_trn.reshape((self.X_trn.shape[0] * self.X_trn.shape[1], self.X_trn.shape[2]))
+        Y_contig = self.Y_trn.reshape((self.Y_trn.shape[0] * self.Y_trn.shape[1], self.Y_trn.shape[2]))
+
+        rnd_indeces = np.random.choice(np.arange(len(X_contig)), batchsize, replace=False)
+        x = X_contig[rnd_indeces]
+        y = Y_contig[rnd_indeces]
         if tensor:
             x = T.tensor(x, dtype=T.float32)
             y = T.tensor(y, dtype=T.float32)
         return x, y
+
+    def get_val_dataset(self):
+        return self.X_val.reshape((self.X_val.shape[0] * self.X_val.shape[1], self.X_val.shape[2])),\
+               self.Y_val.reshape((self.Y_val.shape[0] * self.Y_val.shape[1], self.Y_val.shape[2])),\
 
 class ModelTrainer:
     def __init__(self, config, dataset, policy):
@@ -84,7 +108,7 @@ if __name__=="__main__":
         config = yaml.load(f, Loader=yaml.FullLoader)
 
     dataset = ModelDataset()
-    policy = MLP(obs_dim=5, act_dim=3, hid_dim=256)
+    policy = MLP(obs_dim=7, act_dim=5, hid_dim=256)
     model_trainer = ModelTrainer(config, dataset, policy)
 
     # Train

@@ -95,7 +95,7 @@ def read_configs():
 if __name__ == "__main__":
     configs = read_configs()
 
-    configs["iters"] = 500000
+    configs["iters"] = 1000000
     configs["verbose"] = False
     #configs["render"] = False
     configs["tensorboard_log"] = False

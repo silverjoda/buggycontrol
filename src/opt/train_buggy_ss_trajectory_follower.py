@@ -42,15 +42,6 @@ class BuggySSTrajectoryTrainer:
         config = load_config(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_env_mujoco.yaml"))
         self.env = BuggyEnv(config)
 
-    def generate_random_action_vec(self):
-        # noise -1,1
-        rnd_action_vec = self.noise.gen_noise_seq()
-
-        # Scale
-        rnd_action_vec[:, 0] /= 2 + 0.5
-
-        return rnd_action_vec
-
     def gather_ss_dataset(self):
         X = []
         Y = []
