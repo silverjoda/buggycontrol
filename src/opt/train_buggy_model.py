@@ -77,9 +77,13 @@ class ModelDataset:
             y = T.tensor(y, dtype=T.float32)
         return x, y
 
-    def get_val_dataset(self):
-        return self.X_val.reshape((self.X_val.shape[0] * self.X_val.shape[1], self.X_val.shape[2])),\
-               self.Y_val.reshape((self.Y_val.shape[0] * self.Y_val.shape[1], self.Y_val.shape[2])),\
+    def get_val_dataset(self, tensor=True):
+        X = self.X_val.reshape((self.X_val.shape[0] * self.X_val.shape[1], self.X_val.shape[2]))
+        Y = self.Y_val.reshape((self.Y_val.shape[0] * self.Y_val.shape[1], self.Y_val.shape[2]))
+        if tensor:
+            X = T.tensor(X, dtype=T.float32)
+            Y = T.tensor(Y, dtype=T.float32)
+        return X, Y
 
 class ModelTrainer:
     def __init__(self, config, dataset, policy):
@@ -97,8 +101,11 @@ class ModelTrainer:
             loss.backward()
             optim.step()
             optim.zero_grad()
-            if i % 50 == 0:
-                print("Iter {}/{}, loss: {}".format(i, self.config['iters'], loss.data))
+            if i % 100 == 0:
+                X_val, Y_val = self.dataset.get_val_dataset()
+                Y_val_ = self.policy(X_val)
+                loss_val = lossfun(Y_val_, Y_val)
+                print("Iter {}/{}, loss: {}, loss_val: {}".format(i, self.config['iters'], loss.data, loss_val.data))
         print("Done training, saving model")
         T.save(self.policy.state_dict(), "agents/buggy_lte.p")
 

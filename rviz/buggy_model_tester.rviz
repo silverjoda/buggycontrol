@@ -6,8 +6,7 @@ Panels:
       Expanded:
         - /Global Options1
         - /Status1
-        - /TF1
-        - /pred/twist_base_link1/Status1
+        - /Grid1
       Splitter Ratio: 0.5458715558052063
     Tree Height: 719
   - Class: rviz/Selection
@@ -51,7 +50,7 @@ Visualization Manager:
         Y: 0
         Z: 0
       Plane: XY
-      Plane Cell Count: 10
+      Plane Cell Count: 100
       Reference Frame: <Fixed Frame>
       Value: true
     - Class: rviz/TF
@@ -155,7 +154,7 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz/ThirdPersonFollower
-      Distance: 4.0107622146606445
+      Distance: 25.985797882080078
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
@@ -171,9 +170,9 @@ Visualization Manager:
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.5003984570503235
+      Pitch: 0.3903985619544983
       Target Frame: base_link
-      Yaw: 0.07539860159158707
+      Yaw: 3.2735514640808105
     Saved:
       - Class: rviz/Orbit
         Distance: 3.826505422592163

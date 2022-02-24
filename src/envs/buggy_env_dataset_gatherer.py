@@ -46,6 +46,10 @@ class BuggyMujocoDatasetGatherer:
             obs_list = []
             act_list = []
 
+            zero_throttle = False
+            if np.random.rand() < 0.02:
+                zero_throttle = True
+
             for j in range(self.config["traj_len"]):
                 obs_list.append(obs[:5])
 
@@ -55,6 +59,8 @@ class BuggyMujocoDatasetGatherer:
                 # Condition act (turn, throttle)
                 rnd_act[0] = np.clip(rnd_act[0], -1, 1)
                 rnd_act[1] = np.clip(rnd_act[1], -1, 1)
+
+                if zero_throttle: rnd_act[1] = -1
 
                 act_list.append(rnd_act)
 
