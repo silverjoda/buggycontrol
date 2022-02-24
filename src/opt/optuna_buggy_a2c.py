@@ -6,7 +6,7 @@ import optuna
 import torch as T
 import yaml
 from stable_baselines3 import A2C
-from stable_baselines3.common.vec_env import VecNormalize, SubprocVecEnv, VecMonitor
+from stable_baselines3.common.vec_env import VecNormalize, SubprocVecEnv, VecMonitor, DummyVecEnv
 
 from src.envs import buggy_env_mujoco
 from src.utils import merge_dicts
@@ -23,13 +23,17 @@ def objective(trial, config):
     env, model, stats_path = setup_train(config, buggy_env_mujoco.BuggyEnv)
     model.learn(total_timesteps=config["iters"])
 
+    #model = A2C.load("agents/{}_SB_policy".format(config["session_ID"]))
+    #env = VecNormalize.load("agents/{}_vecnorm.pkl".format(config["session_ID"]), env)
+
+    env.training = False
     avg_episode_rew = test_agent(env, model, n_steps=400, n_eval=config["n_eval"])
 
     env.close()
     del env
     del model
 
-    return avg_episode_rew / config["n_eval"]
+    return avg_episode_rew
 
 def setup_train(config, env_fun, setup_dirs=True):
     T.set_num_threads(1)
@@ -75,8 +79,9 @@ def test_agent(env, model,n_steps=400, n_eval=100):
             obs, reward, done, info = env.step(action)
             if hasattr(env, "get_original_reward"):
                 reward = env.get_original_reward()
-            total_rew += (reward * ~done)
-    return total_rew.sum() / (n_eval * env.num_envs)
+            total_rew += reward
+
+    return total_rew.mean() / n_eval
 
 def read_configs():
     with open(os.path.join(os.path.dirname(__file__), "configs/train_buggy_a2c.yaml"), 'r') as f:
@@ -90,12 +95,12 @@ def read_configs():
 if __name__ == "__main__":
     configs = read_configs()
 
-    configs["iters"] = 2000
+    configs["iters"] = 500000
     configs["verbose"] = False
-    configs["render"] = False
+    #configs["render"] = False
     configs["tensorboard_log"] = False
 
-    configs["n_eval"] = 3
+    configs["n_eval"] = 100
     N_trials = 100
 
     t1 = time.time()

@@ -1,9 +1,9 @@
 Plan:
 
 # Mission: Obtain High(er) performing buggy agent:
-- Write optuna optimization scipt
-- Train for more iters
+- Try with curriculum learning.
 - Optimize RL parameters using optuna
+- Profile code using pycharm to speed up environment
 
 # Mission: Transfer
 - Write data gathering script in mujoco
@@ -18,8 +18,5 @@ Plan:
 - If above doesn't work, use another method to generate shortest traj
 - train TEP
 - Test TEP trajectory optimization
-
-
-
 
 

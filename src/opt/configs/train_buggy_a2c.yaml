@@ -1,6 +1,6 @@
 # Train config
 "train" : True
-"render" : True
+"render" : False
 "default_session_ID" : "TRN"
 "iters" : 2000000
 "n_eval" : 2000000
@@ -9,12 +9,12 @@
 "algo_name" : "A2C"
 "policy_name" : "MlpPolicy" # "MlpLstmPolicy", "MlpPolicy"
 "n_envs" : 4
-"gamma" : 0.999
+"gamma" : 0.99
 "n_steps" : 30
 "vf_coef" : 0.6
 "ent_coef" : 0.00001
 "max_grad_norm" : 1.0
-"learning_rate" : 0.0003
+"learning_rate" : 0.0001
 "alpha" : 0.99
 "epsilon" : 0.00001
 "verbose" : 1

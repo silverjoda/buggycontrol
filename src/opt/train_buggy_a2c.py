@@ -18,7 +18,7 @@ class BuggyTrajFollowerTrainer:
 
         self.config = self.read_configs()
         self.env_fun = buggy_env_mujoco.BuggyEnv
-        self.N_cores = 6
+        self.N_cores = 4
 
         self.env, self.model, self.checkpoint_callback, self.stats_path = self.setup_train()
 

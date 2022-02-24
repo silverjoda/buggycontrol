@@ -7,6 +7,7 @@ from src.envs.xml_gen import *
 from src.policies import LTE
 import mujoco_py
 from src.opt.simplex_noise import SimplexNoise
+import timeit
 
 class BuggyEnv(gym.Env):
     metadata = {
@@ -89,17 +90,18 @@ class BuggyEnv(gym.Env):
         return complete_obs_vec
 
     def get_reward(self, obs_dict, wp_visited):
-        pos = obs_dict["pos"]
-        cur_wp = self.engine.wp_list[self.engine.cur_wp_idx]
+        pos = np.array(obs_dict["pos"], dtype=np.float32)
+        cur_wp = np.array(self.engine.wp_list[self.engine.cur_wp_idx], dtype=np.float32)
         if self.engine.cur_wp_idx > 0:
-            prev_wp = self.engine.wp_list[self.engine.cur_wp_idx - 1]
+            prev_wp = np.array(self.engine.wp_list[self.engine.cur_wp_idx - 1], dtype=np.float32)
         else:
-            prev_wp = cur_wp
-        path_deviation = np.abs((cur_wp[0] - prev_wp[0]) * (prev_wp[1] - pos[1]) - (prev_wp[0] - pos[0]) * (cur_wp[1] - prev_wp[1]))\
-                         / np.sqrt(np.square(cur_wp[0] - prev_wp[0]) + np.square(cur_wp[1] - prev_wp[1]))
-        dist_between_cur_wp = np.sqrt(np.square(pos[0] - cur_wp[0]) + np.square(pos[1] - cur_wp[1]))
+            prev_wp = np.array(cur_wp, dtype=np.float32)
 
-        r = wp_visited * (1 / (1 + 3 * path_deviation)) - dist_between_cur_wp * 0.03
+        path_deviation = np.abs((cur_wp[0] - prev_wp[0]) * (prev_wp[1] - pos[1]) - (prev_wp[0] - pos[0]) * (cur_wp[1] - prev_wp[1])) / np.sqrt(np.square(cur_wp[0] - prev_wp[0]) + np.square(cur_wp[1] - prev_wp[1]))
+        dist_between_cur_wp = np.sqrt(np.square((cur_wp[0] - pos[0])) + np.square((cur_wp[1] - pos[1])))
+
+        r = wp_visited * (1 / (1 + 1 * path_deviation)) - dist_between_cur_wp * 0.01
+        #r = wp_visited * 1 - dist_between_cur_wp * 0.01
         return r, dist_between_cur_wp
 
     def step(self, act):
@@ -117,7 +119,7 @@ class BuggyEnv(gym.Env):
         r, dist_to_cur_wp = self.get_reward(obs_dict, wp_visited)
 
         # Calculate termination
-        done = done or dist_to_cur_wp > 1.5 or self.step_ctr > self.config["max_steps"]
+        done = done or dist_to_cur_wp > 0.7 or self.step_ctr > self.config["max_steps"]
         #done = done or self.step_ctr > self.config["max_steps"]
 
         #if self.config["render"]:
