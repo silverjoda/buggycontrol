@@ -16,7 +16,6 @@ class SLP(nn.Module):
         out = self.fc1(x)
         return out
 
-
 class MLP(nn.Module):
     def __init__(self, obs_dim, act_dim, hid_dim=128):
         super(MLP, self).__init__()
@@ -81,3 +80,29 @@ class RNN(nn.Module):
         rnn_1 = self.rnn_1(fc1, None)
         fc2 = self.fc2(rnn_1)
         return fc2
+
+class TX(nn.Module):
+    def __init__(self, obs_dim, act_dim, hid_dim=128):
+        super(TX, self).__init__()
+        self.obs_dim = obs_dim
+        self.act_dim = act_dim
+        self.hid_dim = hid_dim
+
+        self.fc1 = T.nn.Linear(self.obs_dim, self.hid_dim, bias=True)
+        self.fc2 = T.nn.Linear(self.hid_dim, self.hid_dim, bias=True)
+        self.fc3 = T.nn.Linear(self.hid_dim, self.act_dim, bias=True)
+
+        T.nn.init.xavier_uniform_(self.fc1.weight)
+        self.fc1.bias.data.fill_(0.01)
+
+        T.nn.init.xavier_uniform_(self.fc2.weight)
+        self.fc2.bias.data.fill_(0.01)
+
+        T.nn.init.xavier_uniform_(self.fc3.weight)
+        self.fc3.bias.data.fill_(0.01)
+
+    def forward(self, x):
+        fc1 = T.relu(self.fc1(x))
+        fc2 = T.relu(self.fc2(fc1))
+        out = self.fc3(fc2)
+        return out

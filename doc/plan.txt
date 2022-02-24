@@ -16,6 +16,7 @@ Plan:
 - Try RL with difficult initial state distribution predictor to help with difficult environments
 
 # Mission: Trajectory optimization using TEP
-- Write training script for MLP and Transformer TEP from long trajectory
+- Make transformer architecture for TEP
+
 
 
