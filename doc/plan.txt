@@ -2,7 +2,6 @@ Plan:
 
 # Mission: Obtain High(er) performing buggy agent:
 - Try with curriculum learning.
-- Optimize RL parameters using optuna
 - Profile code using pycharm to speed up environment
 - Use pretrained traj feature extractor from supervised learning? Transformer?
 
