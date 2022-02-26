@@ -5,6 +5,9 @@ Plan:
 - Profile code using pycharm to speed up environment
 - Use pretrained traj feature extractor from supervised learning? Transformer?
 
+# Mission: Trajectory optimization using TEP
+- Make transformer architecture for TEP
+
 # Mission: Transfer
 - Make proper trajectory testing script with qualitative and quantitative metrics for comparing learned model with mujoco env (with visualization).
 - Try dataset augmentation by using bilateral symmetry (Does the slow turning and forward velocity go away)
@@ -14,8 +17,7 @@ Plan:
 - Compare RMA-style with trained model transfer
 - Try RL with difficult initial state distribution predictor to help with difficult environments
 
-# Mission: Trajectory optimization using TEP
-- Make transformer architecture for TEP
+
 
 
 

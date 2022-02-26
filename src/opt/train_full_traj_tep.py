@@ -1,38 +1,18 @@
 # MLP and Transformer training on whole trajectory
 
 import os
-import pathlib
-import pickle
-import tempfile
-import time
 
+import matplotlib.pyplot as plt
 import numpy as np
-import stable_baselines3 as sb3
-import torch as T
-from stable_baselines3.common.vec_env import DummyVecEnv, SubprocVecEnv
-from stable_baselines3.common.policies import ActorCriticPolicy
-
-from src.envs.buggy_env_mujoco import BuggyEnv
-from src.opt.simplex_noise import SimplexNoise
-from src.policies import MLP, RNN
-from src.utils import load_config
-import math as m
-
-
-import os
-import random
-import time
-from pprint import pprint
-
 import torch as T
 import yaml
 from stable_baselines3 import A2C
-from stable_baselines3.common.callbacks import CheckpointCallback, CallbackList, EvalCallback, StopTrainingOnRewardThreshold
-from stable_baselines3.common.vec_env import VecNormalize, SubprocVecEnv, DummyVecEnv, VecMonitor
+from stable_baselines3.common.vec_env import VecNormalize, DummyVecEnv, VecMonitor
 
-from src.envs import buggy_env_mujoco
-from src.utils import merge_dicts
-import matplotlib.pyplot as plt
+from src.envs.buggy_env_mujoco import BuggyEnv
+from src.policies import MLP
+from src.utils import load_config
+
 plt.ion()
 
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
@@ -71,9 +51,10 @@ class TEPDatasetMaker:
         return env, venv, sb_model
 
     def make_dataset(self, render=True):
+        print("Starting dataset creation")
         obs_list = []
         rew_list = []
-        for _ in range(self.n_dataset_pts):
+        for i in range(self.n_dataset_pts):
             obs = self.venv.reset()
             episode_rew = 0
             while True:
@@ -86,6 +67,10 @@ class TEPDatasetMaker:
                     break
             obs_list.append([0, -1, 0, 0, 0] + self.env.engine.wp_list[:self.max_num_wp])
             rew_list.append(episode_rew)
+
+            if i % 10 == 0:
+                print(f"Iter: {i}/{self.n_dataset_pts}")
+
         obs_arr = np.array(obs_list)
         rew_arr = np.array(rew_list)
 
@@ -133,4 +118,4 @@ class TEPDatasetMaker:
         T.save(policy.state_dict(), "agents/full_traj_tep.p")
 if __name__ == "__main__":
     tm = TEPDatasetMaker()
-    tm.make_dataset()
+    tm.make_dataset(render=False)
