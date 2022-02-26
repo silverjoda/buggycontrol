@@ -147,7 +147,7 @@ class TEPTX(nn.Module):
         self.tx1 = T.nn.MultiheadAttention(embed_dim=embed_dim, num_heads=num_heads, kdim=kdim, batch_first=True)
         self.tx2 = T.nn.MultiheadAttention(embed_dim=embed_dim, num_heads=num_heads, kdim=kdim, batch_first=True)
 
-        self.fc_final = T.nn.Linear(self.n_waypts * embed_dim, 1)
+        self.fc_final = T.nn.Linear(embed_dim, 1)
 
         self.nonlin = F.relu
 
@@ -169,7 +169,7 @@ class TEPTX(nn.Module):
         val2 = self.fc_val(attn_1)
         attn_2, _ = self.tx2(attn_1, key2, val2, need_weights=False)
 
-        attn_2_reshaped = T.reshape(attn_2, (len(x), self.n_waypts * self.embed_dim))
-        out = self.fc_final(attn_2_reshaped)
+        attn_2_summed = T.sum(attn_2, dim=1)
+        out = self.fc_final(attn_2_summed)
 
         return out

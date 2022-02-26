@@ -12,7 +12,7 @@ from stable_baselines3.common.policies import ActorCriticPolicy
 
 from src.envs.buggy_env_mujoco import BuggyEnv
 from src.opt.simplex_noise import SimplexNoise
-from src.policies import MLP, RNN
+from src.policies import TEPTX, TEPMLP, TEPRNN
 from src.utils import load_config
 import math as m
 
@@ -33,7 +33,6 @@ from src.utils import merge_dicts
 import matplotlib.pyplot as plt
 plt.ion()
 
-
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 T.set_num_threads(1)
 
@@ -52,7 +51,8 @@ class MooseTestOptimizer:
 
         traj = self.generate_initial_traj()
         #traj = self.optimize_traj_dist(traj, n_iters=1000)
-        traj = self.optimize_traj_exec(traj, self.sb_model.policy, n_iters=1000)
+        #traj = self.optimize_traj_exec(traj, self.sb_model.policy, n_iters=1000)
+        traj = self.optimize_traj_exec_full(traj, self.sb_model.policy, n_iters=1000)
         exit()
 
         for _ in range(100):
@@ -178,6 +178,83 @@ class MooseTestOptimizer:
 
                 if done:
                     break
+
+            # PLOT
+            if it % 1 == 0:
+                x, y = list(zip(*[t.detach().numpy() for t in traj_T]))
+                line1.set_xdata(x)
+                line1.set_ydata(y)
+                figure.canvas.draw()
+                figure.canvas.flush_events()
+
+            if it % 100 == 0:
+                print(f"Iter: {it}")
+
+        optimized_traj = [pt.detach().numpy() for pt in traj_T]
+        return optimized_traj
+
+    def optimize_traj_exec_full(self, traj, etp, n_iters=1):
+        traj_len = 60
+        # Load TEP
+        tep = TEPMLP(obs_dim=traj_len * 2, act_dim=1)
+        # tep = TEPRNN(n_waypts=len(traj), hid_dim=32, hid_dim_2=6)
+        # tep = TEPTX(n_waypts=len(traj) * 2, embed_dim=36, num_heads=6, kdim=36)
+        tep.load_state_dict(T.load("agents/full_traj_tep.p"), strict=False)
+
+        def clipped_mse(a, b):
+            loss = T.minimum(T.sqrt(T.square(a[0] - b[0]) + T.square(a[1] - b[1])), T.tensor(0.5))
+            return loss
+
+        def flattened_mse(p1, p2):
+            a = T.tensor(-1e2)
+            c = T.tensor(.2)
+            x = p1 - p2
+            loss = (T.abs(a - 2.) / (a)) * (T.pow((T.square(x/c)/T.abs(a - 2)) + 1, 0.5 * a) - 1.)
+            return loss
+
+        def dist_T(a, b):
+            return T.sqrt(T.square(a[0] - b[0]) + T.square(a[1] - b[1]))
+
+        barrier_lf = flattened_mse
+
+        traj_T = T.nn.ParameterList([T.nn.Parameter(T.tensor(pt, dtype=T.float32, requires_grad=True)) for pt in traj[:traj_len]])
+        optim = T.optim.Adam(params=traj_T, lr=0.001)
+
+        # Plot
+        figure, ax = plt.subplots(figsize=(14, 6))
+        line1, = ax.plot(list(zip(*traj))[0], list(zip(*traj))[1], marker="o")
+        ax.scatter([4, 6, 17], [.5, .5, 0], s=200, c=['r', 'r', 'w'])
+
+        mse_loss = T.nn.MSELoss()
+
+        for it in range(n_iters):
+            cur_traj_T = T.stack([ti for ti in traj_T])
+
+            # etp loss
+            value_loss = -tep(cur_traj_T.reshape(1, traj_len * 2))
+
+            # Trajectory losses
+            b1_T = T.tensor(self.b1_pos, requires_grad=False)
+            b2_T = T.tensor(self.b2_pos, requires_grad=False)
+
+            # Barrier constraints
+            barrier_loss_list = []
+            for xy_T in traj_T:
+                barrier_loss_list.append(-(barrier_lf(xy_T, b1_T) + barrier_lf(xy_T, b2_T)) * 0.06)
+
+            # End point stretched out as much as possible
+            # final_pt_loss = mse_loss(traj_T[-1], T.tensor([13., 0.])) * 0.1
+            final_pt_loss = -traj_T[-1][0] * 0.03 + T.square(traj_T[-1][1])
+
+            # Minimize square distance between points
+            inter_pt_loss_list = []
+            for i in range(len(traj_T) - 1):
+                inter_pt_loss_list.append(mse_loss(dist_T(traj_T[i], traj_T[i + 1]), T.tensor(0.17)) * 3)
+
+            total_loss = value_loss + T.stack(inter_pt_loss_list).sum() + final_pt_loss + T.stack(barrier_loss_list).sum()
+            total_loss.backward()
+            optim.step()
+            optim.zero_grad()
 
             # PLOT
             if it % 1 == 0:

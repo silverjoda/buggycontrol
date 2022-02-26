@@ -6,7 +6,8 @@ Plan:
 - Use pretrained traj feature extractor from supervised learning? Transformer?
 
 # Mission: Trajectory optimization using TEP
-- Make transformer architecture for TEP
+- Add positional encoding to Transformer
+- Make trajectory inputs relative perhaps
 
 # Mission: Transfer
 - Make proper trajectory testing script with qualitative and quantitative metrics for comparing learned model with mujoco env (with visualization).

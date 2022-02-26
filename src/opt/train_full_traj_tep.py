@@ -85,9 +85,9 @@ class TEPDatasetMaker:
         Y = np.load(self.y_file_path)
 
         # Prepare policy and training
-        #policy = TEPMLP(obs_dim=X.shape[1], act_dim=1)
+        policy = TEPMLP(obs_dim=X.shape[1], act_dim=1)
         #policy = TEPRNN(n_waypts=X.shape[1] // 2, hid_dim=32, hid_dim_2=6)
-        policy = TEPTX(n_waypts=X.shape[1] // 2, embed_dim=36, num_heads=6, kdim=36)
+        #policy = TEPTX(n_waypts=X.shape[1] // 2, embed_dim=36, num_heads=6, kdim=36)
         policy_optim = T.optim.Adam(params=policy.parameters(),
                                     lr=self.config['policy_lr'],
                                     weight_decay=self.config['w_decay'])
