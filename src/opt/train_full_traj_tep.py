@@ -10,7 +10,7 @@ from stable_baselines3 import A2C
 from stable_baselines3.common.vec_env import VecNormalize, DummyVecEnv, VecMonitor
 
 from src.envs.buggy_env_mujoco import BuggyEnv
-from src.policies import MLP
+from src.policies import TEPTX, TEPMLP, TEPRNN
 from src.utils import load_config
 
 plt.ion()
@@ -65,7 +65,7 @@ class TEPDatasetMaker:
                     self.venv.render()
                 if done:
                     break
-            obs_list.append([0, -1, 0, 0, 0] + self.env.engine.wp_list[:self.max_num_wp])
+            obs_list.append([item for sublist in self.env.engine.wp_list[:self.max_num_wp] for item in sublist])
             rew_list.append(episode_rew)
 
             if i % 10 == 0:
@@ -85,8 +85,9 @@ class TEPDatasetMaker:
         Y = np.load(self.y_file_path)
 
         # Prepare policy and training
-        policy = MLP(obs_dim=X.shape[1], act_dim=1)
-        #policy = TX(obs_dim=X.shape[1], act_dim=1)
+        #policy = TEPMLP(obs_dim=X.shape[1], act_dim=1)
+        #policy = TEPRNN(n_waypts=X.shape[1] // 2, hid_dim=32, hid_dim_2=6)
+        policy = TEPTX(n_waypts=X.shape[1] // 2, embed_dim=36, num_heads=6, kdim=36)
         policy_optim = T.optim.Adam(params=policy.parameters(),
                                     lr=self.config['policy_lr'],
                                     weight_decay=self.config['w_decay'])
@@ -97,8 +98,8 @@ class TEPDatasetMaker:
             x = X[rnd_start_idx:rnd_start_idx + self.config["batchsize"]]
             y = Y[rnd_start_idx:rnd_start_idx + self.config["batchsize"]]
 
-            x_T = T.tensor(x)
-            y_T = T.tensor(y)
+            x_T = T.tensor(x, dtype=T.float32)
+            y_T = T.tensor(y, dtype=T.float32)
 
             y_ = policy(x_T)
             policy_loss = lossfun(y_, y_T)
@@ -111,11 +112,13 @@ class TEPDatasetMaker:
 
             if i % 50 == 0:
                 print(
-                    "Iter {}/{}, policy_loss: {}".format(i, self.config['iters'], policy_loss.data))
+                    "Iter {}/{}, policy_loss: {}".format(i, self.config['trn_iters'], policy_loss.data))
         print("Done training, saving model")
         if not os.path.exists("agents"):
             os.makedirs("agents")
         T.save(policy.state_dict(), "agents/full_traj_tep.p")
+
 if __name__ == "__main__":
     tm = TEPDatasetMaker()
-    tm.make_dataset(render=False)
+    #tm.make_dataset(render=False)
+    tm.train_tep()

@@ -118,7 +118,7 @@ class TEPRNN(nn.Module):
         self.hid_dim_2 = hid_dim_2
 
         self.fc1 = T.nn.Linear(2, 4, bias=True)
-        self.rnn = T.nn.LSTM(input_size=4, hidden_size=self.hid_dim, num_layers=2, bias=True, batch_first=True, bidirectional=False)
+        self.rnn = T.nn.LSTM(input_size=4, hidden_size=self.hid_dim, num_layers=1, bias=True, batch_first=True, bidirectional=True)
         self.fc2 = T.nn.Linear(self.hid_dim, self.hid_dim_2, bias=True)
         self.fc3 = T.nn.Linear(self.n_waypts * self.hid_dim_2, 1, bias=True)
 
@@ -127,7 +127,7 @@ class TEPRNN(nn.Module):
     def forward(self, x):
         x_reshaped = T.reshape(x, (len(x), self.n_waypts, 2))
         fc1 = self.nonlin(self.fc1(x_reshaped))
-        rnn1 = self.rnn(fc1)
+        rnn1, _ = self.rnn(fc1)
         fc2 = self.nonlin(self.fc2(rnn1))
         rnn1_reshaped = T.reshape(fc2, (len(x), self.n_waypts * self.hid_dim_2))
         out = self.fc3(rnn1_reshaped)
@@ -137,21 +137,39 @@ class TEPTX(nn.Module):
     def __init__(self, n_waypts, embed_dim, num_heads, kdim):
         super(TEPTX, self).__init__()
         self.n_waypts = n_waypts
+        self.embed_dim = embed_dim
+        self.kdim = kdim
 
-        self.fc1 = T.nn.Linear(2, embed_dim, bias=True)
+        self.fc_emb = T.nn.Linear(2, embed_dim, bias=True)
         self.fc_key = T.nn.Linear(embed_dim, kdim)
-        self.fc_value = T.nn.Linear(embed_dim, kdim)
+        self.fc_val = T.nn.Linear(embed_dim, kdim)
 
-        self.tx1 = T.nn.MultiheadAttention(embed_dim=embed_dim, num_heads=num_heads, kdim=32)
-        self.tx2 = T.nn.MultiheadAttention(embed_dim=embed_dim, num_heads=num_heads, kdim=32)
+        self.tx1 = T.nn.MultiheadAttention(embed_dim=embed_dim, num_heads=num_heads, kdim=kdim, batch_first=True)
+        self.tx2 = T.nn.MultiheadAttention(embed_dim=embed_dim, num_heads=num_heads, kdim=kdim, batch_first=True)
 
-        self.fc_final = T.nn.Linear(self.n_waypts * kdim, 1)
+        self.fc_final = T.nn.Linear(self.n_waypts * embed_dim, 1)
 
-        T.nn.init.xavier_uniform_(self.fc3.weight)
-        self.fc3.bias.data.fill_(0.01)
+        self.nonlin = F.relu
+
+        # T.nn.init.xavier_uniform_(self.fc3.weight)
+        # self.fc3.bias.data.fill_(0.01)
 
     def forward(self, x):
-        fc1 = T.relu(self.fc1(x))
-        fc2 = T.relu(self.fc2(fc1))
-        out = self.fc3(fc2)
+        # Reshape and turn to embedding
+        x_reshaped = T.reshape(x, (len(x), self.n_waypts, 2))
+        emb = self.nonlin(self.fc_emb(x_reshaped))
+
+        # Multi head attention layer 1
+        key1 = self.fc_key(emb)
+        val1 = self.fc_val(emb)
+        attn_1, _ = self.tx1(emb, key1, val1, need_weights=False)
+
+        # Multi head attention layer 2
+        key2 = self.fc_key(attn_1)
+        val2 = self.fc_val(attn_1)
+        attn_2, _ = self.tx2(attn_1, key2, val2, need_weights=False)
+
+        attn_2_reshaped = T.reshape(attn_2, (len(x), self.n_waypts * self.embed_dim))
+        out = self.fc_final(attn_2_reshaped)
+
         return out
