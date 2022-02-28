@@ -2,7 +2,7 @@
 "train" : True
 "render" : False
 "default_session_ID" : "TRN"
-"iters" : 2000000
+"iters" : 30000000
 "n_eval" : 2000000
 
 # RL algo
