@@ -108,7 +108,7 @@ class Engine:
         current_xy = np.zeros(2)
 
         # Generate fine grained trajectory
-        for i in range(2000):
+        for i in range(1000):
             noise = 5 * self.noise()[0]
             current_xy += np.array([0.01 * np.cos(noise), 0.01 * np.sin(noise)])
             traj_pts.append(deepcopy(current_xy))
