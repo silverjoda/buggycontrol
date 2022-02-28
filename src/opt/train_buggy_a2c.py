@@ -54,7 +54,7 @@ class BuggyTrajFollowerTrainer:
         with open(os.path.join(os.path.dirname(__file__), "configs/train_buggy_a2c.yaml"), 'r') as f:
             algo_config = yaml.load(f, Loader=yaml.FullLoader)
         fpath = os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_env_mujoco.yaml")
-        print(fpath)
+
         with open(fpath, 'r') as f:
             env_config = yaml.load(f, Loader=yaml.FullLoader)
 
