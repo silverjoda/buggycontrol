@@ -101,8 +101,8 @@ class Engine:
         return (roll, pitch, yaw)
 
     def generate_random_traj(self, traj_pts=None):
-        traj_smoothness = self.config["traj_smoothness"] - self.current_difficulty * 300
-        #traj_smoothness = self.config["traj_smoothness"] + (np.random.rand() * 2 - 1) * self.config["traj_smoothness_variance"]
+        #traj_smoothness = self.config["traj_smoothness"] - self.current_difficulty * 200
+        traj_smoothness = self.config["traj_smoothness"] - np.random.rand() * self.config["traj_smoothness_variance"] * self.current_difficulty
         self.noise = SimplexNoise(dim=1, smoothness=traj_smoothness, multiplier=1)
         traj_pts = []
         current_xy = np.zeros(2)
