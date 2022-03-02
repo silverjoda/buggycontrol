@@ -66,8 +66,7 @@ class Engine:
     def get_obs_dict(self):
         pass
 
-    def get_state_vec(self):
-        obs_dict = self.get_obs_dict()
+    def get_state_vec(self, obs_dict):
         vel = obs_dict['vel']
         ang_vel = obs_dict['ang_vel']
         turn_angle = obs_dict['turn_angle']
@@ -75,15 +74,15 @@ class Engine:
         return [turn_angle, rear_wheel_speed, vel[0], vel[1], ang_vel[2]]
 
     def get_complete_obs_vec(self):
-        state = self.get_state_vec()
         obs_dict = self.get_obs_dict()
+        state = self.get_state_vec(obs_dict)
         wps = self.wp_list[self.cur_wp_idx:self.cur_wp_idx + self.config["n_traj_pts"]]
         wps_buggy_frame = self.transform_wp_to_buggy_frame(wps, obs_dict["pos"], obs_dict["ori_q"])
 
         wps_contiguous = []
         for w in wps_buggy_frame:
             wps_contiguous.extend(w)
-        return state + wps_contiguous
+        return state + wps_contiguous, obs_dict
 
     def transform_wp_to_buggy_frame(self, wp_list, pos, ori_q):
         wp_arr = np.array(wp_list)

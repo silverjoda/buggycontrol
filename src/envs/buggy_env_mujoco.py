@@ -85,7 +85,7 @@ class BuggyEnv(gym.Env):
         return self.engine.get_state_vec()
 
     def get_complete_obs_vec(self):
-        complete_obs_vec = self.engine.get_complete_obs_vec()
+        complete_obs_vec, _ = self.engine.get_complete_obs_vec()
         if self.config["allow_latent_input"]:
             complete_obs_vec += self.scaled_random_params
         return complete_obs_vec
@@ -113,8 +113,7 @@ class BuggyEnv(gym.Env):
         done, wp_visited = self.engine.step(scaled_act)
 
         # Get new observation
-        obs_dict = self.engine.get_obs_dict()
-        complete_obs_vec = self.engine.get_complete_obs_vec()
+        complete_obs_vec, obs_dict = self.engine.get_complete_obs_vec()
 
         # calculate reward
         r, dist_to_cur_wp = self.get_reward(obs_dict, wp_visited)
@@ -138,7 +137,8 @@ class BuggyEnv(gym.Env):
         self.engine.reset()
 
         # Reset environment variables
-        return self.engine.get_complete_obs_vec()
+        obs_vec, _ = self.engine.get_complete_obs_vec()
+        return obs_vec
 
     def render(self, mode=None):
         self.engine.render()
