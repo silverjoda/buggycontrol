@@ -102,7 +102,6 @@ class Engine:
     def generate_random_traj(self, traj_pts=None):
         #traj_smoothness = self.config["traj_smoothness"] - self.current_difficulty * 200
         traj_smoothness = self.config["traj_smoothness"] - np.random.rand() * self.config["traj_smoothness_variance"]
-        print(traj_smoothness)
         self.noise = SimplexNoise(dim=1, smoothness=traj_smoothness, multiplier=1)
         traj_pts = []
         current_xy = np.zeros(2)
