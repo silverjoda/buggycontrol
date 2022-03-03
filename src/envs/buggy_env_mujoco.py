@@ -33,7 +33,7 @@ class BuggyEnv(gym.Env):
 
         self.observation_space = spaces.Box(low=-10, high=10, shape=(self.obs_dim,), dtype=np.float32)
         self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(self.act_dim,), dtype=np.float32)
-        self.current_difficulty = 0
+        self.current_difficulty = 0.
 
         self.sim, self.engine = self.load_random_env()
 

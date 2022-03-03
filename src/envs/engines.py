@@ -13,7 +13,7 @@ class Engine:
         self.config = config
         self.mujoco_sim = mujoco_sim
         self.model = mujoco_sim.model
-        self.current_difficulty = 0
+        self.current_difficulty = 0.
 
     def reset_trajectory(self):
         self.wp_list = self.generate_random_traj()
@@ -101,7 +101,8 @@ class Engine:
 
     def generate_random_traj(self, traj_pts=None):
         #traj_smoothness = self.config["traj_smoothness"] - self.current_difficulty * 200
-        traj_smoothness = self.config["traj_smoothness"] - np.random.rand() * self.config["traj_smoothness_variance"] * self.current_difficulty
+        traj_smoothness = self.config["traj_smoothness"] - np.random.rand() * self.config["traj_smoothness_variance"]
+        print(traj_smoothness)
         self.noise = SimplexNoise(dim=1, smoothness=traj_smoothness, multiplier=1)
         traj_pts = []
         current_xy = np.zeros(2)
