@@ -1,7 +1,7 @@
 <mujoco model="mushr_nano">
   <compiler angle="radian" />
-  <size njmax="500" nconmax="300"/>
-  <option timestep="0.001" integrator="RK4" solver="Newton" o_solimp="0 0.95 0.001 0.5 2" o_solref="0.02 1" o_margin="0"/>
+  <size njmax="300" nconmax="200"/>
+  <option timestep="0.005" integrator="RK4" solver="Newton" o_solimp="0 0.95 0.001 0.5 2" o_solref="0.02 1" o_margin="0"/>
   <include file="cars/base_car/buddy.xml"/>
   <asset>
     <texture name="texplane" type="2d" builtin="checker" rgb1="0.26 0.12 0.36" rgb2="0.23 0.09 0.33" width="512" height="512" mark="cross" markrgb=".8 .8 .8"/>

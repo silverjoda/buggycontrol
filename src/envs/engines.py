@@ -289,10 +289,10 @@ class LTEEngine(Engine):
         return {"pos": pos, "ori_q": ori_q, "ori_mat": ori_mat, "vel": vel, "ang_vel": ang_vel, "wp_list": wps}
 
 if __name__ == "__main__":
+    config = load_config(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_env_mujoco.yaml"))
     car_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/one_car.xml")
     model = mujoco_py.load_model_from_path(car_path)
-    sim = mujoco_py.MjSim(model, nsubsteps=10)
+    sim = mujoco_py.MjSim(model, nsubsteps=config["n_substeps"])
 
-    config = load_config(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_env_mujoco.yaml"))
     me = MujocoEngine(config, sim)
     me.demo()
