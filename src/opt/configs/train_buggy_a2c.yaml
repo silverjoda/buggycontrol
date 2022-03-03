@@ -2,14 +2,14 @@
 "train" : True
 "render" : False
 "default_session_ID" : "TRN"
-"iters" : 3000000
+"iters" : 2000000
 "n_eval" : 2000000
 
 # RL algo
 "algo_name" : "A2C"
 "policy_name" : "MlpPolicy" # "MlpLstmPolicy", "MlpPolicy"
 "n_envs" : 6
-"gamma" : 0.999
+"gamma" : 0.97
 "n_steps" : 33
 "vf_coef" : 0.6
 "ent_coef" : 0.000003
