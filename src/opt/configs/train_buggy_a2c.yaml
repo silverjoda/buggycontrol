@@ -8,7 +8,7 @@
 # RL algo
 "algo_name" : "A2C"
 "policy_name" : "MlpPolicy" # "MlpLstmPolicy", "MlpPolicy"
-"n_envs" : 4
+"n_envs" : 8
 "gamma" : 0.99
 "n_steps" : 33
 "vf_coef" : 0.6

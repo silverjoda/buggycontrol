@@ -18,7 +18,6 @@ class BuggyTrajFollowerTrainer:
 
         self.config = self.read_configs()
         self.env_fun = buggy_env_mujoco.BuggyEnv
-        self.N_cores = 6
 
         self.env, self.model, self.checkpoint_callback, self.stats_path = self.setup_train()
 
@@ -74,8 +73,8 @@ class BuggyTrajFollowerTrainer:
         else:
             self.config["session_ID"] = self.config["default_session_ID"]
 
-        #vec_env = DummyVecEnv(env_fns=[lambda : elf.env_fun(self.config)] * self.N_cores)
-        vec_env = SubprocVecEnv(env_fns=[lambda : self.env_fun(self.config) for _ in range(self.N_cores)] , start_method="fork")
+        #vec_env = DummyVecEnv(env_fns=[lambda : elf.env_fun(self.config)] * self.config["n_envs"])
+        vec_env = SubprocVecEnv(env_fns=[lambda : self.env_fun(self.config) for _ in range(self.config["n_envs"])] , start_method="fork")
         monitor_env = VecMonitor(vec_env)
         normed_env = VecNormalize(venv=monitor_env, training=True, norm_obs=True, norm_reward=True)
 
