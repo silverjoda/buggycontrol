@@ -76,8 +76,7 @@ class Engine:
     def get_complete_obs_vec(self):
         obs_dict = self.get_obs_dict()
         state = self.get_state_vec(obs_dict)
-        wps = self.wp_list[self.cur_wp_idx:self.cur_wp_idx + self.config["n_traj_pts"]]
-        wps_buggy_frame = self.transform_wp_to_buggy_frame(wps, obs_dict["pos"], obs_dict["ori_q"])
+        wps_buggy_frame = obs_dict["wp_list"]
 
         wps_contiguous = []
         for w in wps_buggy_frame:
@@ -184,7 +183,7 @@ class MujocoEngine(Engine):
         self.mujoco_sim.step()
 
         # Update hidden states
-        self.update_estimators(action)
+        #self.update_estimators(action)
 
         return self.step_trajectory(self.mujoco_sim.data.body_xpos[self.bodyid].copy()[0:2])
 
