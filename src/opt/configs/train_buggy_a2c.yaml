@@ -1,22 +1,19 @@
 # Train config
-"train" : False
-"render" : True
+"train" : True
+"render" : False
 "default_session_ID" : "TRN"
-"iters" : 2000000
-"n_eval" : 2000000
+"iters" : 6000000
 
 # RL algo
 "algo_name" : "A2C"
 "policy_name" : "MlpPolicy" # "MlpLstmPolicy", "MlpPolicy"
 "n_envs" : 4
 "gamma" : 0.99
-"n_steps" : 33
+"n_steps" : 30
 "vf_coef" : 0.6
-"ent_coef" : 0.000003
+"ent_coef" : 0.000000
 "max_grad_norm" : 0.75
-"learning_rate" : 0.000395
-"alpha" : 0.99
-"epsilon" : 0.00001
+"learning_rate" : 0.0002 # 0.0002
 "verbose" : 1
 "full_tensorboard_log" : False
 "policy_hid_dim" : 256

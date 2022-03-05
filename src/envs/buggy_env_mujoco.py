@@ -32,7 +32,7 @@ class BuggyEnv(gym.Env):
             self.lte.load_state_dict(T.load("agents/buggy_lte.p"), strict=False)
 
         self.observation_space = spaces.Box(low=-10, high=10, shape=(self.obs_dim,), dtype=np.float32)
-        self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(self.act_dim,), dtype=np.float32)
+        self.action_space = spaces.Box(low=-2.0, high=2.0, shape=(self.act_dim,), dtype=np.float32)
         self.current_difficulty = 0.
 
         self.sim, self.engine = self.load_random_env()
@@ -102,14 +102,14 @@ class BuggyEnv(gym.Env):
         dist_between_cur_wp = np.sqrt(np.square((cur_wp[0] - pos[0])) + np.square((cur_wp[1] - pos[1])))
 
         r = wp_visited * (1 / (1 + 1 * path_deviation)) - dist_between_cur_wp * 0.01
-        #r = wp_visited * 1 - dist_between_cur_wp * 0.01
+        #r = wp_visited * 1
         return r, dist_between_cur_wp
 
     def step(self, act):
         self.step_ctr += 1
 
         # Turn, throttle
-        scaled_act = [np.clip(act[0] * 0.4, -0.4, 0.4), np.clip(act[1] * 0.5 + 0.5, 0, 1)]
+        scaled_act = [np.clip(act[0] * 0.2, -0.4, 0.4), np.clip(act[1] * 0.25 + 0.5, 0, 1)]
         done, wp_visited = self.engine.step(scaled_act)
 
         # Get new observation
@@ -117,6 +117,11 @@ class BuggyEnv(gym.Env):
 
         # calculate reward
         r, dist_to_cur_wp = self.get_reward(obs_dict, wp_visited)
+
+        act_pen = np.mean(np.square(act - self.prev_scaled_act)) * 0.03
+        self.prev_scaled_act = act
+
+        r -= act_pen
 
         # Calculate termination
         done = done or dist_to_cur_wp > 0.7 or self.step_ctr > self.config["max_steps"]
@@ -126,13 +131,14 @@ class BuggyEnv(gym.Env):
         #if self.config["render"]:
         #    self.render()
 
-        return complete_obs_vec, r, done, {}
+        return complete_obs_vec, r, done, {"visited" : wp_visited}
 
     def reset(self):
         # Reset variables
         self.step_ctr = 0
         self.current_difficulty = np.minimum(self.current_difficulty + 0.00003, 1.)
         self.engine.current_difficulty = self.current_difficulty
+        self.prev_scaled_act = np.zeros(2)
 
         # Reset simulation
         self.engine.reset()

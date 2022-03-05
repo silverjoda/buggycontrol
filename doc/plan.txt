@@ -18,7 +18,9 @@ Plan:
 - Compare RMA-style with trained model transfer
 - Try RL with difficult initial state distribution predictor to help with difficult environments
 
-
+# Results:
+With deviation pen: Avg test rew: [33.278557], n_visited: 36.98 (12mln, 0.99 gamma, 0.0002 lr)
+Without deviation pen: sux
 
 
 

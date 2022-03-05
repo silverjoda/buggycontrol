@@ -46,8 +46,8 @@ class BuggyTrajFollowerTrainer:
             self.env = VecNormalize.load(self.stats_path, normed_env)
 
             N_test = 100
-            total_rew = self.test_agent(deterministic=True, N=N_test)
-            print(f"Total test rew: {total_rew / N_test}")
+            avg_rew, avg_visited = self.test_agent(deterministic=False, render=False, N=N_test)
+            print(f"Avg test rew: {avg_rew}, n_visited: {avg_visited} ")
 
     def read_configs(self):
         with open(os.path.join(os.path.dirname(__file__), "configs/train_buggy_a2c.yaml"), 'r') as f:
@@ -79,13 +79,14 @@ class BuggyTrajFollowerTrainer:
         normed_env = VecNormalize(venv=monitor_env, training=True, norm_obs=True, norm_reward=True)
 
         stats_path = "agents/{}_vecnorm.pkl".format(self.config["session_ID"])
-        checkpoint_callback = CheckpointCallback(save_freq=300000,
+        checkpoint_callback = CheckpointCallback(save_freq=500000,
                                                  save_path='agents_cp/',
                                                  name_prefix=self.config["session_ID"], verbose=1)
 
-        #eval_env = gym.make('Pendulum-v1')
-        #callback_on_best = StopTrainingOnRewardThreshold(reward_threshold=-200, verbose=1)
-        #eval_callback = EvalCallback(eval_env, callback_on_new_best=callback_on_best, verbose=1)
+        callback_on_best = StopTrainingOnRewardThreshold(reward_threshold=34, verbose=1)
+        eval_callback = EvalCallback(normed_env, best_model_save_path='agents_cp/', callback_on_new_best=callback_on_best,
+                                     log_path='./logs/', eval_freq=50000, n_eval_episodes=50,
+                                     deterministic=False, render=False)
 
         model = A2C(policy=self.config["policy_name"],
                     env=normed_env,
@@ -99,19 +100,21 @@ class BuggyTrajFollowerTrainer:
                     device="cpu",
                     policy_kwargs=dict(net_arch=[self.config["policy_hid_dim"], self.config["policy_hid_dim"]]))
 
-        callback_list = CallbackList([checkpoint_callback])
+        callback_list = CallbackList([checkpoint_callback, eval_callback])
 
         return normed_env, model, callback_list, stats_path
 
     def test_agent(self, deterministic=True, N=100, print_rew=True, render=True):
         total_rew = 0
 
+        n_visited = 0
         for _ in range(N):
             obs = self.env.reset()
             episode_rew = 0
             while True:
                 action, _states = self.model.predict(obs, deterministic=deterministic)
                 obs, reward, done, info = self.env.step(action)
+                n_visited += info[0]["visited"]
                 episode_rew += self.env.get_original_reward()
                 total_rew += self.env.get_original_reward()
                 if render:
@@ -120,7 +123,7 @@ class BuggyTrajFollowerTrainer:
                     if print_rew:
                         print(episode_rew)
                     break
-        return total_rew
+        return total_rew / N, n_visited / N
 
 if __name__ == "__main__":
     trainer = BuggyTrajFollowerTrainer()
