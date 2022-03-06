@@ -52,11 +52,13 @@ class MooseTestOptimizer:
         traj = self.generate_initial_traj()
         #traj = self.optimize_traj_dist(traj, n_iters=1000)
         #traj = self.optimize_traj_exec(traj, self.sb_model.policy, n_iters=1000)
-        traj = self.optimize_traj_exec_full(traj, self.sb_model.policy, n_iters=1000)
-        exit()
+        traj = traj[:50]
+        traj = self.optimize_traj_exec_full(traj, n_iters=300)
+        #exit()
 
         for _ in range(100):
-            #traj = self.optimize_traj_dist(traj, n_iters=30)
+            #traj = self.optimize_traj_dist(traj, n_iters=10)
+            #traj = self.optimize_traj_exec_full(traj, n_iters=10)
 
             obs = self.venv.reset()
 
@@ -64,8 +66,10 @@ class MooseTestOptimizer:
             self.env.set_barrier_positions([4.0, 0.0], [6.0, 1.0])
 
             episode_rew = 0
+            step_ctr = 0
             while True:
-                action, _states = self.sb_model.predict(obs, deterministic=True)
+                step_ctr += 1
+                action, _states = self.sb_model.predict(obs, deterministic=False)
                 obs, reward, done, info = self.venv.step(action)
                 episode_rew += self.venv.get_original_reward()
                 total_rew += self.venv.get_original_reward()
@@ -73,7 +77,7 @@ class MooseTestOptimizer:
                     self.venv.render()
                 if done:
                     if print_rew:
-                        print(episode_rew)
+                        print(episode_rew, step_ctr)
                     break
         return total_rew
 
@@ -193,8 +197,8 @@ class MooseTestOptimizer:
         optimized_traj = [pt.detach().numpy() for pt in traj_T]
         return optimized_traj
 
-    def optimize_traj_exec_full(self, traj, etp, n_iters=1):
-        traj_len = 60
+    def optimize_traj_exec_full(self, traj, n_iters=1):
+        traj_len = 50
         # Load TEP
         tep = TEPMLP(obs_dim=traj_len * 2, act_dim=1)
         # tep = TEPRNN(n_waypts=len(traj), hid_dim=32, hid_dim_2=6)
@@ -229,9 +233,13 @@ class MooseTestOptimizer:
 
         for it in range(n_iters):
             cur_traj_T = T.stack([ti for ti in traj_T])
+            cur_traj_T_rs = cur_traj_T.reshape(1, traj_len * 2)
+            cur_traj_T_delta = T.zeros_like(cur_traj_T_rs)
+            cur_traj_T_delta[:, :2] = cur_traj_T_rs[:, :2]
+            cur_traj_T_delta[:, 2:] = cur_traj_T_rs[:, 2:] - cur_traj_T_rs[:, :-2]
 
             # etp loss
-            value_loss = -tep(cur_traj_T.reshape(1, traj_len * 2))
+            pred_rew = tep(cur_traj_T_delta)
 
             # Trajectory losses
             b1_T = T.tensor(self.b1_pos, requires_grad=False)
@@ -241,17 +249,18 @@ class MooseTestOptimizer:
             barrier_loss_list = []
             for xy_T in traj_T:
                 barrier_loss_list.append(-(barrier_lf(xy_T, b1_T) + barrier_lf(xy_T, b2_T)) * 0.06)
+            barrier_loss_sum = T.stack(barrier_loss_list).sum()
 
             # End point stretched out as much as possible
             # final_pt_loss = mse_loss(traj_T[-1], T.tensor([13., 0.])) * 0.1
-            final_pt_loss = -traj_T[-1][0] * 0.03 + T.square(traj_T[-1][1])
+            final_pt_loss = -traj_T[-1][0] * 0.2 + T.square(traj_T[-1][1])
 
             # Minimize square distance between points
             inter_pt_loss_list = []
             for i in range(len(traj_T) - 1):
                 inter_pt_loss_list.append(mse_loss(dist_T(traj_T[i], traj_T[i + 1]), T.tensor(0.17)) * 3)
 
-            total_loss = value_loss + T.stack(inter_pt_loss_list).sum() + final_pt_loss + T.stack(barrier_loss_list).sum()
+            total_loss = -pred_rew * 0.001 + T.stack(inter_pt_loss_list).sum() + final_pt_loss + barrier_loss_sum
             total_loss.backward()
             optim.step()
             optim.zero_grad()
@@ -264,8 +273,8 @@ class MooseTestOptimizer:
                 figure.canvas.draw()
                 figure.canvas.flush_events()
 
-            if it % 100 == 0:
-                print(f"Iter: {it}")
+            if it % 10 == 0:
+                print(f"Iter: {it}, total_loss: {total_loss.data}, tep_pred_rew: {pred_rew.data}, final_pt_loss: {final_pt_loss.data}, barrier_loss: {barrier_loss_sum.data}")
 
         optimized_traj = [pt.detach().numpy() for pt in traj_T]
         return optimized_traj
@@ -295,7 +304,7 @@ class MooseTestOptimizer:
         traj_T = T.nn.ParameterList([T.nn.Parameter(T.tensor(pt, dtype=T.float32, requires_grad=True)) for pt in traj])
 
         mse_loss = T.nn.MSELoss()
-        optim = T.optim.Adam(params=traj_T, lr=0.1)
+        optim = T.optim.Adam(params=traj_T, lr=0.03)
 
         # Plot
         # import matplotlib.pyplot as plt
@@ -380,11 +389,11 @@ class MooseTestOptimizer:
         # plt.show()
         # exit()
 
-        #import matplotlib.pyplot as plt
-        #x = np.linspace(0, 1, N)
-        #plt.plot(x, 1. / np.exp(10 * np.abs(x - .5)))
-        #plt.show()
-        #exit()
+        # import matplotlib.pyplot as plt
+        # x = np.linspace(0, 1, N)
+        # plt.plot(x, 1. / np.exp(10 * np.abs(x - .5)))
+        # plt.show()
+        # exit()
 
         ftraj = list(zip(x, y))
 

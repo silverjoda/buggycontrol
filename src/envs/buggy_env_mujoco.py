@@ -118,7 +118,7 @@ class BuggyEnv(gym.Env):
         # calculate reward
         r, dist_to_cur_wp = self.get_reward(obs_dict, wp_visited)
 
-        act_pen = np.mean(np.square(act - self.prev_scaled_act)) * 0.03
+        act_pen = np.mean(np.square(act - self.prev_scaled_act)) * self.config["act_pen"]
         self.prev_scaled_act = act
 
         r -= act_pen

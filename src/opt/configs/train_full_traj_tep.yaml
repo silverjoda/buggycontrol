@@ -1,7 +1,7 @@
-"n_dataset_pts" : 100
-"max_num_wp" : 60
-"policy_lr" : 0.001
+"n_dataset_pts" : 3000
+"max_num_wp" : 50
+"policy_lr" : 0.003
 "w_decay" : 0.001
-"trn_iters" : 1000
+"trn_iters" : 100000
 "batchsize" : 64
 

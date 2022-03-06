@@ -2,7 +2,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch as T
 from torch.nn.utils import weight_norm
-
+import numpy as np
 
 class SLP(nn.Module):
     def __init__(self, obs_dim, act_dim, hid_dim=128):
@@ -111,16 +111,17 @@ class TEPMLP(nn.Module):
         return out
 
 class TEPRNN(nn.Module):
-    def __init__(self, n_waypts, hid_dim=32, hid_dim_2=6):
+    def __init__(self, n_waypts, hid_dim=32, hid_dim_2=6, num_layers=1, bidirectional=False):
         super(TEPRNN, self).__init__()
         self.n_waypts = n_waypts
         self.hid_dim = hid_dim
         self.hid_dim_2 = hid_dim_2
+        self.bidirectional = bidirectional
 
-        self.fc1 = T.nn.Linear(2, 4, bias=True)
-        self.rnn = T.nn.LSTM(input_size=4, hidden_size=self.hid_dim, num_layers=1, bias=True, batch_first=True, bidirectional=True)
-        self.fc2 = T.nn.Linear(self.hid_dim, self.hid_dim_2, bias=True)
-        self.fc3 = T.nn.Linear(self.n_waypts * self.hid_dim_2, 1, bias=True)
+        self.fc1 = T.nn.Linear(2, 6, bias=True)
+        self.rnn = T.nn.LSTM(input_size=6, hidden_size=self.hid_dim, num_layers=num_layers, bias=True, batch_first=True, bidirectional=bidirectional)
+        self.fc2 = T.nn.Linear(self.hid_dim * (1 + bidirectional), self.hid_dim_2, bias=True)
+        self.fc3 = T.nn.Linear(self.hid_dim_2, 1, bias=True)
 
         self.nonlin = F.relu
 
@@ -129,9 +130,11 @@ class TEPRNN(nn.Module):
         fc1 = self.nonlin(self.fc1(x_reshaped))
         rnn1, _ = self.rnn(fc1)
         fc2 = self.nonlin(self.fc2(rnn1))
-        rnn1_reshaped = T.reshape(fc2, (len(x), self.n_waypts * self.hid_dim_2))
-        out = self.fc3(rnn1_reshaped)
-        return out
+        fc2_sum = T.sum(fc2, 1)
+        fc3 = self.fc3(fc2_sum)
+        #rnn1_reshaped = T.reshape(fc2, (len(x), self.n_waypts * self.hid_dim_2))
+        #out = self.fc3(rnn1_reshaped)
+        return fc3
 
 class TEPTX(nn.Module):
     def __init__(self, n_waypts, embed_dim, num_heads, kdim):
@@ -154,10 +157,28 @@ class TEPTX(nn.Module):
         # T.nn.init.xavier_uniform_(self.fc3.weight)
         # self.fc3.bias.data.fill_(0.01)
 
+    def get_pos_emb(self, batch_size, seq_len, d):
+        p_emb = []
+        for i in range(seq_len):
+            emb_vec = []
+            for j in range(d):
+                if j % 2 == 0:
+                    emb_vec.append(np.sin(i / (10000. ** ((2. * j) / d))))
+                else:
+                    emb_vec.append(np.cos(i / (10000. ** ((2. * j) / d))))
+            p_emb.append(emb_vec)
+        p_emb_T = T.tensor(p_emb, dtype=T.float32)
+        p_emb_T = T.tile(p_emb_T, (batch_size, 1, 1))
+        return p_emb_T
+
     def forward(self, x):
         # Reshape and turn to embedding
         x_reshaped = T.reshape(x, (len(x), self.n_waypts, 2))
         emb = self.nonlin(self.fc_emb(x_reshaped))
+
+        # Get positional enc and add to emb
+        pos_emb = self.get_pos_emb(batch_size=x.shape[0], seq_len=x.shape[1] // 2, d=self.embed_dim)
+        emb = emb + pos_emb
 
         # Multi head attention layer 1
         key1 = self.fc_key(emb)

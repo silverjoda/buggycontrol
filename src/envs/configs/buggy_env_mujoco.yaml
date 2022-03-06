@@ -14,3 +14,4 @@
 "max_steps" : 300
 "traj_smoothness" : 500
 "traj_smoothness_variance" : 200
+"act_pen" : 0.013

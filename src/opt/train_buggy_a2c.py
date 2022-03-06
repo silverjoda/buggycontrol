@@ -23,11 +23,8 @@ class BuggyTrajFollowerTrainer:
 
         if self.config["train"]:
             t1 = time.time()
-            try:
-                self.model.learn(total_timesteps=self.config["iters"], callback=self.checkpoint_callback,
-                                 log_interval=1)
-            except KeyboardInterrupt:
-                print("User interrupted training procedure")
+            self.model.learn(total_timesteps=self.config["iters"], callback=self.checkpoint_callback,
+                             log_interval=1)
             t2 = time.time()
 
             print("Training time: {}".format(t2 - t1))
@@ -45,8 +42,8 @@ class BuggyTrajFollowerTrainer:
             normed_env = VecNormalize(venv=monitor_env, training=False, norm_obs=True, norm_reward=True, clip_reward=10.0)
             self.env = VecNormalize.load(self.stats_path, normed_env)
 
-            N_test = 100
-            avg_rew, avg_visited = self.test_agent(deterministic=False, render=False, N=N_test)
+            N_test = 50
+            avg_rew, avg_visited = self.test_agent(deterministic=False, render=True, N=N_test)
             print(f"Avg test rew: {avg_rew}, n_visited: {avg_visited} ")
 
     def read_configs(self):

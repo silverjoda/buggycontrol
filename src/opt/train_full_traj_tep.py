@@ -79,23 +79,31 @@ class TEPDatasetMaker:
 
         return obs_arr, rew_arr
 
+
     def train_tep(self):
         # Load dataset
-        X = np.load(self.x_file_path)
+        X = np.load(self.x_file_path, allow_pickle=True)
         Y = np.load(self.y_file_path)
+
+        # Change X to relative coordinates
+        X_new = np.zeros_like(X)
+        X_new[:, :2] = X[:, :2]
+        X_new[:, 2:] = X[:, 2:] - X[:, :-2]
 
         # Prepare policy and training
         policy = TEPMLP(obs_dim=X.shape[1], act_dim=1)
-        #policy = TEPRNN(n_waypts=X.shape[1] // 2, hid_dim=32, hid_dim_2=6)
-        #policy = TEPTX(n_waypts=X.shape[1] // 2, embed_dim=36, num_heads=6, kdim=36)
+        #policy = TEPRNN(n_waypts=X_new.shape[1] // 2, hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
+        emb_dim = 36
+        #policy = TEPTX(n_waypts=X.shape[1] // 2, embed_dim=emb_dim, num_heads=6, kdim=36)
         policy_optim = T.optim.Adam(params=policy.parameters(),
                                     lr=self.config['policy_lr'],
                                     weight_decay=self.config['w_decay'])
         lossfun = T.nn.MSELoss()
 
+
         for i in range(self.config["trn_iters"]):
-            rnd_start_idx = np.random.randint(low=0, high=len(X) - self.config["batchsize"] - 1)
-            x = X[rnd_start_idx:rnd_start_idx + self.config["batchsize"]]
+            rnd_start_idx = np.random.randint(low=0, high=len(X_new) - self.config["batchsize"] - 1)
+            x = X_new[rnd_start_idx:rnd_start_idx + self.config["batchsize"]]
             y = Y[rnd_start_idx:rnd_start_idx + self.config["batchsize"]]
 
             x_T = T.tensor(x, dtype=T.float32)
