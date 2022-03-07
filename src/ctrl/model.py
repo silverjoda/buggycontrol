@@ -65,26 +65,57 @@ def make_model():
     F_yf_raw = cDy * F_zf * sin(cCy * arctan(cBy * a_f - cEy * (cBy * a_f - arctan(cBy * a_f))))
     F_yr_raw = cDy * F_zr * sin(cCy * arctan(cBy * a_r - cEy * (cBy * a_r - arctan(cBy * a_r))))
 
-    F_x_raw = F_xf_raw + F_xr_raw
-    F_y_raw = F_yf_raw + F_yr_raw
-
     # Traction ellipse and scaling of force vector
     b_star = arccos(abs(lam_r + lam_f) / sqrt((lam_f + lam_r) ** 2 + sin(a_f + a_r) ** 2))
 
-    mu_x_act = F_x_raw / (F_zf + F_zr)
-    mu_y_act = F_y_raw / (F_zf + F_zr)
+    # Front
+    mu_xf_act = F_xf_raw / F_zf
+    mu_yf_act = F_yf_raw / F_zf
+    mu_xf_max = cDx
+    mu_yf_max = cDy
 
-    mu_x_max = cDx
-    mu_y_max = cDy
+    mu_xf = 1 / sqrt((1 / mu_xf_act) ** 2 + (1 / mu_yf_max) ** 2)
+    mu_yf = tan(b_star) / sqrt((1 / mu_xf_max) ** 2 + (tan(b_star) / mu_yf_act) ** 2)
 
-    mu_x = 1 / sqrt((1 / mu_x_act) ** 2 + (1 / mu_y_max) ** 2)
-    mu_y = tan(b_star) / sqrt((1 / mu_x_max) ** 2 + (tan(b_star) / mu_y_act) ** 2)
+    F_xf = abs(mu_xf / mu_xf_act) * F_xf_raw
+    F_yf = abs(mu_yf / mu_yf_act) * F_yf_raw
 
-    F_x = abs(mu_x / mu_x_act) * F_x_raw
-    F_y = abs(mu_y / mu_y_act) * F_y_raw
+    # Rear
+    mu_xr_act = F_xr_raw / F_zr
+    mu_yr_act = F_yr_raw / F_zr
+    mu_xr_max = cDx
+    mu_yr_max = cDy
+
+    mu_xr = 1 / sqrt((1 / mu_xr_act) ** 2 + (1 / mu_yr_max) ** 2)
+    mu_yr = tan(b_star) / sqrt((1 / mu_xr_max) ** 2 + (tan(b_star) / mu_yr_act) ** 2)
+
+    F_xr = abs(mu_xr / mu_xr_act) * F_xr_raw
+    F_yr = abs(mu_yr / mu_yr_act) * F_yr_raw
+
+    pm = np.array([[cos(u_d), -sin(u_d), 1, 0],
+                   [sin(u_d), cos(u_d), 0, 1],
+                   [l_f * cos(u_d), l_f * cos(u_d), 0, -l_r]])
+    F_x, F_y, M_z = pm @ np.array([F_xf, F_yf, F_xr, F_yr])
 
     # Set right-hand-side of ODE for all introduced states (_x).
-    model.set_rhs('C_b', ...)
+    m1 = np.array([[1 / m * s_v, 0, 0],
+                   [0, 1 / m, 0],
+                   [0, 0, 1/ I]])
+    m2 = np.array([[-sin(s_b), cos(s_b), 0],
+                   [cos(s_b), sin(s_b), 0],
+                   [0, 0, 1]])
+    m3 = np.array([[F_x],
+                   [F_y],
+                   [M_z]])
+
+    main_rhs = m1 @ m2 @ m3
+
+    model.set_rhs('s_b', main_rhs[0])
+    model.set_rhs('s_v', main_rhs[1])
+    model.set_rhs('s_r', main_rhs[2])
+    model.set_rhs('s_x', s_v * cos(s_b))
+    model.set_rhs('s_y', s_v * sin(s_b))
+    model.set_rhs('s_phi', s_r)
 
     # Setup model:
     model.setup()
