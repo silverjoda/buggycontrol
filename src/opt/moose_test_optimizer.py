@@ -262,6 +262,8 @@ class MooseTestOptimizer:
 
             total_loss = -pred_rew * 0.001 + T.stack(inter_pt_loss_list).sum() + final_pt_loss + barrier_loss_sum
             total_loss.backward()
+
+            #T.autograd.functional.hessian()
             optim.step()
             optim.zero_grad()
 
