@@ -221,6 +221,7 @@ class MujocoEngine(Engine):
         rear_wheel_speed = np.clip(((self.mujoco_sim.get_state().qvel[14] + self.mujoco_sim.get_state().qvel[16]) / 2.) / 200, -1, 1)
         return {"pos" : pos, "ori_q" : ori_q, "ori_mat" : ori_mat, "vel" : vel_buggy, "ang_vel" : ang_vel, "wp_list" : wps_buggy_frame, "turn_angle" : turn_angle, "rear_wheel_speed" : rear_wheel_speed}
 
+
 class LTEEngine(Engine):
     def __init__(self, config, mujoco_sim, lte):
         super().__init__(config, mujoco_sim)

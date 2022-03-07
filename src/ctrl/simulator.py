@@ -6,7 +6,7 @@ def make_simulator(model):
     simulator = do_mpc.simulator.Simulator(model)
 
     # Set parameter(s):
-    simulator.set_param(t_step=0.005)
+    simulator.set_param(t_step=0.001)
 
     # Optional: Set function for parameters and time-varying parameters.
 

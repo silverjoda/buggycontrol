@@ -7,23 +7,25 @@ def make_mpc(model):
 
     # Set parameters:
     setup_mpc = {
-        'n_horizon': 20,
+        'n_horizon': 200,
         'n_robust': 1,
         't_step': 0.005,
     }
     mpc.set_param(**setup_mpc)
 
     # Configure objective function:
-    mterm = (_x['C_b'] - 0.6)**2    # Setpoint tracking
-    lterm = (_x['C_b'] - 0.6)**2    # Setpoint tracking
+    mterm = (model.x['s_b'] - 0.6)**2    # Setpoint tracking
+    lterm = (model.x['s_b'] - 0.6)**2    # Setpoint tracking
 
     mpc.set_objective(mterm=mterm, lterm=lterm)
     mpc.set_rterm(F=0.1, Q_dot = 1e-3) # Scaling for quad. cost.
 
-    # State and input bounds:
-    mpc.bounds['lower', '_x', 'C_b'] = 0.1
-    mpc.bounds['upper', '_x', 'C_b'] = 2.0
-    ...
+    # Turn bounds
+    mpc.bounds['lower', '_u', 's_d'] = -0.38
+    mpc.bounds['upper', '_u', 's_d'] = 0.38
+
+    # Whell angular vel bound from below
+    mpc.bounds['low', '_u', 's_w'] = 0.0
 
     mpc.setup()
 

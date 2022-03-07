@@ -20,7 +20,7 @@ class ControlBuggyMPC:
 
         self.model, self.mpc, self.simulator = self.setup_mpc()
 
-        self.test_mpc(self.buggy_env_mujoco, self.model, self.mpc)
+        self.test_mpc(self.buggy_env_mujoco, self.model, self.simulator, self.mpc)
 
     def setup_mpc(self):
         model = make_model()
@@ -28,19 +28,38 @@ class ControlBuggyMPC:
         simulator = make_simulator(model)
         return model, mpc, simulator
 
-    def test_mpc(self, env, model, mpc, N=100, render=True, print_rew=False):
+    def get_partial_mpc_state(self, obs_dict):
+        #velocity =
+        pass
+
+    def test_mpc(self, env, model, simulator, N=100, render=True, print_rew=False):
         for _ in range(N):
             # New env and trajectory
-            obs = env.reset()
+            env.reset()
 
             # Setup new mpc cost function with target traj
-
+            mpc = make_mpc(model, env.engine.wp_list)
+            simulator.reset_history()
 
             episode_rew = 0
+
+            # Slip angle, velocity, yaw rate, x, y, phi
+            x0 = np.array([0, 0, 0, 0, 0, 0]).reshape(-1, 1)
+            simulator.x0 = x0
+            x = x0
             while True:
                 # Predict using MPC
-                action = np.zeros(2)
-                obs, reward, done, info = env.step(action)
+                u = mpc.make_step(x)
+                obs, reward, done, info = env.step(u)
+                obs_dict = env.get_obs_dict()
+
+                # Get next side slip angle from simulator
+                y_next = simulator.make_step(u)
+                s_b = y_next[0]
+
+                # Make next mpc state
+                x_part = self.get_partial_mpc_state(obs_dict)
+                x = np.array([s_b, *x_part]).reshape(-1, 1)
 
                 if render:
                     env.render()
