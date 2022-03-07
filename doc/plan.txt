@@ -1,13 +1,16 @@
 Plan:
 
-# Mission: Obtain High(er) performing buggy agent:
-- Try with curriculum learning.
-- Profile code using pycharm to speed up environment
-- Use pretrained traj feature extractor from supervised learning? Transformer?
+# Mission: MPC
+- Make node with simulator and model to see how it behaves
+- Fit tyre parameters to simulator buggy data
+- Make MPC controller which tracks trajectory and compare to learned policy
 
 # Mission: Trajectory optimization using TEP
-- Add positional encoding to Transformer
-- Make trajectory inputs relative perhaps
+- Train TEP to predict TIME, not reward
+- Plot gradient directions of trajectory optimization
+- Try second order optimization
+- Examine different representations for trajectory such as constant length, defined by angles.
+- Use spline priors for trajectory optimization. Per point is bad
 
 # Mission: Transfer
 - Make proper trajectory testing script with qualitative and quantitative metrics for comparing learned model with mujoco env (with visualization).
@@ -21,6 +24,7 @@ Plan:
 # Results:
 With deviation pen: Avg test rew: [33.278557], n_visited: 36.98 (12mln, 0.99 gamma, 0.0002 lr)
 Without deviation pen: sux
+With small action pen we get slightly better results
 
 
 
