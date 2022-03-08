@@ -258,10 +258,18 @@ class MooseTestOptimizer:
         #traj_T = T.nn.ParameterList([T.nn.Parameter(T.tensor(pt, dtype=T.float32, requires_grad=True)) for pt in traj[:traj_len]])
         #optim = T.optim.Adam(params=traj_T, lr=0.001)
 
+
+
+
+        # quiver_plot = ax.quiver([],
+        #           [],
+        #           [],
+        #           [],
+        #           width=0.002,
+        #           color=[1, 0, 0])
+
         # Plot
         figure, ax = plt.subplots(figsize=(14, 6))
-        line1, = ax.plot(list(zip(*traj))[0], list(zip(*traj))[1], marker="o")
-        ax.scatter([4, 6, 17], [.5, .5, 0], s=200, c=['r', 'r', 'w'])
 
         for it in range(n_iters):
             total_loss = calc_traj_loss(traj_T)
@@ -271,24 +279,47 @@ class MooseTestOptimizer:
             hess = T.autograd.functional.hessian(calc_traj_loss, traj_T)
             hess_inv = T.linalg.inv(hess)
 
-            # Plot gradient
-            ax.arrow(0,0,1,1, width=0.01, head_width=0.02)
-
             # Plot gradient changed by hessian
-            traj_T = traj_T - 0.05 * hess_inv @ traj_grad
+            scaled_grad = hess_inv @ traj_grad
+            traj_T = traj_T + 0.01 * scaled_grad
+
+            # Plot gradient
+            with T.no_grad():
+                traj_reshaped = traj_T.reshape(len(traj_T) // 2, 2).detach().numpy()
+                grad_reshaped = traj_grad.reshape(len(traj_T) // 2, 2).detach().numpy()
+                scaled_grad_reshaped = scaled_grad.reshape(len(traj_T) // 2, 2).detach().numpy()
 
             #optim.step()
             #optim.zero_grad()
 
             # PLOT
             if it % 1 == 0:
+                line1, = ax.plot(list(zip(*traj))[0], list(zip(*traj))[1], marker="o")
+                ax.scatter([4, 6, 17], [.5, .5, 0], s=200, c=['r', 'r', 'w'])
+
+                ax.quiver(traj_reshaped[:, 0],
+                          traj_reshaped[:, 1],
+                          grad_reshaped[:, 0],
+                          grad_reshaped[:, 1],
+                          width=0.001,
+                          color=[1, 0, 0])
+
+                ax.quiver(traj_reshaped[:, 0],
+                          traj_reshaped[:, 1],
+                          scaled_grad_reshaped[:, 0],
+                          scaled_grad_reshaped[:, 1],
+                          width=0.001,
+                          color=[0, 0, 1])
+
                 x, y = list(zip(*[t.detach().numpy() for t in traj_T.reshape((len(traj_T) // 2, 2))]))
                 line1.set_xdata(x)
                 line1.set_ydata(y)
                 figure.canvas.draw()
                 figure.canvas.flush_events()
 
-            if it % 10 == 0:
+                ax.clear()
+
+            if it % 1 == 0:
                 #print(f"Iter: {it}, total_loss: {total_loss.data}, tep_pred_rew: {pred_rew.data}, final_pt_loss: {final_pt_loss.data}, barrier_loss: {barrier_loss_sum.data}")
                 print(f"Iter: {it}, total_loss: {total_loss.data}")
 
