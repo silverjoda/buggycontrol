@@ -21,7 +21,6 @@ from casadi import *
 import do_mpc
 
 from src.ctrl.model import make_model
-from src.ctrl.mpc import make_mpc
 from src.ctrl.simulator import make_simulator
 
 def rotate_vector_by_quat(v, q):
@@ -38,14 +37,12 @@ if __name__=="__main__":
     act_msg = None
     act_lock = threading.Lock()
 
-    integrated_pose = Pose(orientation=Quaternion(x=0, y=0, z=0, w=1))
+    model = make_model()
+    simulator = make_simulator(model)
+    simulator.x0 = np.array([0., 0., 0., 0., 0., 0.]).reshape(-1, 1)
 
-    policy = MLP(7, 5, hid_dim=256)
-    agent_path = os.path.join(os.path.dirname(__file__), "../opt/agents/buggy_lte.p")
-    policy.load_state_dict(T.load(agent_path), strict=False)
-
-    print("Starting buggy tester node")
-    rospy.init_node("predicted_buggy_pose_publisher")
+    print("Starting single track tester node")
+    rospy.init_node("single_track_tester")
     tfBuffer = tf2_ros.Buffer()
     tflistener = tf2_ros.TransformListener(tfBuffer)
     broadcaster = tf2_ros.TransformBroadcaster()
@@ -57,57 +54,39 @@ if __name__=="__main__":
                      cb,
                      queue_size=3)
 
-    buggy_lin_vel_x = 0.
-    buggy_lin_vel_y = 0.
-    buggy_ang_vel_z = 0.
-    buggy_turn = 0.
-    buggy_throttle = -1.
-
     turn = 0
     throttle = 0
-
-    delta = 0.005
 
     while not rospy.is_shutdown():
         with act_lock:
             if act_msg is not None:
-                throttle = np.maximum(deepcopy(act_msg.throttle), 0) * 2 - 1
-                turn = deepcopy(act_msg.turn)
+                throttle = np.maximum(deepcopy(act_msg.throttle), 0)
+                turn = deepcopy(act_msg.turn * 0.38)
 
-        # Predict velocity update
-        policy_input = T.tensor([buggy_turn, buggy_throttle, buggy_lin_vel_x, buggy_lin_vel_y, buggy_ang_vel_z, turn, throttle], dtype=T.float32)
-        with T.no_grad():
-            pred_vel = policy(policy_input)
-        buggy_turn, buggy_throttle, buggy_lin_vel_x, buggy_lin_vel_y, buggy_ang_vel_z = pred_vel.numpy()
-
-        # Condition the output
-        #buggy_lin_vel_x = np.maximum(buggy_lin_vel_x, 0)
-        #if np.abs(buggy_lin_vel_x) < 0.01 and np.abs(buggy_lin_vel_y) < 0.01:
-        #    buggy_ang_vel_z = 0
-
-        # Transform linear velocities to base_link frame
-        base_link_linear = rotate_vector_by_quat(Vector3(x=buggy_lin_vel_x, y=buggy_lin_vel_y, z=buggy_ang_vel_z),
-                                                 integrated_pose.orientation)
-
-        # Modify integrated pose using twist message
-        integrated_pose.position.x += base_link_linear.x * delta
-        integrated_pose.position.y += base_link_linear.y * delta
-        i_q = integrated_pose.orientation
-        i_e = list(tf.transformations.euler_from_quaternion([i_q.x, i_q.y, i_q.z, i_q.w]))
-        i_e[2] += buggy_ang_vel_z * delta
-        i_q_new = tf.transformations.quaternion_from_euler(*i_e)
-        integrated_pose.orientation = Quaternion(*i_q_new)
+        x = simulator.make_step(np.array([turn, throttle]).reshape(-1, 1))
+        beta, v, ang_vel_z, xpos, ypos, ang_z = x
+        orientation_quat = tf.transformations.quaternion_from_euler(0, 0, ang_z)
 
         twist_msg = TwistStamped()
         twist_msg.header.stamp = rospy.Time(0)
         twist_msg.header.frame_id = "base_link"
-        twist_msg.twist = Twist(linear=Vector3(x=buggy_lin_vel_x, y=buggy_lin_vel_y), angular=Vector3(z=buggy_ang_vel_z))
+        twist_msg.twist = Twist(linear=Vector3(x=v * np.cos(beta), y=v * np.sin(beta)), angular=Vector3(z=ang_vel_z))
         pub_twist.publish(twist_msg)
+
+        pose = Pose()
+        pose.position.x = xpos
+        pose.position.y = ypos
+        pose.position.z = ang_z
+
+        pose.orientation.x = orientation_quat.x
+        pose.orientation.y = orientation_quat.y
+        pose.orientation.z = orientation_quat.z
+        pose.orientation.w = orientation_quat.w
 
         odom_msg = Odometry()
         odom_msg.header.stamp = rospy.Time(0)
         odom_msg.header.frame_id = "odom"
-        odom_msg.pose = PoseWithCovariance(pose=integrated_pose)
+        odom_msg.pose = PoseWithCovariance(pose=pose)
         pub_odom.publish(odom_msg)
 
         t = TransformStamped()
