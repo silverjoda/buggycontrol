@@ -248,8 +248,6 @@ class MooseTestOptimizer:
 
             total_loss = -pred_rew * 0.005 + T.stack(inter_pt_loss_list).sum() + final_pt_loss + barrier_loss_sum
 
-            #total_loss.backward()
-            #T.autograd.
 
             return total_loss
 
@@ -268,11 +266,15 @@ class MooseTestOptimizer:
         for it in range(n_iters):
             total_loss = calc_traj_loss(traj_T)
 
-            traj_grad = T.autograd.grad(total_loss, traj_T)[0]
+            traj_grad = T.autograd.grad(total_loss, traj_T, allow_unused=True)[0]
 
             hess = T.autograd.functional.hessian(calc_traj_loss, traj_T)
             hess_inv = T.linalg.inv(hess)
 
+            # Plot gradient
+            ax.arrow(0,0,1,1, width=0.01, head_width=0.02)
+
+            # Plot gradient changed by hessian
             traj_T = traj_T - 0.05 * hess_inv @ traj_grad
 
             #optim.step()
