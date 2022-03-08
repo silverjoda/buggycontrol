@@ -1,32 +1,17 @@
 #!/usr/bin/env python3
-import pickle
 import threading
 from copy import deepcopy
 
-import numpy as np
 import rospy
 import tf.transformations
 from buggycontrol.msg import ActionsStamped
 from geometry_msgs.msg import Vector3, PoseWithCovariance, Pose, Quaternion, TwistStamped, Twist, TransformStamped
 from nav_msgs.msg import Odometry
 import tf2_ros
-import os
-
-
-import numpy as np
-
-from src.envs.buggy_env_mujoco import BuggyEnv
-import yaml
 from casadi import *
-import do_mpc
 
 from src.ctrl.model import make_model
 from src.ctrl.simulator import make_simulator
-
-def rotate_vector_by_quat(v, q):
-    qm = tf.transformations.quaternion_matrix([q.x, q.y, q.z, q.w])[:3, :3]
-    new_v = np.matmul(qm, np.array([v.x, v.y, v.z]))
-    return Vector3(x=new_v[0], y=new_v[1], z=new_v[2])
 
 if __name__=="__main__":
     def cb(msg):
