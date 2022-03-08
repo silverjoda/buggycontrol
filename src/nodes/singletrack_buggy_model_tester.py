@@ -39,6 +39,7 @@ if __name__=="__main__":
 
     model = make_model()
     simulator = make_simulator(model)
+    simulator.reset_history()
     simulator.x0 = np.array([0., 0., 0., 0., 0., 0.]).reshape(-1, 1)
 
     print("Starting single track tester node")
