@@ -57,7 +57,9 @@ class TEPDatasetMaker:
         for i in range(self.n_dataset_pts):
             obs = self.venv.reset()
             episode_rew = 0
+            step_ctr = 0
             while True:
+                step_ctr += 1
                 action, _states = self.sb_model.predict(obs, deterministic=True)
                 obs, reward, done, info = self.venv.step(action)
                 episode_rew += self.venv.get_original_reward()
@@ -128,5 +130,5 @@ class TEPDatasetMaker:
 
 if __name__ == "__main__":
     tm = TEPDatasetMaker()
-    #tm.make_dataset(render=False)
+    tm.make_dataset(render=False)
     tm.train_tep()
