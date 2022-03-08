@@ -258,9 +258,6 @@ class MooseTestOptimizer:
         #traj_T = T.nn.ParameterList([T.nn.Parameter(T.tensor(pt, dtype=T.float32, requires_grad=True)) for pt in traj[:traj_len]])
         #optim = T.optim.Adam(params=traj_T, lr=0.001)
 
-
-
-
         # quiver_plot = ax.quiver([],
         #           [],
         #           [],

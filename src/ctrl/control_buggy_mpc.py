@@ -14,11 +14,12 @@ class ControlBuggyMPC:
     def __init__(self, config):
         self.config = config
 
-        with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/control_buggy_mpc.yaml"), 'r') as f:
+        with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_env_mujoco.yaml"), 'r') as f:
             buggy_config = yaml.load(f, Loader=yaml.FullLoader)
         self.buggy_env_mujoco = BuggyEnv(buggy_config)
 
         self.model, self.mpc, self.simulator = self.setup_mpc()
+        exit()
 
         self.test_mpc(self.buggy_env_mujoco, self.model, self.simulator, self.mpc)
 

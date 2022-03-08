@@ -8,8 +8,6 @@ def make_simulator(model):
     # Set parameter(s):
     simulator.set_param(t_step=0.001)
 
-    # Optional: Set function for parameters and time-varying parameters.
-
     # Setup simulator:
     simulator.setup()
 

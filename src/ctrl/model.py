@@ -1,6 +1,5 @@
 import do_mpc
-import numpy as np
-from numpy import cos, sin, arctan, abs, tan, sqrt, arccos
+from casadi import cos, sin, arctan, tan, sqrt, arccos, fabs, horzcat, vertcat, fmax
 
 def make_model():
     # Obtain an instance of the do-mpc model class
@@ -44,16 +43,19 @@ def make_model():
     vy = s_v * sin(s_b)
 
     # Wheel kinematics
-    v_xf, v_yf = np.array([[cos(u_d), sin(u_d)], [-sin(u_d), cos(u_d)]]) @ np.array([vx, vy + l_f * s_r])
+    v_f = vertcat(horzcat(cos(u_d), sin(u_d)), horzcat(-sin(u_d), cos(u_d))) @ vertcat(vx, vy + l_f * s_r)
+    v_xf = v_f[0]
+    v_yf = v_f[1]
+
     v_xr, v_yr = vx, vy - l_r * s_r
 
     # Side slip angles
-    a_f = -arctan(v_yf / abs(v_xf))
-    a_r = -arctan(v_yr / abs(v_xr))
+    a_f = -arctan(v_yf / fabs(v_xf))
+    a_r = -arctan(v_yr / fabs(v_xr))
 
     # Slip ratios
     lam_f = 0
-    lam_r = u_w * p - v_xr / np.maximum(abs(u_w * p), abs(v_xr))
+    lam_r = u_w * p - v_xr / fmax(fabs(u_w * p), fabs(v_xr))
 
     # Load forces
     F_zf = g * m * l_r / (l_f + l_r)
@@ -66,19 +68,10 @@ def make_model():
     F_yr_raw = cDy * F_zr * sin(cCy * arctan(cBy * a_r - cEy * (cBy * a_r - arctan(cBy * a_r))))
 
     # Traction ellipse and scaling of force vector
-    b_star = arccos(abs(lam_r + lam_f) / sqrt((lam_f + lam_r) ** 2 + sin(a_f + a_r) ** 2))
+    b_star = arccos(fabs(lam_r + lam_f) / sqrt((lam_f + lam_r) ** 2 + sin(a_f + a_r) ** 2))
 
-    # Front
-    mu_xf_act = F_xf_raw / F_zf
-    mu_yf_act = F_yf_raw / F_zf
-    mu_xf_max = cDx
-    mu_yf_max = cDy
-
-    mu_xf = 1 / sqrt((1 / mu_xf_act) ** 2 + (1 / mu_yf_max) ** 2)
-    mu_yf = tan(b_star) / sqrt((1 / mu_xf_max) ** 2 + (tan(b_star) / mu_yf_act) ** 2)
-
-    F_xf = abs(mu_xf / mu_xf_act) * F_xf_raw
-    F_yf = abs(mu_yf / mu_yf_act) * F_yf_raw
+    F_xf = F_xf_raw
+    F_yf = F_yf_raw
 
     # Rear
     mu_xr_act = F_xr_raw / F_zr
@@ -89,24 +82,23 @@ def make_model():
     mu_xr = 1 / sqrt((1 / mu_xr_act) ** 2 + (1 / mu_yr_max) ** 2)
     mu_yr = tan(b_star) / sqrt((1 / mu_xr_max) ** 2 + (tan(b_star) / mu_yr_act) ** 2)
 
-    F_xr = abs(mu_xr / mu_xr_act) * F_xr_raw
-    F_yr = abs(mu_yr / mu_yr_act) * F_yr_raw
+    F_xr = fabs(mu_xr / mu_xr_act) * F_xr_raw
+    F_yr = fabs(mu_yr / mu_yr_act) * F_yr_raw
 
-    pm = np.array([[cos(u_d), -sin(u_d), 1, 0],
-                   [sin(u_d), cos(u_d), 0, 1],
-                   [l_f * cos(u_d), l_f * cos(u_d), 0, -l_r]])
-    F_x, F_y, M_z = pm @ np.array([F_xf, F_yf, F_xr, F_yr])
+    pm = vertcat(horzcat(cos(u_d), -sin(u_d), 1, 0),
+                   horzcat(sin(u_d), cos(u_d), 0, 1),
+                   horzcat(l_f * cos(u_d), l_f * cos(u_d), 0, -l_r))
+    res = pm @ vertcat(F_xf, F_yf, F_xr, F_yr)
+    F_x, F_y, M_z = res[0], res[1], res[2]
 
     # Set right-hand-side of ODE for all introduced states (_x).
-    m1 = np.array([[1 / m * s_v, 0, 0],
-                   [0, 1 / m, 0],
-                   [0, 0, 1/ I]])
-    m2 = np.array([[-sin(s_b), cos(s_b), 0],
-                   [cos(s_b), sin(s_b), 0],
-                   [0, 0, 1]])
-    m3 = np.array([[F_x],
-                   [F_y],
-                   [M_z]])
+    m1 = vertcat(horzcat(1 / m * s_v, 0, 0),
+                   horzcat(0, 1 / m, 0),
+                   horzcat(0, 0, 1 / I))
+    m2 = vertcat(horzcat(-sin(s_b), cos(s_b), 0),
+                 horzcat(cos(s_b), sin(s_b), 0),
+                 horzcat(0, 0, 1))
+    m3 = vertcat(F_x, F_y, M_z)
 
     main_rhs = m1 @ m2 @ m3
 
