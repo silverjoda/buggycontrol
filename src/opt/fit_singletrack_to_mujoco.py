@@ -99,7 +99,7 @@ class ModelTrainer:
         def f(w):
             # Generate new model
             model = make_model(w)
-            simulator = None #make_simulator(model)
+            simulator = make_simulator(model)
 
             # Get batch of data
             x, y = self.dataset.get_random_batch(batchsize=self.config["batchsize"], tensor=False)

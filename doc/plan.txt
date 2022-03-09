@@ -1,5 +1,10 @@
 Plan:
 
+# Play AC and S
+# Read on mi optimization and tocamac RL
+# Do some more work
+# Mental excercise with concentration asnd memory. Also meditate
+
 # Mission: MPC
 - Fit tyre parameters to simulator buggy data
 - Make MPC controller which tracks trajectory and compare to learned policy
