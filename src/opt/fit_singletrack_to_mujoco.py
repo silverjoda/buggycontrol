@@ -98,16 +98,35 @@ class ModelTrainer:
     def f_wrapper(self):
         def f(w):
             # Generate new model
-            model = make_model_with_given_params(w)
-            simulator = make_simulator(model)
+            model = make_model(w)
+            simulator = None #make_simulator(model)
 
             # Get batch of data
             x, y = self.dataset.get_random_batch(batchsize=self.config["batchsize"], tensor=False)
 
-            # Get loss on batch
-            loss = 0
+            def extract_sim_state(state):
+                vx, vy, vangz, _, _ = state[0:5]
+                b = np.atan2(vy, vx)
+                v = np.sqrt(np.square(np.array([vx, vy]).sum()))
+                r = vangz
+                return np.array([b,v,r,0,0,0]).reshape(-1, 1)
 
-            return loss
+            total_loss = 0
+            for i in range(len(x)):
+                simulator.reset_history()
+
+                # Slip angle, velocity, yaw rate, x, y, phi
+                sim_state = extract_sim_state(x[i])
+                sim_state_next = extract_sim_state(y[i])
+                sim_act = np.array(x[i][6] * 0.38, x[i][7] * 30).reshape((-1, 1))
+
+                simulator.x0 = sim_state
+                sim_state_next_pred = simulator.make_step(sim_act)
+
+                loss = np.mean(np.square(sim_state_next_pred[0:3] - sim_state_next[0:3]))
+                total_loss += loss
+
+            return total_loss
 
         return f
 

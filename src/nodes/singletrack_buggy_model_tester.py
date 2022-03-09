@@ -49,8 +49,7 @@ if __name__=="__main__":
                 throttle = np.maximum(deepcopy(act_msg.throttle), 0.)
                 turn = deepcopy(act_msg.turn * 0.38)
 
-        x = simulator.make_step(np.array([turn, throttle]).reshape(2, 1))
-        exit()
+        x = simulator.make_step(np.array([turn, throttle * 10]).reshape(2, 1))
 
         beta, v, ang_vel_z, xpos, ypos, ang_z = x
         orientation_quat = tf.transformations.quaternion_from_euler(0, 0, ang_z)

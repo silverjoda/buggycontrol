@@ -1,7 +1,8 @@
 import do_mpc
 from casadi import cos, sin, arctan, tan, sqrt, arccos, fabs, horzcat, vertcat, fmax, power, mpower
 
-def make_model():
+
+def make_model(params=None):
     # Obtain an instance of the do-mpc model class
     # and select time discretization:
     model = do_mpc.model.Model('continuous')
@@ -25,6 +26,9 @@ def make_model():
     cCx = 1.7
     cEx = -0.5
 
+    if params is not None:
+        m, I, l_f, l_r, p, cDy, cBy, cCy, cEy, cDx, cBx, cCx, cEx = params
+
     # Introduce new states
     s_b = model.set_variable(var_type='_x', var_name='s_b', shape=(1,1))
     s_v = model.set_variable(var_type='_x', var_name='s_v', shape=(1,1))
@@ -34,7 +38,7 @@ def make_model():
     s_phi = model.set_variable(var_type='_x', var_name='s_phi', shape=(1,1))
 
     # Set control inputs to target turn and wheel angular vel
-    u_d = model.set_variable(var_type='_u', var_name='u_t')
+    u_d = model.set_variable(var_type='_u', var_name='u_d')
     u_w = model.set_variable(var_type='_u', var_name='u_w')
 
     # Xy cg velocities
@@ -67,11 +71,7 @@ def make_model():
     F_yr_raw = cDy * F_zr * sin(cCy * arctan(cBy * a_r - cEy * (cBy * a_r - arctan(cBy * a_r))))
 
     # Traction ellipse and scaling of force vector
-    #b_star_f = arccos(fabs(lam_f) / sqrt(power(lam_f, 2.) + power(sin(a_f), 2)))
     b_star_r = arccos(fabs(lam_r) / sqrt(power(lam_r, 2.) + power(sin(a_r), 2)))
-
-    F_xf = F_xf_raw
-    F_yf = F_yf_raw
 
     # Rear
     mu_xr_act = F_xr_raw / F_zr
@@ -82,6 +82,8 @@ def make_model():
     mu_xr = 1 / sqrt(power(1. / mu_xr_act, 2) + power(tan(b_star_r) / mu_yr_max, 2))
     mu_yr = tan(b_star_r) / sqrt(power(1 / mu_xr_max, 2) + power(tan(b_star_r) / mu_yr_act, 2))
 
+    F_xf = F_xf_raw
+    F_yf = F_yf_raw
     F_xr = fabs(mu_xr / mu_xr_act) * F_xr_raw
     F_yr = fabs(mu_yr / mu_yr_act) * F_yr_raw
 
@@ -108,6 +110,9 @@ def make_model():
     model.set_rhs('s_x', s_v * cos(s_b))
     model.set_rhs('s_y', s_v * sin(s_b))
     model.set_rhs('s_phi', s_r)
+
+    model.set_variable(var_type='_tvp', var_name='trajectory_set_point_x')
+    model.set_variable(var_type='_tvp', var_name='trajectory_set_point_y')
 
     # Setup model:
     model.setup()

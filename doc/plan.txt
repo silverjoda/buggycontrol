@@ -1,7 +1,6 @@
 Plan:
 
 # Mission: MPC
-- Make node with simulator and model to see how it behaves
 - Fit tyre parameters to simulator buggy data
 - Make MPC controller which tracks trajectory and compare to learned policy
 

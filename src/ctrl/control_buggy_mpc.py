@@ -9,6 +9,7 @@ import do_mpc
 from src.ctrl.model import make_model
 from src.ctrl.mpc import make_mpc
 from src.ctrl.simulator import make_simulator
+import math as m
 
 class ControlBuggyMPC:
     def __init__(self, config):
@@ -18,36 +19,41 @@ class ControlBuggyMPC:
             buggy_config = yaml.load(f, Loader=yaml.FullLoader)
         self.buggy_env_mujoco = BuggyEnv(buggy_config)
 
-        self.model, self.mpc, self.simulator = self.setup_mpc()
+        self.model = make_model()
+        self.mpc = make_mpc(self.model)
+        self.simulator = make_simulator(self.model)
         exit()
 
-        self.test_mpc(self.buggy_env_mujoco, self.model, self.simulator, self.mpc)
+        self.test_mpc(self.buggy_env_mujoco, self.model, self.simulator)
 
-    def setup_mpc(self):
-        model = make_model()
-        mpc = make_mpc(model)
-        simulator = make_simulator(model)
-        return model, mpc, simulator
+    def q2e(self, w, x, y, z):
+        pitch = -m.asin(2.0 * (x * z - w * y))
+        roll = m.atan2(2.0 * (w * x + y * z), w * w - x * x - y * y + z * z)
+        yaw = m.atan2(2.0 * (w * z + x * y), w * w + x * x - y * y - z * z)
+        return (roll, pitch, yaw)
 
-    def get_partial_mpc_state(self, obs_dict):
-        #velocity =
-        pass
+    def get_mpc_state(self, obs_dict):
+        # beta, velocity (vec), yaw rate, x, y, phi
+        vel = obs_dict["vel"]
+        beta = np.atan2(vel[1], vel[0])
+        vel_vec = np.sqrt(np.square(vel[0:2]).sum())
+        yaw_rate = obs_dict["ang_vel"][2]
+        x_pos, y_pos = obs_dict["pos"][0:2]
+        phi = self.q2e(*obs_dict["ori_q"])
+        return beta, vel_vec, yaw_rate, x_pos, y_pos, phi
 
-    def test_mpc(self, env, model, simulator, N=100, render=True, print_rew=False):
+    def test_mpc(self, env, model, mpc, simulator, N=100, render=True, print_rew=False):
         for _ in range(N):
             # New env and trajectory
             env.reset()
-
-            # Setup new mpc cost function with target traj
-            mpc = make_mpc(model, env.engine.wp_list)
             simulator.reset_history()
-
-            episode_rew = 0
 
             # Slip angle, velocity, yaw rate, x, y, phi
             x0 = np.array([0, 0, 0, 0, 0, 0]).reshape(-1, 1)
             simulator.x0 = x0
             x = x0
+
+            episode_rew = 0
             while True:
                 # Predict using MPC
                 u = mpc.make_step(x)
@@ -59,7 +65,7 @@ class ControlBuggyMPC:
                 s_b = y_next[0]
 
                 # Make next mpc state
-                x_part = self.get_partial_mpc_state(obs_dict)
+                x_part = self.get_mpc_state(obs_dict)
                 x = np.array([s_b, *x_part]).reshape(-1, 1)
 
                 if render:
