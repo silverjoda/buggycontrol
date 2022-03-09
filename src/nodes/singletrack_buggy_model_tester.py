@@ -40,16 +40,18 @@ if __name__=="__main__":
                      cb,
                      queue_size=3)
 
-    turn = 0
-    throttle = 0
+    turn = 0.
+    throttle = 0.
 
     while not rospy.is_shutdown():
         with act_lock:
             if act_msg is not None:
-                throttle = np.maximum(deepcopy(act_msg.throttle), 0)
+                throttle = np.maximum(deepcopy(act_msg.throttle), 0.)
                 turn = deepcopy(act_msg.turn * 0.38)
 
-        x = simulator.make_step(np.array([turn, throttle]).reshape(-1, 1))
+        x = simulator.make_step(np.array([turn, throttle]).reshape(2, 1))
+        exit()
+
         beta, v, ang_vel_z, xpos, ypos, ang_z = x
         orientation_quat = tf.transformations.quaternion_from_euler(0, 0, ang_z)
 
@@ -64,10 +66,10 @@ if __name__=="__main__":
         pose.position.y = ypos
         pose.position.z = ang_z
 
-        pose.orientation.x = orientation_quat.x
-        pose.orientation.y = orientation_quat.y
-        pose.orientation.z = orientation_quat.z
-        pose.orientation.w = orientation_quat.w
+        pose.orientation.x = orientation_quat[0]
+        pose.orientation.y = orientation_quat[1]
+        pose.orientation.z = orientation_quat[2]
+        pose.orientation.w = orientation_quat[3]
 
         odom_msg = Odometry()
         odom_msg.header.stamp = rospy.Time(0)

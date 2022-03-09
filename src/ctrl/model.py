@@ -1,11 +1,10 @@
 import do_mpc
-from casadi import cos, sin, arctan, tan, sqrt, arccos, fabs, horzcat, vertcat, fmax
+from casadi import cos, sin, arctan, tan, sqrt, arccos, fabs, horzcat, vertcat, fmax, power, mpower
 
 def make_model():
     # Obtain an instance of the do-mpc model class
     # and select time discretization:
-    model_type = 'continuous' # either 'discrete' or 'continuous'
-    model = do_mpc.model.Model(model_type)
+    model = do_mpc.model.Model('continuous')
 
     # Physical model:
     m = 1200 # Vehicle mass (kg)
@@ -54,8 +53,8 @@ def make_model():
     a_r = -arctan(v_yr / fabs(v_xr))
 
     # Slip ratios
-    lam_f = 0
-    lam_r = u_w * p - v_xr / fmax(fabs(u_w * p), fabs(v_xr))
+    lam_f = 0.
+    lam_r = (u_w * p - v_xr) / fmax(fabs(u_w * p), fabs(v_xr))
 
     # Load forces
     F_zf = g * m * l_r / (l_f + l_r)
@@ -68,7 +67,8 @@ def make_model():
     F_yr_raw = cDy * F_zr * sin(cCy * arctan(cBy * a_r - cEy * (cBy * a_r - arctan(cBy * a_r))))
 
     # Traction ellipse and scaling of force vector
-    b_star = arccos(fabs(lam_r + lam_f) / sqrt((lam_f + lam_r) ** 2 + sin(a_f + a_r) ** 2))
+    #b_star_f = arccos(fabs(lam_f) / sqrt(power(lam_f, 2.) + power(sin(a_f), 2)))
+    b_star_r = arccos(fabs(lam_r) / sqrt(power(lam_r, 2.) + power(sin(a_r), 2)))
 
     F_xf = F_xf_raw
     F_yf = F_yf_raw
@@ -79,15 +79,15 @@ def make_model():
     mu_xr_max = cDx
     mu_yr_max = cDy
 
-    mu_xr = 1 / sqrt((1 / mu_xr_act) ** 2 + (1 / mu_yr_max) ** 2)
-    mu_yr = tan(b_star) / sqrt((1 / mu_xr_max) ** 2 + (tan(b_star) / mu_yr_act) ** 2)
+    mu_xr = 1 / sqrt(power(1. / mu_xr_act, 2) + power(tan(b_star_r) / mu_yr_max, 2))
+    mu_yr = tan(b_star_r) / sqrt(power(1 / mu_xr_max, 2) + power(tan(b_star_r) / mu_yr_act, 2))
 
     F_xr = fabs(mu_xr / mu_xr_act) * F_xr_raw
     F_yr = fabs(mu_yr / mu_yr_act) * F_yr_raw
 
     pm = vertcat(horzcat(cos(u_d), -sin(u_d), 1, 0),
                    horzcat(sin(u_d), cos(u_d), 0, 1),
-                   horzcat(l_f * cos(u_d), l_f * cos(u_d), 0, -l_r))
+                   horzcat(l_f * sin(u_d), l_f * cos(u_d), 0, -l_r))
     res = pm @ vertcat(F_xf, F_yf, F_xr, F_yr)
     F_x, F_y, M_z = res[0], res[1], res[2]
 
