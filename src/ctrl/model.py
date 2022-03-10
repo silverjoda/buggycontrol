@@ -2,7 +2,7 @@ import do_mpc
 from casadi import cos, sin, arctan, tan, sqrt, arccos, fabs, horzcat, vertcat, fmax, power, mpower
 
 
-def make_model(params=None):
+def make_singletrack_model(params=None):
     # Obtain an instance of the do-mpc model class
     # and select time discretization:
     model = do_mpc.model.Model('continuous')
@@ -110,6 +110,71 @@ def make_model(params=None):
     model.set_rhs('s_x', s_v * cos(s_b))
     model.set_rhs('s_y', s_v * sin(s_b))
     model.set_rhs('s_phi', s_r)
+
+    model.set_variable(var_type='_tvp', var_name='trajectory_set_point_x')
+    model.set_variable(var_type='_tvp', var_name='trajectory_set_point_y')
+
+    # Setup model:
+    model.setup()
+
+    return model
+
+
+def make_bycicle_model(params=None):
+    # Obtain an instance of the do-mpc model class
+    # and select time discretization:
+    model = do_mpc.model.Model('continuous')
+
+    # Physical model:
+    l_f = 0.164
+    l_r = 0.160
+    l_car = 0.535
+    w_car = 0.281
+    m = 4.0
+    I_car = 0.12
+
+    # Fitted tires parameters
+    B_f = 29
+    B_r = 26.9
+    C_f = 0.0867
+    C_r = 0.1632
+    D_f = 42.52
+    D_r = 161.58
+
+    # Friction and motor parameters
+    C_r0 = 0.6
+    C_r2 = 0.1
+    C_m1 = 1.8
+    C_m2 = -0.25
+
+    if params is not None:
+        l_f, l_r, l_car, w_car, m, I_car, B_f, B_r, C_f, C_r, D_f, D_r, C_r0, C_r2, C_m1, C_m2 = params
+
+    # Introduce new states
+    s_x = model.set_variable(var_type='_x', var_name='s_x', shape=(1, 1))
+    s_y = model.set_variable(var_type='_x', var_name='s_y', shape=(1, 1))
+    s_phi = model.set_variable(var_type='_x', var_name='s_phi', shape=(1, 1))
+    s_vx = model.set_variable(var_type='_x', var_name='s_vx', shape=(1,1))
+    s_vy = model.set_variable(var_type='_x', var_name='s_vy', shape=(1,1))
+    s_omega = model.set_variable(var_type='_x', var_name='s_omega', shape=(1,1))
+
+    # Set control inputs to target turn and wheel angular vel
+    u_D = model.set_variable(var_type='_u', var_name='u_D')
+    u_d = model.set_variable(var_type='_u', var_name='u_d')
+
+    a_f = -arctan((s_omega * l_f + s_vy) / s_vx) + u_d
+    a_r = arctan((s_omega * l_r + s_vy) / s_vx)
+
+    F_yf = D_f * sin(C_f * arctan(B_f * a_f))
+    F_yr = D_r * sin(C_r * arctan(B_r * a_r))
+    F_xr = (C_m1 - C_m2 * s_vx) * u_D - C_r2 * (s_vx ** 2) - C_r0
+
+    model.set_rhs('s_x', s_vx * cos(s_phi) - s_vy * sin(s_phi))
+    model.set_rhs('s_y', s_vx * sin(s_phi) + s_vy * sin(s_phi))
+    model.set_rhs('s_phi', s_omega)
+    model.set_rhs('s_vx', (1 / m) * (F_xr - F_yf * sin(u_d) + m * s_vy * s_omega))
+    model.set_rhs('s_vy', (1 / m) * (F_yr - F_yf * cos(u_d) + m * s_vx * s_omega))
+    model.set_rhs('s_omega', (1 / I_car) * (F_yf * l_f * cos(u_d) - F_yr * l_r))
 
     model.set_variable(var_type='_tvp', var_name='trajectory_set_point_x')
     model.set_variable(var_type='_tvp', var_name='trajectory_set_point_y')

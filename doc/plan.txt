@@ -1,9 +1,10 @@
 Plan:
 
-# Play AC and S
-# Read on mi optimization and tocamac RL
-# Do some more work
+# Implement MPC loss fun
+# Start working on traj optimization using trained policy (train time execution, not rew, and either add noise to traj or other ideas, also consider different wp representation and spline priors)
+# Implement single track model described in the rc racing paper
 # Mental excercise with concentration asnd memory. Also meditate
+# Spanish and arabic lesson
 
 # Mission: MPC
 - Fit tyre parameters to simulator buggy data

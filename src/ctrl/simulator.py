@@ -5,8 +5,22 @@ def make_simulator(model):
     # and initiate it with the model:
     simulator = do_mpc.simulator.Simulator(model)
 
+    params_simulator = {
+        "integration_tool" : "cvodes",
+        "abstol" : 1e-10,
+        "reltol" : 1e-10,
+        "t_step" : 0.001
+    }
+
     # Set parameter(s):
-    simulator.set_param(t_step=0.001)
+    simulator.set_param(**params_simulator)
+
+    tvp_template = simulator.get_tvp_template()
+
+    def tvp_fun(t_now):
+        return tvp_template
+
+    simulator.set_tvp_fun(tvp_fun)
 
     # Setup simulator:
     simulator.setup()

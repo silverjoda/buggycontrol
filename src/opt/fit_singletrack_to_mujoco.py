@@ -4,7 +4,7 @@ from src.policies import *
 import numpy as np
 import torch as T
 
-from src.ctrl.model import make_model
+from src.ctrl.model import make_singletrack_model, make_bycicle_model
 from src.ctrl.simulator import make_simulator
 
 import cma
@@ -98,7 +98,8 @@ class ModelTrainer:
     def f_wrapper(self):
         def f(w):
             # Generate new model
-            model = make_model(w)
+            model = make_bycicle_model(w)
+            #model = make_singletrack_model(w)
             simulator = make_simulator(model)
 
             # Get batch of data
@@ -106,7 +107,7 @@ class ModelTrainer:
 
             def extract_sim_state(state):
                 vx, vy, vangz, _, _ = state[0:5]
-                b = np.atan2(vy, vx)
+                b = np.arctan2(vy, vx)
                 v = np.sqrt(np.square(np.array([vx, vy]).sum()))
                 r = vangz
                 return np.array([b,v,r,0,0,0]).reshape(-1, 1)
@@ -118,8 +119,8 @@ class ModelTrainer:
                 # Slip angle, velocity, yaw rate, x, y, phi
                 sim_state = extract_sim_state(x[i])
                 sim_state_next = extract_sim_state(y[i])
-                sim_act = np.array(x[i][6] * 0.38, x[i][7] * 30).reshape((-1, 1))
-
+                sim_act = np.array([x[i][5] * 0.38, (x[i][6] + 1.001) * 0.5]).reshape((-1, 1))
+                sim_act = np.zeros(2).reshape(-1,1)
                 simulator.x0 = sim_state
                 sim_state_next_pred = simulator.make_step(sim_act)
 
@@ -131,7 +132,9 @@ class ModelTrainer:
         return f
 
     def train(self):
-        es = cma.CMAEvolutionStrategy([2, 2, 0.14, 0.16, 0.04, 1, 6.9, 1.8, 0.1, 1, 15, 1.7, -0.5], 0.5)
+        #init_params = [2, 2, 0.14, 0.16, 0.04, 1, 6.9, 1.8, 0.1, 1, 15, 1.7, -0.5]
+        init_params = [0.164, 0.16, 0.53, 0.28, 4.0, 0.12, 29, 26, 0.08, 0.16, 42, 161, 0.6, 90.1, 1.8, -0.25]
+        es = cma.CMAEvolutionStrategy(init_params, 0.5)
         f = self.f_wrapper()
 
         it = 0
