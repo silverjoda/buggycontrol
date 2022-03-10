@@ -173,7 +173,7 @@ def make_bycicle_model(params=None):
     model.set_rhs('s_y', s_vx * sin(s_phi) + s_vy * sin(s_phi))
     model.set_rhs('s_phi', s_omega)
     model.set_rhs('s_vx', (1 / m) * (F_xr - F_yf * sin(u_d) + m * s_vy * s_omega))
-    model.set_rhs('s_vy', (1 / m) * (F_yr - F_yf * cos(u_d) + m * s_vx * s_omega))
+    model.set_rhs('s_vy', (1 / m) * (F_yr + F_yf * cos(u_d) - m * s_vx * s_omega))
     model.set_rhs('s_omega', (1 / I_car) * (F_yf * l_f * cos(u_d) - F_yr * l_r))
 
     model.set_variable(var_type='_tvp', var_name='trajectory_set_point_x')
