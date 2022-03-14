@@ -47,7 +47,7 @@ class BuggyModelTester:
         while not rospy.is_shutdown():
             with self.act_lock:
                 if self.act_msg is not None:
-                    throttle = np.clip(deepcopy(self.act_msg.throttle), 0.1, 1.)
+                    throttle = np.clip(deepcopy(self.act_msg.throttle), 0.01, 1.)
                     turn = deepcopy(self.act_msg.turn * 0.4)
 
             for i in range(5):

@@ -173,7 +173,7 @@ def make_bicycle_model(params=None):
     model.set_rhs('s_y', s_vx * sin(s_phi) + s_vy * cos(s_phi))
     model.set_rhs('s_phi', s_omega)
     model.set_rhs('s_vx', (1 / m_car) * (F_xr - F_yf * sin(u_d) + m_car * s_vy * s_omega))
-    model.set_rhs('s_vy', (1 / m_car) * (F_yr - F_yf * cos(u_d) - m_car * s_vx * s_omega))
+    model.set_rhs('s_vy', (1 / m_car) * (F_yr + F_yf * cos(u_d) - m_car * s_vx * s_omega))
     model.set_rhs('s_omega', (1 / I_car) * (F_yf * l_f * cos(u_d) - F_yr * l_r))
 
     # Setup model:
