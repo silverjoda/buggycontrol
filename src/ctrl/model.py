@@ -8,8 +8,8 @@ def make_singletrack_model(params=None):
     model = do_mpc.model.Model('continuous')
 
     # Physical model:
-    m = 1200 # Vehicle mass (kg)
-    I = 2688 # Yaw moment of inertia (kgm-2)
+    m = 600 # Vehicle mass (kg)
+    I = 1000 # Yaw moment of inertia (kgm-2)
     l_f = 1.4 # Front axle-CG distance (m)
     l_r = 1.6 # Rear axle-CG distance (m)
     p = 0.33 # Radius of wheels (m)
@@ -107,8 +107,8 @@ def make_singletrack_model(params=None):
     model.set_rhs('s_b', main_rhs[0])
     model.set_rhs('s_v', main_rhs[1])
     model.set_rhs('s_r', main_rhs[2])
-    model.set_rhs('s_x', s_v * cos(s_b))
-    model.set_rhs('s_y', s_v * sin(s_b))
+    model.set_rhs('s_x', s_v * cos(s_phi))
+    model.set_rhs('s_y', s_v * sin(s_phi))
     model.set_rhs('s_phi', s_r)
 
     #model.set_variable(var_type='_tvp', var_name='trajectory_set_point_x')

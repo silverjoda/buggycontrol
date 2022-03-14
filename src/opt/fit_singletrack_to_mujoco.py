@@ -11,6 +11,7 @@ import cma
 
 class ModelDataset:
     def __init__(self):
+        # Run buggy_env_dataset_gatherer first
         self.X_trn, self.Y_trn, self.X_val, self.Y_val = self.load_mujoco_dataset()
 
     def load_real_dataset(self):
@@ -95,14 +96,49 @@ class ModelTrainer:
         self.config = config
         self.dataset = dataset
 
-    def f_wrapper(self):
+    def f_wrapper_bicycle(self):
         def f(w):
             # Generate new model
             model = make_bicycle_model(w)
-            #model = make_singletrack_model(w)
             simulator = make_simulator(model)
-            x0 = np.array([0.0, 0.0, 0.0, 0.001, 0.01, 0.01]).reshape(-1, 1)
-            simulator.x0 = x0
+
+            # Get batch of data
+            x, y = self.dataset.get_random_batch(batchsize=self.config["batchsize"], tensor=False)
+
+            def extract_sim_state(state):
+                vx, vy, vangz, _, _ = state[0:5]
+                return np.array([0,0,0,vx,vy,vangz]).reshape(-1, 1)
+
+            total_loss = 0
+            ctr = 0.
+            for i in range(len(x)):
+                simulator.reset_history()
+
+                # Slip angle, velocity, yaw rate, x, y, phi
+                sim_state = extract_sim_state(x[i])
+
+                # If velocity too small, discard
+                if abs(sim_state[3]) < 0.05 or abs(sim_state[5]) < 0.01:
+                    continue
+
+                sim_state_next = extract_sim_state(y[i])
+                sim_act = np.array([x[i][5] * 0.38, (x[i][6] + 1.0001) * 0.499]).reshape((-1, 1))
+                simulator.x0 = sim_state
+                sim_state_next_pred = simulator.make_step(sim_act)
+
+                loss = np.mean(np.square(sim_state_next_pred[0:3] - sim_state_next[0:3]))
+                total_loss += loss
+                ctr += 1
+
+            return total_loss / ctr
+
+        return f
+
+    def f_wrapper_singletrack(self):
+        def f(w):
+            # Generate new model
+            model = make_singletrack_model(w)
+            simulator = make_simulator(model)
 
             # Get batch of data
             x, y = self.dataset.get_random_batch(batchsize=self.config["batchsize"], tensor=False)
@@ -122,7 +158,6 @@ class ModelTrainer:
                 sim_state = extract_sim_state(x[i])
                 sim_state_next = extract_sim_state(y[i])
                 sim_act = np.array([x[i][5] * 0.38, (x[i][6] + 1.001) * 0.5]).reshape((-1, 1))
-                sim_act = np.zeros(2).reshape(-1,1)
                 simulator.x0 = sim_state
                 sim_state_next_pred = simulator.make_step(sim_act)
 
@@ -133,11 +168,10 @@ class ModelTrainer:
 
         return f
 
-    def train(self):
-        #init_params = [2, 2, 0.14, 0.16, 0.04, 1, 6.9, 1.8, 0.1, 1, 15, 1.7, -0.5]
-        init_params = [0.164, 0.16, 0.53, 0.28, 4.0, 0.12, 29, 26, 0.08, 0.16, 42, 161, 0.6, 90.1, 1.8, -0.25]
+    def train_singletrack(self):
+        init_params = [2, 2, 0.14, 0.16, 0.04, 1, 6.9, 1.8, 0.1, 1, 15, 1.7, -0.5]
         es = cma.CMAEvolutionStrategy(init_params, 0.5)
-        f = self.f_wrapper()
+        f = self.f_wrapper_singletrack()
 
         it = 0
         try:
@@ -154,6 +188,25 @@ class ModelTrainer:
 
         return es.result.fbest
 
+    def train_bicycle(self):
+        init_params = [0.164, 0.16, 0.53, 0.28, 4.0, 0.12, 29, 26, 0.08, 0.16, 42, 161, 0.6, 90.1, 1.8, -0.25]
+        es = cma.CMAEvolutionStrategy(init_params, 0.5)
+        f = self.f_wrapper_bicycle()
+
+        it = 0
+        try:
+            while not es.stop():
+                it += 1
+                if it > config["iters"]:
+                    break
+                X = es.ask()
+                es.tell(X, [f(x) for x in X])
+                es.disp()
+
+        except KeyboardInterrupt:
+            print("User interrupted process.")
+
+        return es.result.fbest
 
 if __name__=="__main__":
     import yaml
@@ -165,5 +218,5 @@ if __name__=="__main__":
 
     # Train
     if config["train"]:
-        model_trainer.train()
+        model_trainer.train_bicycle()
 

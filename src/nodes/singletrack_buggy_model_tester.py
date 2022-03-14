@@ -19,7 +19,7 @@ class BuggyModelTester:
         self.act_msg = None
         self.act_lock = threading.Lock()
 
-        # model = make_singletrack_model()
+        #model = make_singletrack_model()
         model = make_bicycle_model()
         self.simulator = make_simulator(model)
         self.simulator.reset_history()
@@ -42,7 +42,7 @@ class BuggyModelTester:
     def test_bicycle(self):
         turn = 0.
         throttle = 0.01
-        self.simulator.x0 = np.array([0.00, 0.00, 0.00, 0.1, 0.01, 0.01]).reshape(-1, 1)
+        self.simulator.x0 = np.array([0.00, 0.00, 0.00, 0.2, 0.01, 0.01]).reshape(-1, 1)
 
         while not rospy.is_shutdown():
             with self.act_lock:
@@ -95,14 +95,18 @@ class BuggyModelTester:
 
             self.ros_rate.sleep()
 
-    def test_singletrack():
-        while not rospy.is_shutdown():
-            with act_lock:
-                if act_msg is not None:
-                    throttle = np.clip(deepcopy(act_msg.throttle), 0.001, 1.)
-                    turn = deepcopy(act_msg.turn * 0.4)
+    def test_singletrack(self):
+        turn = 0.
+        throttle = 0.1
+        self.simulator.x0 = np.array([0.01, 0.01, 0.00, 0.0, 0.0, 0.0]).reshape(-1, 1)
 
-            x = simulator.make_step(np.array([turn, throttle * 1]).reshape(2, 1))
+        while not rospy.is_shutdown():
+            with self.act_lock:
+                if self.act_msg is not None:
+                    turn = deepcopy(self.act_msg.turn * 0.6)
+                    throttle = np.clip(deepcopy(self.act_msg.throttle), 0.01, 1.)
+
+            x = self.simulator.make_step(np.array([turn, throttle * 50]).reshape(2, 1))
 
             beta, v, ang_vel_z, xpos, ypos, ang_z = x
             orientation_quat = tf.transformations.quaternion_from_euler(0, 0, ang_z)
@@ -112,12 +116,12 @@ class BuggyModelTester:
             twist_msg.header.frame_id = "base_link"
             twist_msg.twist = Twist(linear=Vector3(x=v * np.cos(beta), y=v * np.sin(beta)),
                                     angular=Vector3(z=ang_vel_z))
-            pub_twist.publish(twist_msg)
+            self.pub_twist.publish(twist_msg)
 
             pose = Pose()
             pose.position.x = xpos
             pose.position.y = ypos
-            pose.position.z = ang_z
+            pose.position.z = 0
 
             pose.orientation.x = orientation_quat[0]
             pose.orientation.y = orientation_quat[1]
@@ -128,7 +132,7 @@ class BuggyModelTester:
             odom_msg.header.stamp = rospy.Time(0)
             odom_msg.header.frame_id = "odom"
             odom_msg.pose = PoseWithCovariance(pose=pose)
-            pub_odom.publish(odom_msg)
+            self.pub_odom.publish(odom_msg)
 
             t = TransformStamped()
             t.header.stamp = rospy.Time.now()
@@ -142,12 +146,12 @@ class BuggyModelTester:
             t.transform.rotation.y = odom_msg.pose.pose.orientation.y
             t.transform.rotation.z = odom_msg.pose.pose.orientation.z
             t.transform.rotation.w = odom_msg.pose.pose.orientation.w
-            broadcaster.sendTransform(t)
+            self.broadcaster.sendTransform(t)
 
-            ros_rate.sleep()
-
+            self.ros_rate.sleep()
 
 if __name__=="__main__":
     bmt = BuggyModelTester()
     bmt.test_bicycle()
+    #bmt.test_singletrack()
 
