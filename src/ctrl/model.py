@@ -111,8 +111,8 @@ def make_singletrack_model(params=None):
     model.set_rhs('s_y', s_v * sin(s_b))
     model.set_rhs('s_phi', s_r)
 
-    model.set_variable(var_type='_tvp', var_name='trajectory_set_point_x')
-    model.set_variable(var_type='_tvp', var_name='trajectory_set_point_y')
+    #model.set_variable(var_type='_tvp', var_name='trajectory_set_point_x')
+    #model.set_variable(var_type='_tvp', var_name='trajectory_set_point_y')
 
     # Setup model:
     model.setup()
@@ -120,7 +120,7 @@ def make_singletrack_model(params=None):
     return model
 
 
-def make_bycicle_model(params=None):
+def make_bicycle_model(params=None):
     # Obtain an instance of the do-mpc model class
     # and select time discretization:
     model = do_mpc.model.Model('continuous')
@@ -130,7 +130,7 @@ def make_bycicle_model(params=None):
     l_r = 0.160
     l_car = 0.535
     w_car = 0.281
-    m = 4.0
+    m_car = 4.0
     I_car = 0.12
 
     # Fitted tires parameters
@@ -148,7 +148,7 @@ def make_bycicle_model(params=None):
     C_m2 = -0.25
 
     if params is not None:
-        l_f, l_r, l_car, w_car, m, I_car, B_f, B_r, C_f, C_r, D_f, D_r, C_r0, C_r2, C_m1, C_m2 = params
+        l_f, l_r, l_car, w_car, m_car, I_car, B_f, B_r, C_f, C_r, D_f, D_r, C_r0, C_r2, C_m1, C_m2 = params
 
     # Introduce new states
     s_x = model.set_variable(var_type='_x', var_name='s_x', shape=(1, 1))
@@ -159,25 +159,22 @@ def make_bycicle_model(params=None):
     s_omega = model.set_variable(var_type='_x', var_name='s_omega', shape=(1,1))
 
     # Set control inputs to target turn and wheel angular vel
-    u_D = model.set_variable(var_type='_u', var_name='u_D')
     u_d = model.set_variable(var_type='_u', var_name='u_d')
+    u_D = model.set_variable(var_type='_u', var_name='u_D')
 
     a_f = -arctan((s_omega * l_f + s_vy) / s_vx) + u_d
-    a_r = arctan((s_omega * l_r + s_vy) / s_vx)
+    a_r = arctan((s_omega * l_r - s_vy) / s_vx)
 
     F_yf = D_f * sin(C_f * arctan(B_f * a_f))
     F_yr = D_r * sin(C_r * arctan(B_r * a_r))
     F_xr = (C_m1 - C_m2 * s_vx) * u_D - C_r2 * (s_vx ** 2) - C_r0
 
     model.set_rhs('s_x', s_vx * cos(s_phi) - s_vy * sin(s_phi))
-    model.set_rhs('s_y', s_vx * sin(s_phi) + s_vy * sin(s_phi))
+    model.set_rhs('s_y', s_vx * sin(s_phi) + s_vy * cos(s_phi))
     model.set_rhs('s_phi', s_omega)
-    model.set_rhs('s_vx', (1 / m) * (F_xr - F_yf * sin(u_d) + m * s_vy * s_omega))
-    model.set_rhs('s_vy', (1 / m) * (F_yr + F_yf * cos(u_d) - m * s_vx * s_omega))
+    model.set_rhs('s_vx', (1 / m_car) * (F_xr - F_yf * sin(u_d) + m_car * s_vy * s_omega))
+    model.set_rhs('s_vy', (1 / m_car) * (F_yr - F_yf * cos(u_d) - m_car * s_vx * s_omega))
     model.set_rhs('s_omega', (1 / I_car) * (F_yf * l_f * cos(u_d) - F_yr * l_r))
-
-    model.set_variable(var_type='_tvp', var_name='trajectory_set_point_x')
-    model.set_variable(var_type='_tvp', var_name='trajectory_set_point_y')
 
     # Setup model:
     model.setup()

@@ -4,7 +4,7 @@ from src.policies import *
 import numpy as np
 import torch as T
 
-from src.ctrl.model import make_singletrack_model, make_bycicle_model
+from src.ctrl.model import make_singletrack_model, make_bicycle_model
 from src.ctrl.simulator import make_simulator
 
 import cma
@@ -98,9 +98,11 @@ class ModelTrainer:
     def f_wrapper(self):
         def f(w):
             # Generate new model
-            model = make_bycicle_model(w)
+            model = make_bicycle_model(w)
             #model = make_singletrack_model(w)
             simulator = make_simulator(model)
+            x0 = np.array([0.0, 0.0, 0.0, 0.001, 0.01, 0.01]).reshape(-1, 1)
+            simulator.x0 = x0
 
             # Get batch of data
             x, y = self.dataset.get_random_batch(batchsize=self.config["batchsize"], tensor=False)
