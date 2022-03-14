@@ -1,4 +1,4 @@
-iters : 300
-batchsize : 512
+iters : 30
+batchsize : 1024
 "train" : True
 

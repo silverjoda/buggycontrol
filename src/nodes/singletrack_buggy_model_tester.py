@@ -20,7 +20,7 @@ class BuggyModelTester:
         self.act_lock = threading.Lock()
 
         #model = make_singletrack_model()
-        model = make_bicycle_model()
+        model = make_bicycle_model()#(params=[0.1705457386525313, 0.10818531083101911, 2.0080585662945096, 0.060145746130111664, 4.724629213062273, 0.4721100550402452, 14.987073712742657, 6.263509754147825, 0.020526736200474478, 0.06373437616558326, 2.8915428396272906, 24.78458315875562, 0.3958008458442105, 37.12885621487903, 0.8425407762645645, -0.1778938768257775])
         self.simulator = make_simulator(model)
         self.simulator.reset_history()
 
@@ -50,8 +50,7 @@ class BuggyModelTester:
                     throttle = np.clip(deepcopy(self.act_msg.throttle), 0.01, 1.)
                     turn = deepcopy(self.act_msg.turn * 0.4)
 
-            for i in range(5):
-                x = self.simulator.make_step(np.array([turn, throttle]).reshape(2, 1))
+            x = self.simulator.make_step(np.array([turn, throttle]).reshape(2, 1))
 
             #beta, v, ang_vel_z, xpos, ypos, ang_z = x
             xpos, ypos, phi, xvel, yvel, omega = x

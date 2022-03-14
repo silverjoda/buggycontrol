@@ -95,11 +95,14 @@ class ModelTrainer:
     def __init__(self, config, dataset):
         self.config = config
         self.dataset = dataset
+        self.singletrack_scale_coeffs = [2, 2, 0.14, 0.16, 0.04, 1, 6.9, 1.8, 0.1, 1, 15, 1.7, -0.5]
+        self.bicycle_scale_coeffs = [0.164, 0.16, 0.53, 0.28, 4.0, 0.12, 29, 26, 0.08, 0.16, 42, 161, 0.6, 90.1, 1.8, -0.25]
 
     def f_wrapper_bicycle(self):
         def f(w):
+            w_denorm = self.denormalize_params(w, self.bicycle_scale_coeffs)
             # Generate new model
-            model = make_bicycle_model(w)
+            model = make_bicycle_model(w_denorm)
             simulator = make_simulator(model)
 
             # Get batch of data
@@ -126,7 +129,7 @@ class ModelTrainer:
                 simulator.x0 = sim_state
                 sim_state_next_pred = simulator.make_step(sim_act)
 
-                loss = np.mean(np.square(sim_state_next_pred[0:3] - sim_state_next[0:3]))
+                loss = np.mean(np.square(sim_state_next_pred[3:] - sim_state_next[3:]))
                 total_loss += loss
                 ctr += 1
 
@@ -168,6 +171,14 @@ class ModelTrainer:
 
         return f
 
+    def normalize_params(self, params, scale_coeffs):
+        params_normed = [p/s for p,s in zip(params, scale_coeffs)]
+        return params_normed
+
+    def denormalize_params(self, vec, scale_coeffs):
+        params_denormed = [p*s for p,s in zip(vec, scale_coeffs)]
+        return params_denormed
+
     def train_singletrack(self):
         init_params = [2, 2, 0.14, 0.16, 0.04, 1, 6.9, 1.8, 0.1, 1, 15, 1.7, -0.5]
         es = cma.CMAEvolutionStrategy(init_params, 0.5)
@@ -189,9 +200,13 @@ class ModelTrainer:
         return es.result.fbest
 
     def train_bicycle(self):
-        init_params = [0.164, 0.16, 0.53, 0.28, 4.0, 0.12, 29, 26, 0.08, 0.16, 42, 161, 0.6, 90.1, 1.8, -0.25]
-        es = cma.CMAEvolutionStrategy(init_params, 0.5)
+        #init_params = [0.164, 0.16, 0.53, 0.28, 4.0, 0.12, 29, 26, 0.08, 0.16, 42, 161, 0.6, 90.1, 1.8, -0.25]
+        init_params = [0.12, 0.14, 1.13, 0.169, 3.9, 0.23, 12.1, 6.49, 0.0234, 0.0576, 42.2, 36.6, 0.52, 33.09, 0.9, -0.31]
+        self.bicycle_scale_coeffs = init_params
+        es = cma.CMAEvolutionStrategy(self.normalize_params(init_params, self.bicycle_scale_coeffs), 0.6)
         f = self.f_wrapper_bicycle()
+
+        print(f"Initial_loss: {f(self.normalize_params(init_params, self.bicycle_scale_coeffs))}")
 
         it = 0
         try:
@@ -205,6 +220,10 @@ class ModelTrainer:
 
         except KeyboardInterrupt:
             print("User interrupted process.")
+
+        print("Final found params: ")
+        print(self.denormalize_params(es.result.xbest, self.bicycle_scale_coeffs))
+        print(f"Final loss: {es.result.fbest}")
 
         return es.result.fbest
 
