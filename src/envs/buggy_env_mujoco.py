@@ -105,8 +105,31 @@ class BuggyEnv(gym.Env):
         #r = wp_visited * 1
         return r, dist_between_cur_wp
 
+    def is_mirror_obs(self, obs):
+        return obs[3] < 0
+
+    def mirror_obs(self, obs):
+        mirrored_obs = deepcopy(obs)
+
+        # Wheel turn obs
+        mirrored_obs[0] *= -1
+
+        # y obs
+        mirrored_obs[3] *= -1
+        mirrored_obs[5] *= -1
+
+        # Waypoint y coordinate
+        n_wpts = (len(obs) - 5) // 2
+        for i in range(n_wpts):
+            mirrored_obs[5 + i * 2 + 1] *= -1
+        return mirrored_obs
+
     def step(self, act):
         self.step_ctr += 1
+
+        if self.config["enforce_bilateral_symmetry"]:
+            if self.prev_obs_mirrored:
+                act = [act[0] * -1, act[1]]
 
         # Turn, throttle
         scaled_act = [np.clip(act[0] * 0.2, -0.4, 0.4), np.clip(act[1] * 0.25 + 0.5, 0, 1)]
@@ -145,6 +168,12 @@ class BuggyEnv(gym.Env):
 
         # Reset environment variables
         obs_vec, _ = self.engine.get_complete_obs_vec()
+
+        if self.config["enforce_bilateral_symmetry"]:
+            self.prev_obs_mirrored = self.is_mirror_obs(obs_vec)
+            if self.prev_obs_mirrored:
+                obs_vec = self.mirror_obs(obs_vec)
+
         return obs_vec
 
     def render(self, mode=None):

@@ -109,7 +109,7 @@ class ModelTrainer:
             x, y = self.dataset.get_random_batch(batchsize=self.config["batchsize"], tensor=False)
 
             def extract_sim_state(state):
-                vx, vy, vangz, _, _ = state[0:5]
+                vx, vy, vangz = state[2:5]
                 return np.array([0,0,0,vx,vy,vangz]).reshape(-1, 1)
 
             total_loss = 0
@@ -200,10 +200,9 @@ class ModelTrainer:
         return es.result.fbest
 
     def train_bicycle(self):
-        #init_params = [0.164, 0.16, 0.53, 0.28, 4.0, 0.12, 29, 26, 0.08, 0.16, 42, 161, 0.6, 90.1, 1.8, -0.25]
-        init_params = [0.12, 0.14, 1.13, 0.169, 3.9, 0.23, 12.1, 6.49, 0.0234, 0.0576, 42.2, 36.6, 0.52, 33.09, 0.9, -0.31]
+        init_params = [0.164, 0.16, 0.53, 0.28, 4.0, 0.12, 29, 26, 0.08, 0.16, 42, 161, 0.6, 90.1, 1.8, -0.25]
         self.bicycle_scale_coeffs = init_params
-        es = cma.CMAEvolutionStrategy(self.normalize_params(init_params, self.bicycle_scale_coeffs), 0.6)
+        es = cma.CMAEvolutionStrategy(self.normalize_params(init_params, self.bicycle_scale_coeffs), 0.3)
         f = self.f_wrapper_bicycle()
 
         print(f"Initial_loss: {f(self.normalize_params(init_params, self.bicycle_scale_coeffs))}")
