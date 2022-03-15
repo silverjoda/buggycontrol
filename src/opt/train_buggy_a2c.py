@@ -101,7 +101,7 @@ class BuggyTrajFollowerTrainer:
 
         callback_on_best = StopTrainingOnRewardThreshold(reward_threshold=34, verbose=1)
         eval_callback = EvalCallback(normed_env, best_model_save_path='agents_cp/', callback_on_new_best=callback_on_best,
-                                     log_path=logpath, eval_freq=50000, n_eval_episodes=50,
+                                     log_path=logpath, eval_freq=10000, n_eval_episodes=30,
                                      deterministic=False, render=False)
 
         model = A2C(policy=self.config["policy_name"],
