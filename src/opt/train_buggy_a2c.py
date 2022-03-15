@@ -71,7 +71,7 @@ class BuggyTrajFollowerTrainer:
                 os.makedirs(file_path)
                 break
 
-        return logpath
+        return file_path
 
     def setup_train(self, setup_dirs=True):
         T.set_num_threads(1)

@@ -99,7 +99,6 @@ def get_datasets(logdir, condition=None):
             datasets.append(exp_data)
     return datasets
 
-
 def get_all_datasets(all_logdirs, legend=None, select=None, exclude=None):
     """
     For every entry in all_logdirs,
@@ -149,7 +148,6 @@ def get_all_datasets(all_logdirs, legend=None, select=None, exclude=None):
         for log in logdirs:
             data += get_datasets(log)
     return data
-
 
 def make_plots(all_logdirs, legend=None, xaxis=None, values=None, count=False,
                font_scale=1.5, smooth=1, select=None, exclude=None, estimator='mean'):
