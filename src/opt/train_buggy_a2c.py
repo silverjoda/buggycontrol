@@ -57,6 +57,22 @@ class BuggyTrajFollowerTrainer:
         config = merge_dicts([algo_config, env_config])
         return config
 
+    def get_logpath(self):
+        prefix = "def"
+        if self.config["enforce_bilateral_symmetry"]:
+            prefix = "sym"
+
+        logpath = f'./logs/{prefix}'
+
+        # Find last indexed dataset
+        for i in range(30):
+            file_path = os.path.join(logpath, "{}".format(i))
+            if not os.path.exists(file_path):
+                os.makedirs(file_path)
+                break
+
+        return logpath
+
     def setup_train(self, setup_dirs=True):
         T.set_num_threads(1)
         if setup_dirs:
@@ -80,9 +96,12 @@ class BuggyTrajFollowerTrainer:
                                                  save_path='agents_cp/',
                                                  name_prefix=self.config["session_ID"], verbose=1)
 
+        # setup logpath
+        logpath = self.get_logpath()
+
         callback_on_best = StopTrainingOnRewardThreshold(reward_threshold=34, verbose=1)
         eval_callback = EvalCallback(normed_env, best_model_save_path='agents_cp/', callback_on_new_best=callback_on_best,
-                                     log_path='./logs/', eval_freq=50000, n_eval_episodes=50,
+                                     log_path=logpath, eval_freq=50000, n_eval_episodes=50,
                                      deterministic=False, render=False)
 
         model = A2C(policy=self.config["policy_name"],
