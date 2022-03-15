@@ -9,7 +9,7 @@ def make_simulator(model):
         "integration_tool" : "cvodes",
         "abstol" : 1e-10,
         "reltol" : 1e-10,
-        "t_step" : 0.005
+        "t_step" : 0.002
     }
 
     # Set parameter(s):

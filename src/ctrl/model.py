@@ -27,7 +27,7 @@ def make_singletrack_model(params=None):
     cEx = -0.5
 
     if params is not None:
-        m, I, l_f, l_r, p, cDy, cBy, cCy, cEy, cDx, cBx, cCx, cEx = params
+        m, I, l_f, l_r, p, cDy, cBy, cCy, cEy, cDx, cBx, cCx, cEx, _ = params
 
     # Introduce new states
     s_b = model.set_variable(var_type='_x', var_name='s_b', shape=(1,1))

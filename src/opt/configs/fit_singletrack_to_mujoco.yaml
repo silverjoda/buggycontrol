@@ -1,4 +1,4 @@
 iters : 30
-batchsize : 1024
+batchsize : 256
 "train" : True
 

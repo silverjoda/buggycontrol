@@ -95,7 +95,7 @@ class ModelTrainer:
     def __init__(self, config, dataset):
         self.config = config
         self.dataset = dataset
-        self.singletrack_scale_coeffs = [2, 2, 0.14, 0.16, 0.04, 1, 6.9, 1.8, 0.1, 1, 15, 1.7, -0.5]
+        self.singletrack_scale_coeffs = [2, 2, 0.14, 0.16, 0.04, 1, 6.9, 1.8, 0.1, 1, 15, 1.7, -0.5, 30]
         self.bicycle_scale_coeffs = [0.164, 0.16, 0.53, 0.28, 4.0, 0.12, 29, 26, 0.08, 0.16, 42, 161, 0.6, 90.1, 1.8, -0.25]
 
     def f_wrapper_bicycle(self):
@@ -127,7 +127,9 @@ class ModelTrainer:
                 sim_state_next = extract_sim_state(y[i])
                 sim_act = np.array([x[i][5] * 0.38, (x[i][6] + 1.0001) * 0.499]).reshape((-1, 1))
                 simulator.x0 = sim_state
-                sim_state_next_pred = simulator.make_step(sim_act)
+
+                for i in range(5):
+                    sim_state_next_pred = simulator.make_step(sim_act)
 
                 loss = np.mean(np.square(sim_state_next_pred[3:] - sim_state_next[3:]))
                 total_loss += loss
@@ -139,8 +141,10 @@ class ModelTrainer:
 
     def f_wrapper_singletrack(self):
         def f(w):
+            w_denorm = self.denormalize_params(w, self.singletrack_scale_coeffs)
+
             # Generate new model
-            model = make_singletrack_model(w)
+            model = make_singletrack_model(w_denorm)
             simulator = make_simulator(model)
 
             # Get batch of data
@@ -154,20 +158,28 @@ class ModelTrainer:
                 return np.array([b,v,r,0,0,0]).reshape(-1, 1)
 
             total_loss = 0
+            ctr = 0.
             for i in range(len(x)):
                 simulator.reset_history()
 
                 # Slip angle, velocity, yaw rate, x, y, phi
                 sim_state = extract_sim_state(x[i])
                 sim_state_next = extract_sim_state(y[i])
-                sim_act = np.array([x[i][5] * 0.38, (x[i][6] + 1.001) * 0.5]).reshape((-1, 1))
+                sim_act = np.array([x[i][5] * 0.38, (x[i][6] + 1.001) * 0.4999 * w[-1]]).reshape((-1, 1))
                 simulator.x0 = sim_state
-                sim_state_next_pred = simulator.make_step(sim_act)
+
+                # If velocity too small, discard
+                if abs(sim_state[0]) < 0.001 or abs(sim_state[1]) < 0.001 or abs(sim_state[2]) < 0.001:
+                    continue
+
+                for i in range(5):
+                    sim_state_next_pred = simulator.make_step(sim_act)
 
                 loss = np.mean(np.square(sim_state_next_pred[0:3] - sim_state_next[0:3]))
                 total_loss += loss
+                ctr += 1
 
-            return total_loss
+            return total_loss / ctr
 
         return f
 
@@ -180,9 +192,11 @@ class ModelTrainer:
         return params_denormed
 
     def train_singletrack(self):
-        init_params = [2, 2, 0.14, 0.16, 0.04, 1, 6.9, 1.8, 0.1, 1, 15, 1.7, -0.5]
-        es = cma.CMAEvolutionStrategy(init_params, 0.5)
+        init_params = [2, 2, 0.14, 0.16, 0.04, 1, 6.9, 1.8, 0.1, 1, 15, 1.7, -0.5, 30]
+        es = cma.CMAEvolutionStrategy(self.normalize_params(init_params, self.singletrack_scale_coeffs), 0.2)
         f = self.f_wrapper_singletrack()
+
+        print(f"Initial_loss: {f(self.normalize_params(init_params, self.singletrack_scale_coeffs))}")
 
         it = 0
         try:
@@ -197,12 +211,16 @@ class ModelTrainer:
         except KeyboardInterrupt:
             print("User interrupted process.")
 
+        print("Final found params: ")
+        print(self.denormalize_params(es.result.xbest, self.singletrack_scale_coeffs))
+        print(f"Final loss: {es.result.fbest}")
+
         return es.result.fbest
 
     def train_bicycle(self):
         init_params = [0.164, 0.16, 0.53, 0.28, 4.0, 0.12, 29, 26, 0.08, 0.16, 42, 161, 0.6, 90.1, 1.8, -0.25]
         self.bicycle_scale_coeffs = init_params
-        es = cma.CMAEvolutionStrategy(self.normalize_params(init_params, self.bicycle_scale_coeffs), 0.3)
+        es = cma.CMAEvolutionStrategy(self.normalize_params(init_params, self.bicycle_scale_coeffs), 0.2)
         f = self.f_wrapper_bicycle()
 
         print(f"Initial_loss: {f(self.normalize_params(init_params, self.bicycle_scale_coeffs))}")
@@ -236,5 +254,6 @@ if __name__=="__main__":
 
     # Train
     if config["train"]:
-        model_trainer.train_bicycle()
+        #model_trainer.train_bicycle()
+        model_trainer.train_singletrack()
 
