@@ -1,8 +1,10 @@
 Plan:
 
+# Analyze gradient modification under different prior and diffeent representation
+# Read MPC racing papers
+# Try to see why do-mpc crashes
 # Implement MPC loss fun
 # Start working on traj optimization using trained policy (train time execution, not rew, and either add noise to traj or other ideas, also consider different wp representation and spline priors)
-# Implement single track model described in the rc racing paper
 # Mental excercise with concentration asnd memory. Also meditate
 # Spanish and arabic lesson
 

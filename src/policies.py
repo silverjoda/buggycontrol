@@ -65,6 +65,82 @@ class LTE(nn.Module):
         y_T = self.forward(o_T)
         return y_T.detach().numpy()[0]
 
+class LINMOD(nn.Module):
+    def __init__(self, state_dim, act_dim, state_enc_dim, act_enc_dim, hid_dim=64, extra_hidden=False):
+        super(LINMOD, self).__init__()
+        self.state_dim = state_dim
+        self.act_dim = act_dim
+        self.state_enc_dim = state_enc_dim
+        self.act_enc_dim = act_enc_dim
+        self.hid_dim = hid_dim
+        self.extra_hidden=extra_hidden
+        self.non_linearity = T.tanh # T.tanh
+
+        # State encoder
+        fc_state_enc_layers = []
+        fc_state_enc_layers.append(T.nn.Linear(self.state_dim, self.state_enc_dim, bias=True))
+        fc_state_enc_layers.append(self.non_linearity())
+        if extra_hidden:
+            fc_state_enc_layers.append(T.nn.Linear(self.state_enc_dim, self.state_enc_dim, bias=True))
+            fc_state_enc_layers.append(self.non_linearity())
+        self.fc_state_encoder = nn.Sequential(*fc_state_enc_layers)
+
+        # State decoder
+        fc_state_dec_layers = []
+        if extra_hidden:
+            fc_state_dec_layers.append(T.nn.Linear(self.state_enc_dim, self.state_enc_dim, bias=True))
+            fc_state_dec_layers.append(self.non_linearity())
+        fc_state_dec_layers.append(T.nn.Linear(self.state_enc_dim, self.state_dim, bias=True))
+        self.fc_state_decoder = nn.Sequential(*fc_state_dec_layers)
+
+        # Action encoder
+        fc_act_enc_layers = []
+        fc_act_enc_layers.append(T.nn.Linear(self.act_dim, self.act_enc_dim, bias=True))
+        fc_act_enc_layers.append(self.non_linearity())
+        if extra_hidden:
+            fc_act_enc_layers.append(T.nn.Linear(self.act_enc_dim, self.act_enc_dim, bias=True))
+            fc_act_enc_layers.append(self.non_linearity())
+        self.fc_act_encoder = nn.Sequential(*fc_act_enc_layers)
+
+        # Action decoder
+        fc_act_dec_layers = []
+        if extra_hidden:
+            fc_act_dec_layers.append(T.nn.Linear(self.act_enc_dim, self.act_enc_dim, bias=True))
+            fc_act_dec_layers.append(self.non_linearity())
+        fc_act_dec_layers.append(T.nn.Linear(self.act_enc_dim, self.act, bias=True))
+        self.fc_act_encoder = nn.Sequential(*fc_act_dec_layers)
+
+        # Linear system
+        self.A = T.nn.parameter(T.randn((self.state_enc_dim, self.state_enc_dim), requires_grad=True))
+        self.B = T.nn.parameter(T.randn((self.state_enc_dim, self.act_enc_dim), requires_grad=True))
+
+        #T.nn.init.xavier_uniform_(self.fc1.weight)
+        #self.fc1.bias.data.fill_(0.01)
+
+    def encode_state(self, state):
+        return self.fc_state_encoder(state)
+
+    def decode_state(self, state_enc):
+        return self.fc_state_decoder(state_enc)
+
+    def encode_act(self, act):
+        return self.fc_act_encoder(act)
+
+    def decode_act(self, act_enc):
+        return self.fc_act_decoder(act_enc)
+
+    def forward_encoded_state(self, state_enc, act_enc):
+        return self.A @ state_enc + self.B @ act_enc
+
+    def forward(self, state, act):
+        state_enc = self.encode_state(state)
+        act_enc = self.encode_act(act)
+        next_state_enc = self.forward_encoded_state(state_enc, act_enc)
+        next_state = self.decode_state(next_state_enc)
+        return next_state
+
+
+
 class RNN(nn.Module):
     def __init__(self, obs_dim, act_dim, hid_dim=64):
         super(RNN, self).__init__()

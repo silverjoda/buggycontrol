@@ -6,9 +6,11 @@ def make_mpc(model):
     # and initiate it with the model:
     mpc = do_mpc.controller.MPC(model)
 
+    n_horizon = 100
+
     # Set parameters:
     setup_mpc = {
-        'n_horizon': 200,
+        'n_horizon': n_horizon,
         'n_robust': 1,
         't_step': 0.01,
     }
@@ -23,6 +25,9 @@ def make_mpc(model):
         u_w=1e-2
     )
 
+    # Velocity bounds
+    mpc.bounds['lower', '_x', 's_vx'] = 0.01
+
     # Turn bounds
     mpc.bounds['lower', '_u', 'u_d'] = -0.38
     mpc.bounds['upper', '_u', 'u_d'] = 0.38
@@ -32,8 +37,8 @@ def make_mpc(model):
 
     tvp_template = mpc.get_tvp_template()
 
-    def tvp_fun(t_now):
-        for k in range(200 + 1):
+    def tvp_fun(_):
+        for k in range(n_horizon + 1):
             tvp_template['_tvp', k, 'trajectory_set_point_x'] = 10
             tvp_template['_tvp', k, 'trajectory_set_point_y'] = 10
 

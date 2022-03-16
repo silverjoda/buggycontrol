@@ -6,7 +6,7 @@ import yaml
 from casadi import *
 import do_mpc
 
-from src.ctrl.model import make_model
+from src.ctrl.model import make_bicycle_model, make_singletrack_model
 from src.ctrl.mpc import make_mpc
 from src.ctrl.simulator import make_simulator
 import math as m
@@ -19,9 +19,9 @@ class ControlBuggyMPC:
             buggy_config = yaml.load(f, Loader=yaml.FullLoader)
         self.buggy_env_mujoco = BuggyEnv(buggy_config)
 
-        self.model = make_model()
+        self.model = make_bicycle_model()
         self.mpc = make_mpc(self.model)
-        self.simulator = make_simulator(self.model)
+        #self.simulator = make_simulator(self.model)
         exit()
 
         self.test_mpc(self.buggy_env_mujoco, self.model, self.simulator)

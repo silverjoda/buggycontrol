@@ -19,15 +19,15 @@ class BuggyModelTester:
         self.act_msg = None
         self.act_lock = threading.Lock()
 
-        #model = make_singletrack_model()
-        model = make_bicycle_model(params=[0.3, 0.109, 0.579, 0.12, 10.4, 0.25, 26.85, 27.5, 0.13, 0.229, 20.8, 32.94, 0.139, 0.29, 1.768, -0.265])
+        model = make_singletrack_model()
+        #model = make_bicycle_model()
         self.simulator = make_simulator(model)
         self.simulator.reset_history()
 
         print("Starting single track tester node")
         rospy.init_node("single_track_tester")
         self.broadcaster = tf2_ros.TransformBroadcaster()
-        self.ros_rate = rospy.Rate(200)
+        self.ros_rate = rospy.Rate(100)
         self.pub_twist = rospy.Publisher("pred/twist_base_link", TwistStamped, queue_size=5)
         self.pub_odom = rospy.Publisher("pred/odom_base_link", Odometry, queue_size=5)
         rospy.Subscriber("actions",
@@ -50,7 +50,8 @@ class BuggyModelTester:
                     throttle = np.clip(deepcopy(self.act_msg.throttle), 0.01, 1.)
                     turn = deepcopy(self.act_msg.turn * 0.4)
 
-            x = self.simulator.make_step(np.array([turn, throttle]).reshape(2, 1))
+            for i in range(5):
+                x = self.simulator.make_step(np.array([turn, throttle]).reshape(2, 1))
 
             #beta, v, ang_vel_z, xpos, ypos, ang_z = x
             xpos, ypos, phi, xvel, yvel, omega = x
@@ -97,7 +98,7 @@ class BuggyModelTester:
     def test_singletrack(self):
         turn = 0.
         throttle = 0.1
-        self.simulator.x0 = np.array([0.01, 0.01, 0.00, 0.0, 0.0, 0.0]).reshape(-1, 1)
+        self.simulator.x0 = np.array([0.03, 0.03, 0.00, 0.0, 0.0, 0.0]).reshape(-1, 1)
 
         while not rospy.is_shutdown():
             with self.act_lock:
@@ -105,7 +106,8 @@ class BuggyModelTester:
                     turn = deepcopy(self.act_msg.turn * 0.6)
                     throttle = np.clip(deepcopy(self.act_msg.throttle), 0.01, 1.)
 
-            x = self.simulator.make_step(np.array([turn, throttle * 50]).reshape(2, 1))
+            for i in range(5):
+                x = self.simulator.make_step(np.array([turn, throttle * 20]).reshape(2, 1))
 
             beta, v, ang_vel_z, xpos, ypos, ang_z = x
             orientation_quat = tf.transformations.quaternion_from_euler(0, 0, ang_z)
@@ -151,6 +153,6 @@ class BuggyModelTester:
 
 if __name__=="__main__":
     bmt = BuggyModelTester()
-    bmt.test_bicycle()
-    #bmt.test_singletrack()
+    #bmt.test_bicycle()
+    bmt.test_singletrack()
 
