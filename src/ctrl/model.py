@@ -176,8 +176,8 @@ def make_bicycle_model(params=None):
     model.set_rhs('s_vy', (1 / m_car) * (F_yr + F_yf * cos(u_d) - m_car * s_vx * s_omega))
     model.set_rhs('s_omega', (1 / I_car) * (F_yf * l_f * cos(u_d) - F_yr * l_r))
 
-    model.set_variable(var_type='_tvp', var_name='trajectory_set_point_x')
-    model.set_variable(var_type='_tvp', var_name='trajectory_set_point_y')
+    #model.set_variable(var_type='_tvp', var_name='trajectory_set_point_x')
+    #model.set_variable(var_type='_tvp', var_name='trajectory_set_point_y')
 
     # Setup model:
     model.setup()

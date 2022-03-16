@@ -1,5 +1,9 @@
 Plan:
 
+# Continue testing basic MPC, then with TVP (just setpoint tracking, different penalties, etc). Currently at setting env state
+# Train env with NN linear transfer
+# Do mpc with trained model
+
 # Analyze gradient modification under different prior and diffeent representation
 # Read MPC racing papers
 # Try to see why do-mpc crashes

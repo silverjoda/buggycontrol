@@ -124,6 +124,9 @@ class BuggyEnv(gym.Env):
             mirrored_obs[5 + i * 2 + 1] *= -1
         return mirrored_obs
 
+    def set_external_state(self, state_dict):
+        pass
+
     def step(self, act):
         self.step_ctr += 1
 
