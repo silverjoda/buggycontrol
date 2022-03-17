@@ -119,7 +119,6 @@ def make_singletrack_model(params=None):
 
     return model
 
-
 def make_bicycle_model(params=None):
     # Obtain an instance of the do-mpc model class
     # and select time discretization:
@@ -175,6 +174,27 @@ def make_bicycle_model(params=None):
     model.set_rhs('s_vx', (1 / m_car) * (F_xr - F_yf * sin(u_d) + m_car * s_vy * s_omega))
     model.set_rhs('s_vy', (1 / m_car) * (F_yr + F_yf * cos(u_d) - m_car * s_vx * s_omega))
     model.set_rhs('s_omega', (1 / I_car) * (F_yf * l_f * cos(u_d) - F_yr * l_r))
+
+    model.set_variable(var_type='_tvp', var_name='trajectory_set_point_x')
+    model.set_variable(var_type='_tvp', var_name='trajectory_set_point_y')
+
+    # Setup model:
+    model.setup()
+
+    return model
+
+
+def make_linmod_model(A, B):
+    state_dim = A.shape[0]
+    act_dim = B.shape[1]
+
+    model = do_mpc.model.Model('discrete')
+
+    # Latent states and actions
+    x = model.set_variable(var_type='_x', var_name='x', shape=(state_dim, 1))
+    u = model.set_variable(var_type='_u', var_name='u', shape=(act_dim, 1))
+
+    model.set_rhs('x', A @ x + B @ u)
 
     model.set_variable(var_type='_tvp', var_name='trajectory_set_point_x')
     model.set_variable(var_type='_tvp', var_name='trajectory_set_point_y')

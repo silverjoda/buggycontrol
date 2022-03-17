@@ -151,11 +151,11 @@ if __name__=="__main__":
 
     dataset = ModelDataset()
     policy = MLP(obs_dim=7, act_dim=5, hid_dim=256)
-    lin_mod_policy = LINMOD(state_dim=3, act_dim=2, state_enc_dim=16, act_enc_dim=4, hid_dim=32, extra_hidden=False)
+    lin_mod_policy = LINMOD(state_dim=3, act_dim=2, state_enc_dim=12, act_enc_dim=4, hid_dim=32, extra_hidden=False)
     model_trainer = ModelTrainer(config, dataset, policy, lin_mod_policy)
 
     # Train
     if config["train"]:
-        #model_trainer.train()
-        model_trainer.train_linmod()
+        model_trainer.train()
+        #model_trainer.train_linmod()
 
