@@ -108,7 +108,7 @@ class LINMOD(nn.Module):
             fc_act_dec_layers.append(T.nn.Linear(self.act_enc_dim, self.act_enc_dim, bias=True))
             fc_act_dec_layers.append(self.non_linearity())
         fc_act_dec_layers.append(T.nn.Linear(self.act_enc_dim, self.act_dim, bias=True))
-        self.fc_act_encoder = nn.Sequential(*fc_act_dec_layers)
+        self.fc_act_decoder = nn.Sequential(*fc_act_dec_layers)
 
         # Linear system
         self.A = T.nn.Parameter(T.randn((self.state_enc_dim, self.state_enc_dim), requires_grad=True))
@@ -130,7 +130,7 @@ class LINMOD(nn.Module):
         return self.fc_act_decoder(act_enc)
 
     def forward_encoded_state(self, state_enc, act_enc):
-        return self.A @ state_enc + self.B @ act_enc
+        return (self.A @ state_enc.T).T + (self.B @ act_enc.T).T
 
     def forward(self, state, act):
         state_enc = self.encode_state(state)
