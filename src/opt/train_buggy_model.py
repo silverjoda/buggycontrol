@@ -86,10 +86,11 @@ class ModelDataset:
         return X, Y
 
 class ModelTrainer:
-    def __init__(self, config, dataset, policy):
+    def __init__(self, config, dataset, policy, lin_mod_policy):
         self.config = config
         self.dataset = dataset
         self.policy = policy
+        self.lin_mod_policy = lin_mod_policy
 
     def train(self):
         optim = T.optim.Adam(params=self.policy.parameters(), lr=self.config['lr'], weight_decay=self.config['w_decay'])
@@ -110,7 +111,37 @@ class ModelTrainer:
         T.save(self.policy.state_dict(), "agents/buggy_lte.p")
 
     def train_linmod(self):
-        pass
+        optim = T.optim.Adam(params=self.policy.parameters(), lr=self.config['lr'], weight_decay=self.config['w_decay'])
+        lossfun = T.nn.MSELoss()
+        for i in range(self.config['iters']):
+            X, Y = self.dataset.get_random_batch(self.config['batchsize'])
+
+            # Extract components from batch
+            X_s = X[:,:,2:5]
+            A_s = X[:, :, 5:7]
+            Y_s = Y[:, :, 2:5]
+
+            next_state_dec, state_dec, act_dec = self.lin_mod_policy(X_s, A_s)
+            next_state_loss = lossfun(next_state_dec, Y_s)
+            state_recon_loss = lossfun(state_dec, X_s)
+            act_recon_loss = lossfun(act_dec, A_s)
+            total_loss = next_state_loss + state_recon_loss + act_recon_loss
+            total_loss.backward()
+            optim.step()
+            optim.zero_grad()
+            if i % 100 == 0:
+                X_val, Y_val = self.dataset.get_val_dataset()
+                X_val_s = X_val[:, :, 2:5]
+                A_val_s = X_val[:, :, 5:7]
+                Y_val_s = Y_val[:, :, 2:5]
+                next_state_dec_val, state_dec_val, act_dec_val = self.lin_mod_policy(X_val_s, A_val_s)
+                next_state_loss_val = lossfun(next_state_dec_val, Y_val_s)
+                state_recon_loss_val = lossfun(state_dec_val, X_val_s)
+                act_recon_loss_val = lossfun(act_dec_val, A_val_s)
+                total_val_loss_val = next_state_loss_val + state_recon_loss_val + act_recon_loss_val
+                print("Iter {}/{}, loss: {}, loss_val: {}".format(i, self.config['iters'], total_loss.data, total_val_loss_val.data))
+        print("Done training, saving model")
+        T.save(self.policy.state_dict(), "agents/buggy_linmod.p")
 
 if __name__=="__main__":
     import yaml
@@ -119,9 +150,11 @@ if __name__=="__main__":
 
     dataset = ModelDataset()
     policy = MLP(obs_dim=7, act_dim=5, hid_dim=256)
-    model_trainer = ModelTrainer(config, dataset, policy)
+    lin_mod_policy = LINMOD(state_dim=3, act_dim=2, state_enc_dim=16, act_enc_dim=4, hid_dim=32, extra_hidden=False)
+    model_trainer = ModelTrainer(config, dataset, policy, lin_mod_policy)
 
     # Train
     if config["train"]:
-        model_trainer.train()
+        #model_trainer.train()
+        model_trainer.train_linmod()
 
