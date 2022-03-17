@@ -1,8 +1,9 @@
 Plan:
 
-# Continue testing basic MPC, then with TVP (just setpoint tracking, different penalties, etc). Currently at setting env state
-# Train env with NN linear transfer
-# Do mpc with trained model
+# Continue testing basic MPC with TVP, try positional constraints (obstacle avoidance)
+# Train env with LINMOD structure
+# Test mpc with trained LINMOD model
+# Read about trajectory tracking with mpc
 
 # Analyze gradient modification under different prior and diffeent representation
 # Read MPC racing papers

@@ -20,9 +20,12 @@ class ControlBuggyMPC:
             buggy_config = yaml.load(f, Loader=yaml.FullLoader)
         self.buggy_env_mujoco = BuggyEnv(buggy_config)
 
+        self.waypoints = [3, 3]
+
         self.model = make_bicycle_model()
         #self.model = make_singletrack_model()
-        self.mpc = make_mpc_bicycle(self.model)
+
+        self.mpc = make_mpc_bicycle(self.model, waypoints=self.waypoints)
         #self.mpc = make_mpc_singletrack(self.model)
         self.simulator = make_simulator(self.model)
 
@@ -42,7 +45,7 @@ class ControlBuggyMPC:
         vel_vec = np.sqrt(np.square(vel[0:2]).sum())
         yaw_rate = obs_dict["ang_vel"][2]
         x_pos, y_pos = obs_dict["pos"][0:2]
-        phi = self.q2e(*obs_dict["ori_q"])
+        _,_,phi = self.q2e(*obs_dict["ori_q"])
         return beta, vel_vec, yaw_rate, x_pos, y_pos, phi
 
     def get_mpc_state_bicycle(self, obs_dict):
@@ -108,7 +111,11 @@ class ControlBuggyMPC:
             use_mujoco = False
 
             episode_rew = 0
-            for i in range(1000):
+            waypts = [[3,0], [-3,0]]
+            current_wp_idx = 0
+            self.waypoints[:] = waypts[current_wp_idx]
+
+            for _ in range(30000):
                 # Predict using MPC
                 u = mpc.make_step(x)
 
@@ -122,12 +129,17 @@ class ControlBuggyMPC:
                 else:
                     # Get next side slip angle from simulator
                     #u = np.array([0.0, 1]).reshape(-1, 1)
-                    for i in range(5):
+                    for _ in range(5):
                         x = simulator.make_step(u)
 
                     env.set_external_state({"x_pos" : x[0],
-                                   "y_pos" : x[1],
-                                   "phi" : x[2]})
+                                           "y_pos" : x[1],
+                                           "phi" : x[2]})
+
+                if np.sqrt((x[0] - self.waypoints[0]) ** 2 + (x[1] - self.waypoints[1]) ** 2) < 0.5:
+                    current_wp_idx = int(not current_wp_idx)
+                    self.waypoints[:] = waypts[current_wp_idx]
+                    print("Visited", current_wp_idx, self.waypoints)
 
                 if render:
                     env.render()

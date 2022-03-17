@@ -15,12 +15,12 @@ def make_simulator(model):
     # Set parameter(s):
     simulator.set_param(**params_simulator)
 
-    # tvp_template = simulator.get_tvp_template()
-    #
-    # def tvp_fun(t_now):
-    #     return tvp_template
-    #
-    # simulator.set_tvp_fun(tvp_fun)
+    tvp_template = simulator.get_tvp_template()
+
+    def tvp_fun(t_now):
+        return tvp_template
+
+    simulator.set_tvp_fun(tvp_fun)
 
     # Setup simulator:
     simulator.setup()
