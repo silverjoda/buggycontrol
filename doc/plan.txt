@@ -1,6 +1,6 @@
 Plan:
 
-# Continue testing basic MPC with TVP, try positional constraints (obstacle avoidance)
+# Continue testing basic MPC, try positional constraints (obstacle avoidance)
 # Train env with LINMOD structure
 # Test mpc with trained LINMOD model
 # Read about trajectory tracking with mpc

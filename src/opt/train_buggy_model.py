@@ -109,6 +109,9 @@ class ModelTrainer:
         print("Done training, saving model")
         T.save(self.policy.state_dict(), "agents/buggy_lte.p")
 
+    def train_linmod(self):
+        pass
+
 if __name__=="__main__":
     import yaml
     with open(os.path.join(os.path.dirname(__file__), "configs/train_buggy_model.yaml"), 'r') as f:
