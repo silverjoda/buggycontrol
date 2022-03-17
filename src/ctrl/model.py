@@ -144,8 +144,8 @@ def make_bicycle_model(params=None):
     # Friction and motor parameters
     C_r0 = 0.6
     C_r2 = 0.1
-    C_m1 = 1.8
-    C_m2 = -0.25
+    C_m1 = 4.8
+    C_m2 = -0.4
 
     if params is not None:
         l_f, l_r, l_car, w_car, m_car, I_car, B_f, B_r, C_f, C_r, D_f, D_r, C_r0, C_r2, C_m1, C_m2 = params

@@ -6,17 +6,18 @@ def make_mpc_singletrack(model):
     # and initiate it with the model:
     mpc = do_mpc.controller.MPC(model)
 
-    n_horizon = 20
+    n_horizon = 3
 
     # Set parameters:
     setup_mpc = {
         'n_horizon': n_horizon,
         'n_robust': 1,
         't_step': 0.01,
+        'nlpsol_opts': {'ipopt.print_level': 1, 'ipopt.sb': 'yes', 'print_time': 0}
     }
     mpc.set_param(**setup_mpc)
 
-    x_tar, y_tar = 1, 0
+    x_tar, y_tar = 3, 1
 
     lterm = sqrt((model.x['s_x'] - x_tar) ** 2 + (model.x['s_y'] - y_tar) ** 2)
     mterm = lterm
@@ -28,15 +29,15 @@ def make_mpc_singletrack(model):
     )
 
     # Velocity bounds
-    mpc.bounds['lower', '_x', 's_vx'] = 0.01
+    mpc.bounds['lower', '_x', 's_v'] = 0.03
 
     # Turn bounds
     mpc.bounds['lower', '_u', 'u_d'] = -0.38
     mpc.bounds['upper', '_u', 'u_d'] = 0.38
 
-    # Whell angular vel bound from below
-    mpc.bounds['lower', '_u', 'u_w'] = 0.0
-    mpc.bounds['upper', '_u', 'u_w'] = 1.0
+    # Wheel angular vel bound from below
+    mpc.bounds['lower', '_u', 'u_w'] = 0.01
+    mpc.bounds['upper', '_u', 'u_w'] = 30.0
 
     # tvp_template = mpc.get_tvp_template()
     #
@@ -57,17 +58,18 @@ def make_mpc_bicycle(model):
     # and initiate it with the model:
     mpc = do_mpc.controller.MPC(model)
 
-    n_horizon = 20
+    n_horizon = 3
 
     # Set parameters:
     setup_mpc = {
         'n_horizon': n_horizon,
         'n_robust': 1,
         't_step': 0.01,
+        'nlpsol_opts' : {'ipopt.print_level': 1, 'ipopt.sb': 'yes', 'print_time': 0}
     }
     mpc.set_param(**setup_mpc)
 
-    x_tar, y_tar = 4, 4
+    x_tar, y_tar = 3., 3.
 
     lterm = sqrt((model.x['s_x'] - x_tar) ** 2 + (model.x['s_y'] - y_tar) ** 2)
     mterm = lterm
@@ -79,7 +81,7 @@ def make_mpc_bicycle(model):
     )
 
     # Velocity bounds
-    mpc.bounds['lower', '_x', 's_vx'] = 0.01
+    mpc.bounds['lower', '_x', 's_vx'] = 0.03
 
     # Turn bounds
     mpc.bounds['lower', '_u', 'u_d'] = -0.38

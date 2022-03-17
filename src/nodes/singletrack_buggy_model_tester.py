@@ -19,8 +19,8 @@ class BuggyModelTester:
         self.act_msg = None
         self.act_lock = threading.Lock()
 
-        model = make_singletrack_model()
-        #model = make_bicycle_model()
+        #model = make_singletrack_model()
+        model = make_bicycle_model()
         self.simulator = make_simulator(model)
         self.simulator.reset_history()
 
@@ -153,6 +153,6 @@ class BuggyModelTester:
 
 if __name__=="__main__":
     bmt = BuggyModelTester()
-    #bmt.test_bicycle()
-    bmt.test_singletrack()
+    bmt.test_bicycle()
+    #bmt.test_singletrack()
 

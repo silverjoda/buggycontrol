@@ -1,8 +1,9 @@
+import math as m
 import os
+import sys
+
 import yaml
-import numpy as np
-import threading
-from copy import deepcopy
+
 
 def loadconfig(path):
     """
@@ -38,3 +39,21 @@ def merge_dicts(dicts):
     for i in range(1, len(dicts)):
         d = merge_two_dicts(d, dicts[i])
     return d
+
+def q2e(w, x, y, z):
+    pitch = -m.asin(2.0 * (x * z - w * y))
+    roll = m.atan2(2.0 * (w * x + y * z), w * w - x * x - y * y + z * z)
+    yaw = m.atan2(2.0 * (w * z + x * y), w * w + x * x - y * y - z * z)
+    return (roll, pitch, yaw)
+
+
+def e2q(roll, pitch, yaw):
+    qx = m.sin(roll / 2) * m.cos(pitch / 2) * m.cos(yaw / 2) - m.cos(roll / 2) * m.sin(pitch / 2) * m.sin(
+        yaw / 2)
+    qy = m.cos(roll / 2) * m.sin(pitch / 2) * m.cos(yaw / 2) + m.sin(roll / 2) * m.cos(pitch / 2) * m.sin(
+        yaw / 2)
+    qz = m.cos(roll / 2) * m.cos(pitch / 2) * m.sin(yaw / 2) - m.sin(roll / 2) * m.sin(pitch / 2) * m.cos(
+        yaw / 2)
+    qw = m.cos(roll / 2) * m.cos(pitch / 2) * m.cos(yaw / 2) + m.sin(roll / 2) * m.sin(pitch / 2) * m.sin(
+        yaw / 2)
+    return (qw, qx, qy, qz)
