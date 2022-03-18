@@ -1,5 +1,7 @@
 import do_mpc
 from casadi import sqrt
+import numpy as np
+
 
 def make_mpc_singletrack(model):
     # Obtain an instance of the do-mpc MPC class
@@ -106,10 +108,10 @@ def make_mpc_bicycle(model, waypoints=[3,3]):
 
     return mpc
 
-def make_mpc_linmod(model):
+def make_mpc_linmod_hybrid(model):
     mpc = do_mpc.controller.MPC(model)
 
-    n_horizon = 30
+    n_horizon = 3
 
     # Set parameters:
     setup_mpc = {
@@ -124,22 +126,16 @@ def make_mpc_linmod(model):
     mterm = lterm
     mpc.set_objective(lterm=lterm, mterm=mterm)
 
-    mpc.set_rterm(
-        u_d=1e-3,
-        u_D=1e-3
-    )
+    # mpc.set_rterm(
+    #     u_d=1e-3,
+    #     u_D=1e-3
+    # )
 
-    # Velocity bounds
-    mpc.bounds['lower', '_x', 's_vx'] = 0.03
-    mpc.bounds['upper', '_x', 's_vx'] = 2
+    mpc.bounds['lower', '_x', 'x'] = -np.ones((15, 1))
+    mpc.bounds['upper', '_x', 'x'] = np.ones((15, 1))
 
-    # Turn bounds
-    mpc.bounds['lower', '_u', 'u_d'] = -0.45
-    mpc.bounds['upper', '_u', 'u_d'] = 0.45
-
-    # Whell angular vel bound from below
-    mpc.bounds['lower', '_u', 'u_D'] = 0.0
-    mpc.bounds['upper', '_u', 'u_D'] = 1.0
+    mpc.bounds['lower', '_u', 'u'] = -np.ones((6, 1))
+    mpc.bounds['upper', '_u', 'u'] = np.ones((6, 1))
 
     tvp_template = mpc.get_tvp_template()
 

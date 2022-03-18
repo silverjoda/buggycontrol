@@ -218,12 +218,10 @@ class ModelTrainer:
         return es.result.fbest
 
     def train_bicycle(self):
-        init_params = [0.164, 0.16, 0.53, 0.28, 4.0, 0.12, 29, 26, 0.08, 0.16, 42, 161, 0.6, 90.1, 1.8, -0.25]
-        self.bicycle_scale_coeffs = init_params
-        es = cma.CMAEvolutionStrategy(self.normalize_params(init_params, self.bicycle_scale_coeffs), 0.2)
+        es = cma.CMAEvolutionStrategy(self.normalize_params(self.bicycle_scale_coeffs, self.bicycle_scale_coeffs), 0.2)
         f = self.f_wrapper_bicycle()
 
-        print(f"Initial_loss: {f(self.normalize_params(init_params, self.bicycle_scale_coeffs))}")
+        print(f"Initial_loss: {f(self.normalize_params(self.bicycle_scale_coeffs, self.bicycle_scale_coeffs))}")
 
         it = 0
         try:
@@ -254,6 +252,6 @@ if __name__=="__main__":
 
     # Train
     if config["train"]:
-        #model_trainer.train_bicycle()
-        model_trainer.train_singletrack()
+        model_trainer.train_bicycle()
+        #model_trainer.train_singletrack()
 

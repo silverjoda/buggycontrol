@@ -1,6 +1,7 @@
 import do_mpc
 from casadi import cos, sin, arctan, tan, sqrt, arccos, fabs, horzcat, vertcat, fmax, power, mpower
-
+import os
+from src.policies import *
 
 def make_singletrack_model(params=None):
     # Obtain an instance of the do-mpc model class
@@ -147,7 +148,8 @@ def make_bicycle_model(params=None):
     C_m2 = -0.4
 
     if params is not None:
-        l_f, l_r, l_car, w_car, m_car, I_car, B_f, B_r, C_f, C_r, D_f, D_r, C_r0, C_r2, C_m1, C_m2 = params
+        #l_f, l_r, l_car, w_car, m_car, I_car, B_f, B_r, C_f, C_r, D_f, D_r, C_r0, C_r2, C_m1, C_m2 = params
+        _, _, _, _, _, _, _, _, _, _, _, _, C_r0, C_r2, C_m1, C_m2 = params
 
     # Introduce new states
     s_x = model.set_variable(var_type='_x', var_name='s_x', shape=(1, 1))
@@ -183,17 +185,31 @@ def make_bicycle_model(params=None):
 
     return model
 
+def make_linmod_model():
+    policy = LINMOD_HYBRID(state_dim=3, act_dim=2, state_enc_dim=12, act_enc_dim=4, hid_dim=32, extra_hidden=False)
+    agent_path = os.path.join(os.path.dirname(__file__), "../opt/agents/buggy_linmod_hybrid.p")
+    policy.load_state_dict(T.load(agent_path), strict=False)
+    A = policy.A.data.detach().numpy()
+    B = policy.B.data.detach().numpy()
 
-def make_linmod_model(A, B):
     state_dim = A.shape[0]
     act_dim = B.shape[1]
 
     model = do_mpc.model.Model('discrete')
 
+    # Position variables
+    s_x = model.set_variable(var_type='_x', var_name='s_x', shape=(1, 1))
+    s_y = model.set_variable(var_type='_x', var_name='s_y', shape=(1, 1))
+    s_phi = model.set_variable(var_type='_x', var_name='s_phi', shape=(1, 1))
     # Latent states and actions
     x = model.set_variable(var_type='_x', var_name='x', shape=(state_dim, 1))
     u = model.set_variable(var_type='_u', var_name='u', shape=(act_dim, 1))
 
+    model.set_rhs('s_x', x[0] * cos(s_phi) - x[1] * sin(s_phi))
+    model.set_rhs('s_y', x[0] * sin(s_phi) + x[1] * cos(s_phi))
+    model.set_rhs('s_phi', x[2])
+
+    # Internal linear model
     model.set_rhs('x', A @ x + B @ u)
 
     model.set_variable(var_type='_tvp', var_name='trajectory_set_point_x')

@@ -86,11 +86,12 @@ class ModelDataset:
         return X, Y
 
 class ModelTrainer:
-    def __init__(self, config, dataset, policy, lin_mod_policy):
+    def __init__(self, config, dataset, policy, lin_mod_policy, lin_mod_hybrid_policy):
         self.config = config
         self.dataset = dataset
         self.policy = policy
         self.lin_mod_policy = lin_mod_policy
+        self.lin_mod_hybrid_policy = lin_mod_hybrid_policy
 
     def train(self):
         optim = T.optim.Adam(params=self.policy.parameters(), lr=self.config['lr'], weight_decay=self.config['w_decay'])
@@ -142,7 +143,38 @@ class ModelTrainer:
                     total_val_loss_val = next_state_loss_val + act_recon_loss_val + state_recon_loss_val
                 print("Iter {}/{}, loss: {}, loss_val: {}".format(i, self.config['iters'], total_loss.data, total_val_loss_val.data))
         print("Done training, saving model")
-        T.save(self.lin_mod_policy.state_dict(), "agents/buggy_linmod.p")
+        T.save(self.lin_mod_policy.state_dict(), "agents/buggy_linmod_hybrid.p")
+
+    def train_linmod_hybrid(self):
+        optim = T.optim.Adam(params=self.lin_mod_hybrid_policy.parameters(), lr=self.config['lr'], weight_decay=self.config['w_decay'])
+        lossfun = T.nn.MSELoss()
+        for i in range(self.config['iters']):
+            X, Y = self.dataset.get_random_batch(self.config['batchsize'])
+
+            # Extract components from batch
+            X_s = X[:, 2:5]
+            A_s = X[:, 5:7]
+            Y_s = Y[:, 2:5]
+
+            next_state, _ = self.lin_mod_hybrid_policy(X_s, A_s)
+            loss = lossfun(next_state, Y_s)
+            loss.backward()
+            optim.step()
+            optim.zero_grad()
+            if i % 100 == 0:
+                with T.no_grad():
+                    X_val, Y_val = self.dataset.get_val_dataset()
+                    X_val_s = X_val[:, 2:5]
+                    A_val_s = X_val[:, 5:7]
+                    Y_val_s = Y_val[:, 2:5]
+                    next_state_val, _ = self.lin_mod_hybrid_policy(X_val_s, A_val_s)
+                    next_state_loss_val = lossfun(next_state_val, Y_val_s)
+
+                    total_val_loss_val = next_state_loss_val
+                print("Iter {}/{}, loss: {}, loss_val: {}".format(i, self.config['iters'], loss.data, total_val_loss_val.data))
+        print("Done training, saving model")
+        T.save(self.lin_mod_hybrid_policy.state_dict(), "agents/buggy_linmod_hybrid.p")
+
 
 if __name__=="__main__":
     import yaml
@@ -152,10 +184,12 @@ if __name__=="__main__":
     dataset = ModelDataset()
     policy = MLP(obs_dim=7, act_dim=5, hid_dim=256)
     lin_mod_policy = LINMOD(state_dim=3, act_dim=2, state_enc_dim=12, act_enc_dim=4, hid_dim=32, extra_hidden=False)
-    model_trainer = ModelTrainer(config, dataset, policy, lin_mod_policy)
+    lin_mod_hybrid_policy = LINMOD_HYBRID(state_dim=3, act_dim=2, state_enc_dim=12, act_enc_dim=4, hid_dim=32, extra_hidden=False)
+    model_trainer = ModelTrainer(config, dataset, policy, lin_mod_policy, lin_mod_hybrid_policy)
 
     # Train
     if config["train"]:
-        model_trainer.train()
         #model_trainer.train_linmod()
+        model_trainer.train_linmod_hybrid()
+        #model_trainer.train()
 

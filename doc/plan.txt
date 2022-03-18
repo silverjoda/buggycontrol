@@ -1,5 +1,8 @@
 Plan:
 
+# Try again to fit the bicycle and singletrack models. !! Check that the parameters and their ranges are correct(there are errors) !!, check that that there are no bugs
+# Try fitting only subset of parameters if all don't work.
+
 # Continue testing basic MPC, try positional constraints (obstacle avoidance)
 # Train env with LINMOD structure
 # Test mpc with trained LINMOD model

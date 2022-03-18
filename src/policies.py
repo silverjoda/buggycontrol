@@ -141,6 +141,63 @@ class LINMOD(nn.Module):
         state_dec = self.decode_state(state_enc)
         return next_state, state_dec, act_dec
 
+class LINMOD_HYBRID(nn.Module):
+    def __init__(self, state_dim, act_dim, state_enc_dim, act_enc_dim, hid_dim=64, extra_hidden=False):
+        super(LINMOD_HYBRID, self).__init__()
+        self.state_dim = state_dim
+        self.act_dim = act_dim
+        self.state_enc_dim = state_enc_dim
+        self.act_enc_dim = act_enc_dim
+        self.hid_dim = hid_dim
+        self.extra_hidden=extra_hidden
+        self.non_linearity = T.nn.Tanh() # T.tanh
+
+        # State encoder
+        fc_state_enc_layers = []
+        fc_state_enc_layers.append(T.nn.Linear(self.state_dim, self.state_enc_dim, bias=True))
+        fc_state_enc_layers.append(self.non_linearity)
+        if extra_hidden:
+            fc_state_enc_layers.append(T.nn.Linear(self.state_enc_dim, self.state_enc_dim, bias=True))
+            fc_state_enc_layers.append(self.non_linearity)
+        self.fc_state_encoder = nn.Sequential(*fc_state_enc_layers)
+
+        # Action encoder
+        fc_act_enc_layers = []
+        fc_act_enc_layers.append(T.nn.Linear(self.act_dim, self.act_enc_dim, bias=True))
+        fc_act_enc_layers.append(self.non_linearity)
+        if extra_hidden:
+            fc_act_enc_layers.append(T.nn.Linear(self.act_enc_dim, self.act_enc_dim, bias=True))
+            fc_act_enc_layers.append(self.non_linearity)
+        self.fc_act_encoder = nn.Sequential(*fc_act_enc_layers)
+
+        # Linear system
+        self.A = T.nn.Parameter(T.randn((self.state_enc_dim + self.state_dim, self.state_enc_dim + self.state_dim), requires_grad=True))
+        self.B = T.nn.Parameter(T.randn((self.state_enc_dim + self.state_dim, self.act_enc_dim + self.act_dim), requires_grad=True))
+
+    def encode_state(self, state):
+        return self.fc_state_encoder(state)
+
+    def encode_act(self, act):
+        return self.fc_act_encoder(act)
+
+    def forward_encoded_state(self, state_hyb, act_hyb):
+        return (self.A @ state_hyb.T).T + (self.B @ act_hyb.T).T
+
+    def forward(self, state, act):
+        # Encode state and action
+        state_enc = self.encode_state(state)
+        act_enc = self.encode_act(act)
+
+        # Make hybrid state
+        state_hyb = T.concat([state, state_enc], dim=1)
+        act_hyb = T.concat([act, act_enc], dim=1)
+
+        next_state_hyb = self.forward_encoded_state(state_hyb, act_hyb)
+
+        next_state = next_state_hyb[:, :self.state_dim]
+        next_state_latent = next_state_hyb[:, self.state_dim:]
+
+        return next_state, next_state_latent
 
 class RNN(nn.Module):
     def __init__(self, obs_dim, act_dim, hid_dim=64):

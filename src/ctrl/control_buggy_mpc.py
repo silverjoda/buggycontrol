@@ -6,8 +6,8 @@ import yaml
 from casadi import *
 import do_mpc
 
-from src.ctrl.model import make_bicycle_model, make_singletrack_model
-from src.ctrl.mpc import make_mpc_singletrack, make_mpc_bicycle
+from src.ctrl.model import *
+from src.ctrl.mpc import *
 from src.ctrl.simulator import make_simulator
 import math as m
 import time
@@ -22,15 +22,18 @@ class ControlBuggyMPC:
 
         self.waypoints = [3, 3]
 
-        self.model = make_bicycle_model()
+        #self.model = make_bicycle_model()
         #self.model = make_singletrack_model()
+        self.model = make_linmod_model()
 
-        self.mpc = make_mpc_bicycle(self.model, waypoints=self.waypoints)
+        #self.mpc = make_mpc_bicycle(self.model, waypoints=self.waypoints)
         #self.mpc = make_mpc_singletrack(self.model)
+        self.mpc = make_mpc_linmod_hybrid(self.model)
         self.simulator = make_simulator(self.model)
 
-        self.test_mpc_bicycle(self.buggy_env_mujoco, self.model, self.mpc, self.simulator)
+        #self.test_mpc_bicycle(self.buggy_env_mujoco, self.model, self.mpc, self.simulator)
         #self.test_mpc_singletrack(self.buggy_env_mujoco, self.model, self.mpc, self.simulator)
+        self.test_mpc_linmod(self.buggy_env_mujoco, self.model, self.mpc, self.simulator)
 
     def q2e(self, w, x, y, z):
         pitch = -m.asin(2.0 * (x * z - w * y))
@@ -144,6 +147,53 @@ class ControlBuggyMPC:
                 if render:
                     env.render()
 
+    def test_mpc_linmod(self, env, model, mpc, simulator, N=100, render=True, print_rew=False):
+        for _ in range(N):
+            # New env and trajectory
+            env.reset()
+            simulator.reset_history()
+
+            x0 = np.array([0, 0, 0, 0.1, 0, 0] + [0] * 12).reshape(-1, 1)
+            simulator.x0 = x0
+            mpc.x0 = x0
+            mpc.set_initial_guess()
+            x = x0
+
+            use_mujoco = False
+
+            episode_rew = 0
+            waypts = [[3,0], [-3,0]]
+            current_wp_idx = 0
+            self.waypoints[:] = waypts[current_wp_idx]
+
+            for _ in range(30000):
+                # Predict using MPC
+                u = mpc.make_step(x)
+
+                if use_mujoco:
+                    obs, reward, done, info = env.step(u)
+                    obs_dict = env.get_obs_dict()
+
+                    # Make next mpc state
+                    x = self.get_mpc_state_bicycle(obs_dict)
+                    x = np.array(x).reshape(-1, 1)
+                else:
+                    # Get next side slip angle from simulator
+                    #u = np.array([0.0, 1]).reshape(-1, 1)
+                    for _ in range(5):
+                        x = simulator.make_step(u)
+
+                    env.set_external_state({"x_pos" : x[0],
+                                           "y_pos" : x[1],
+                                           "phi" : x[2]})
+
+                if np.sqrt((x[0] - self.waypoints[0]) ** 2 + (x[1] - self.waypoints[1]) ** 2) < 0.5:
+                    current_wp_idx = int(not current_wp_idx)
+                    self.waypoints[:] = waypts[current_wp_idx]
+                    print("Visited", current_wp_idx, self.waypoints)
+
+                if render:
+                    env.render()
 
 if __name__ == "__main__":
     with open(os.path.join(os.path.dirname(__file__), "../opt/configs/train_buggy_a2c.yaml"), 'r') as f:

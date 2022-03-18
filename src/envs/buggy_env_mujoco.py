@@ -145,7 +145,7 @@ class BuggyEnv(gym.Env):
                 act = [act[0] * -1, act[1]]
 
         # Turn, throttle
-        scaled_act = [np.clip(act[0] * 0.2, -0.4, 0.4), np.clip(act[1] * 0.25 + 0.5, 0, 1)]
+        scaled_act = [np.clip(act[0] * 0.2, -0.4, 0.4), np.clip(act[1] * 0.5 + 0.5, 0, 1)]
         done, wp_visited = self.engine.step(scaled_act)
 
         # Get new observation

@@ -47,7 +47,7 @@ class BuggyMujocoDatasetGatherer:
             act_list = []
 
             zero_throttle = False
-            if np.random.rand() < 0.02:
+            if np.random.rand() < 0.05:
                 zero_throttle = True
 
             for j in range(self.config["traj_len"]):
