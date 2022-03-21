@@ -1,45 +1,28 @@
 Plan:
 
-# Try again to fit the bicycle and singletrack models. !! Check that the parameters and their ranges are correct(there are errors) !!, check that that there are no bugs
-# Try fitting only subset of parameters if all don't work.
+# Fitting:
+# Rewrite fitting process to trajectory endpoint mse, not statewise
+# Optimize part of parameters, find out physical meaning of parameters (maybe optuna, with ranges?)
 
-# Continue testing basic MPC, try positional constraints (obstacle avoidance)
-# Train env with LINMOD structure
-# Test mpc with trained LINMOD model
-# Read about trajectory tracking with mpc
+# MPC:
+# Test MPC on singletrack model
+# Test MPC with distance constraints
 
-# Analyze gradient modification under different prior and diffeent representation
-# Read MPC racing papers
-# Try to see why do-mpc crashes
-# Implement MPC loss fun
-# Start working on traj optimization using trained policy (train time execution, not rew, and either add noise to traj or other ideas, also consider different wp representation and spline priors)
-# Mental excercise with concentration asnd memory. Also meditate
-# Spanish and arabic lesson
+# TEP traj opt
+# Reimplement TEP to accept angle representation for traj
+# Train execution time, not reward
+# Make training process so that 1 gradient update trajectories are added to dataset. Theoretical working proof?
 
-# Mission: MPC
-- Fit tyre parameters to simulator buggy data
-- Make MPC controller which tracks trajectory and compare to learned policy
+# Buggy agent training:
+Explore relative waypoint representation (with increasing distances towards the end of traj)
+Explore successive angle representation for waypoints (with static or increasing distance)
 
-# Mission: Trajectory optimization using TEP
-- Train TEP to predict TIME, not reward
-- Plot gradient directions of trajectory optimization
-- Try second order optimization
-- Examine different representations for trajectory such as constant length, defined by angles.
-- Use spline priors for trajectory optimization. Per point is bad
-
-# Mission: Transfer
+# Mission: Model learning and transfer
 - Make proper trajectory testing script with qualitative and quantitative metrics for comparing learned model with mujoco env (with visualization).
 - Try dataset augmentation by using bilateral symmetry (Does the slow turning and forward velocity go away)
-- Try balanced training (somehow)
-- Implement meta learning for model learning
+- Try balanced training to represent state with lower velocity more(somehow)
+- Try dagger-like learning where trajectory rollouts are annotated using simulator
+- Implement meta learning for model learning (for example using a proxy neural network with attached layers for gradient prop)
 - Train RMA-style
 - Compare RMA-style with trained model transfer
 - Try RL with difficult initial state distribution predictor to help with difficult environments
-
-# Results:
-With deviation pen: Avg test rew: [33.278557], n_visited: 36.98 (12mln, 0.99 gamma, 0.0002 lr)
-Without deviation pen: sux
-With small action pen we get slightly better results
-
-
-
