@@ -19,8 +19,9 @@ class BuggyModelTester:
         self.act_msg = None
         self.act_lock = threading.Lock()
 
-        #model = make_singletrack_model()
-        model = make_bicycle_model()
+        #model = make_singletrack_model([3, 2, 0.14, 0.16, 0.04, 1, 6.9, 1.8, 0.1, 1, 15, 1.7, -0.5, 100])
+        model = make_singletrack_model([2.5, 0.9, 0.20, 0.175, 0.041, 1, 6.9, 1.8, 0.1, 1, 15, 1.7, -0.5, 100])
+        #model = make_bicycle_model()
         self.simulator = make_simulator(model)
         self.simulator.reset_history()
 
@@ -98,7 +99,7 @@ class BuggyModelTester:
     def test_singletrack(self):
         turn = 0.
         throttle = 0.1
-        self.simulator.x0 = np.array([0.03, 0.03, 0.00, 0.0, 0.0, 0.0]).reshape(-1, 1)
+        self.simulator.x0 = np.array([0.03, 0.05, 0.01, 0.0, 0.0, 0.0]).reshape(-1, 1)
 
         while not rospy.is_shutdown():
             with self.act_lock:
@@ -107,7 +108,7 @@ class BuggyModelTester:
                     throttle = np.clip(deepcopy(self.act_msg.throttle), 0.01, 1.)
 
             for i in range(5):
-                x = self.simulator.make_step(np.array([turn, throttle * 20]).reshape(2, 1))
+                x = self.simulator.make_step(np.array([turn, throttle * 94]).reshape(2, 1))
 
             beta, v, ang_vel_z, xpos, ypos, ang_z = x
             orientation_quat = tf.transformations.quaternion_from_euler(0, 0, ang_z)
@@ -153,6 +154,6 @@ class BuggyModelTester:
 
 if __name__=="__main__":
     bmt = BuggyModelTester()
-    bmt.test_bicycle()
-    #bmt.test_singletrack()
+    #bmt.test_bicycle()
+    bmt.test_singletrack()
 

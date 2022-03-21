@@ -95,7 +95,7 @@ class ModelTrainer:
     def __init__(self, config, dataset):
         self.config = config
         self.dataset = dataset
-        self.singletrack_scale_coeffs = [2, 2, 0.14, 0.16, 0.04, 1, 6.9, 1.8, 0.1, 1, 15, 1.7, -0.5, 30]
+        self.singletrack_scale_coeffs = [3, 2, 0.14, 0.16, 0.04, 1, 6.9, 1.8, 0.1, 1, 15, 1.7, -0.5, 120]
         self.bicycle_scale_coeffs = [0.164, 0.16, 0.53, 0.28, 4.0, 0.12, 29, 26, 0.08, 0.16, 42, 161, 0.6, 90.1, 1.8, -0.25]
 
     def f_wrapper_bicycle(self):
@@ -151,7 +151,7 @@ class ModelTrainer:
             x, y = self.dataset.get_random_batch(batchsize=self.config["batchsize"], tensor=False)
 
             def extract_sim_state(state):
-                vx, vy, vangz, _, _ = state[0:5]
+                vx, vy, vangz = state[2:5]
                 b = np.arctan2(vy, vx)
                 v = np.sqrt(np.square(np.array([vx, vy]).sum()))
                 r = vangz
@@ -165,11 +165,11 @@ class ModelTrainer:
                 # Slip angle, velocity, yaw rate, x, y, phi
                 sim_state = extract_sim_state(x[i])
                 sim_state_next = extract_sim_state(y[i])
-                sim_act = np.array([x[i][5] * 0.38, (x[i][6] + 1.001) * 0.4999 * w[-1]]).reshape((-1, 1))
+                sim_act = np.array([x[i][5] * 0.38, (x[i][6] + 1.00) * 0.5 * w_denorm[-1]]).reshape((-1, 1))
                 simulator.x0 = sim_state
 
                 # If velocity too small, discard
-                if abs(sim_state[0]) < 0.001 or abs(sim_state[1]) < 0.001 or abs(sim_state[2]) < 0.001:
+                if abs(sim_state[0]) < 0.01 or abs(sim_state[1]) < 0.01 or abs(sim_state[2]) < 0.001 or sim_act[1] < 10:
                     continue
 
                 for i in range(5):
@@ -184,16 +184,16 @@ class ModelTrainer:
         return f
 
     def normalize_params(self, params, scale_coeffs):
-        params_normed = [p/s for p,s in zip(params, scale_coeffs)]
+        params_normed = [(p - s)/s for p,s in zip(params, scale_coeffs)]
         return params_normed
 
     def denormalize_params(self, vec, scale_coeffs):
-        params_denormed = [p*s for p,s in zip(vec, scale_coeffs)]
+        params_denormed = [(p*s) + s for p,s in zip(vec, scale_coeffs)]
         return params_denormed
 
     def train_singletrack(self):
-        init_params = [2, 2, 0.14, 0.16, 0.04, 1, 6.9, 1.8, 0.1, 1, 15, 1.7, -0.5, 30]
-        es = cma.CMAEvolutionStrategy(self.normalize_params(init_params, self.singletrack_scale_coeffs), 0.2)
+        init_params = [3, 2, 0.14, 0.16, 0.04, 1, 6.9, 1.8, 0.1, 1, 15, 1.7, -0.5, 120]
+        es = cma.CMAEvolutionStrategy(self.normalize_params(init_params, self.singletrack_scale_coeffs), 0.1)
         f = self.f_wrapper_singletrack()
 
         print(f"Initial_loss: {f(self.normalize_params(init_params, self.singletrack_scale_coeffs))}")
@@ -252,6 +252,6 @@ if __name__=="__main__":
 
     # Train
     if config["train"]:
-        model_trainer.train_bicycle()
-        #model_trainer.train_singletrack()
+        #model_trainer.train_bicycle()
+        model_trainer.train_singletrack()
 
