@@ -20,7 +20,7 @@ class BuggyModelTester:
         self.act_lock = threading.Lock()
 
         #model = make_singletrack_model([3, 2, 0.14, 0.16, 0.04, 1, 6.9, 1.8, 0.1, 1, 15, 1.7, -0.5, 100])
-        model = make_singletrack_model([2.5, 0.9, 0.20, 0.175, 0.041, 1, 6.9, 1.8, 0.1, 1, 15, 1.7, -0.5, 100])
+        model = make_singletrack_model([3.2, 1.5, 0.12, 0.11, 0.056, 1.13, 9.9, 1.88, 0.1, 1.7, 10, 1.69, -0.43, 144])
         #model = make_bicycle_model()
         self.simulator = make_simulator(model)
         self.simulator.reset_history()
@@ -108,7 +108,7 @@ class BuggyModelTester:
                     throttle = np.clip(deepcopy(self.act_msg.throttle), 0.01, 1.)
 
             for i in range(5):
-                x = self.simulator.make_step(np.array([turn, throttle * 94]).reshape(2, 1))
+                x = self.simulator.make_step(np.array([turn, throttle * 144]).reshape(2, 1))
 
             beta, v, ang_vel_z, xpos, ypos, ang_z = x
             orientation_quat = tf.transformations.quaternion_from_euler(0, 0, ang_z)

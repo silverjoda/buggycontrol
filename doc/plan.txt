@@ -1,8 +1,7 @@
-Plan:
 
 # Fitting:
-# Rewrite fitting process to trajectory endpoint mse, not statewise
-# Optimize part of parameters, find out physical meaning of parameters (maybe optuna, with ranges?)
+# Need to somehow prevent simulation from going into low velocity states
+# Check new optimization, try positional error instead of velocity. Play around with parameters
 
 # MPC:
 # Test MPC on singletrack model

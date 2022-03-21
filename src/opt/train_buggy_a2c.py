@@ -23,8 +23,7 @@ class BuggyTrajFollowerTrainer:
 
         if self.config["train"]:
             t1 = time.time()
-            self.model.learn(total_timesteps=self.config["iters"], callback=self.checkpoint_callback,
-                             log_interval=1)
+            self.model.learn(total_timesteps=self.config["iters"], callback=self.checkpoint_callback, log_interval=1)
             t2 = time.time()
 
             print("Training time: {}".format(t2 - t1))

@@ -1,4 +1,5 @@
 iters : 30
-batchsize : 256
+batchsize : 12
 "train" : True
+"traj_fit_len" : 120
 

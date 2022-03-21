@@ -112,8 +112,8 @@ def make_singletrack_model(params=None):
     model.set_rhs('s_y', s_v * sin(s_phi))
     model.set_rhs('s_phi', s_r)
 
-    #model.set_variable(var_type='_tvp', var_name='trajectory_set_point_x')
-    #model.set_variable(var_type='_tvp', var_name='trajectory_set_point_y')
+    model.set_variable(var_type='_tvp', var_name='trajectory_set_point_x')
+    model.set_variable(var_type='_tvp', var_name='trajectory_set_point_y')
 
     # Setup model:
     model.setup()
