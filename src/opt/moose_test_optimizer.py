@@ -399,34 +399,38 @@ class MooseTestOptimizer:
             scaled_grad = hess_inv @ traj_grad
             traj_T_sar = traj_T_sar + 0.01 * scaled_grad
 
-            # Plot gradient
+            # Trajectory xy
             with T.no_grad():
-                traj_reshaped = traj_T_sar.reshape(len(traj_T_sar) // 2, 2).detach().numpy()
-                grad_reshaped = traj_grad.reshape(len(traj_T_sar) // 2, 2).detach().numpy()
-                scaled_grad_reshaped = scaled_grad.reshape(len(traj_T_sar) // 2, 2).detach().numpy()
+                traj_T = sar_to_xy(traj_T_sar)
+
+            # Plot gradient
+            # with T.no_grad():
+            #     traj_reshaped = traj_T_sar.reshape(len(traj_T_sar) // 2, 2).detach().numpy()
+            #     grad_reshaped = traj_grad.reshape(len(traj_T_sar) // 2, 2).detach().numpy()
+            #     scaled_grad_reshaped = scaled_grad.reshape(len(traj_T_sar) // 2, 2).detach().numpy()
 
             # PLOT
             if it % 1 == 0:
-                line1, = ax.plot(list(zip(*traj))[0], list(zip(*traj))[1], marker="o")
+                line1, = ax.plot(list(zip(*traj_T))[0], list(zip(*traj_T))[1], marker="o")
                 ax.scatter([4, 6, 17], [.5, .5, 0], s=200, c=['r', 'r', 'w'])
 
-                ax.quiver(traj_reshaped[:, 0],
-                          traj_reshaped[:, 1],
-                          grad_reshaped[:, 0],
-                          grad_reshaped[:, 1],
-                          width=0.001,
-                          color=[1, 0, 0])
+                # ax.quiver(traj_reshaped[:, 0],
+                #           traj_reshaped[:, 1],
+                #           grad_reshaped[:, 0],
+                #           grad_reshaped[:, 1],
+                #           width=0.001,
+                #           color=[1, 0, 0])
+                #
+                # ax.quiver(traj_reshaped[:, 0],
+                #           traj_reshaped[:, 1],
+                #           scaled_grad_reshaped[:, 0],
+                #           scaled_grad_reshaped[:, 1],
+                #           width=0.001,
+                #           color=[0, 0, 1])
 
-                ax.quiver(traj_reshaped[:, 0],
-                          traj_reshaped[:, 1],
-                          scaled_grad_reshaped[:, 0],
-                          scaled_grad_reshaped[:, 1],
-                          width=0.001,
-                          color=[0, 0, 1])
-
-                x, y = list(zip(*[t.detach().numpy() for t in traj_T_sar.reshape((len(traj_T_sar) // 2, 2))]))
-                line1.set_xdata(x)
-                line1.set_ydata(y)
+                #x, y = list(zip(*[t.detach().numpy() for t in traj_T.reshape((len(traj_T) // 2, 2))]))
+                #line1.set_xdata(x)
+                #line1.set_ydata(y)
                 figure.canvas.draw()
                 figure.canvas.flush_events()
 
