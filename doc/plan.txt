@@ -8,9 +8,9 @@
 # Test MPC with distance constraints
 
 # TEP traj opt
-# Reimplement TEP to accept angle representation for traj
-# Train execution time, not reward
+# Debug moose test optimization with second order (conversions etc)
 # Make training process so that 1 gradient update trajectories are added to dataset. Theoretical working proof?
+# Train execution time, not reward
 
 # Buggy agent training:
 Explore relative waypoint representation (with increasing distances towards the end of traj)

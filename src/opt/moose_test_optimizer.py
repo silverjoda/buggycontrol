@@ -362,7 +362,7 @@ class MooseTestOptimizer:
             # End point stretched out as much as possible
             final_pt_loss = mse_loss(traj_T[-1], T.tensor([13., 0.])) * 0.1
 
-            total_loss = -pred_rew * 0.01 + barrier_loss_sum + final_pt_loss * 0
+            total_loss = -pred_rew * 0.00 + barrier_loss_sum * 0 + final_pt_loss * 1
 
             return total_loss
 
@@ -388,6 +388,11 @@ class MooseTestOptimizer:
         # Plot
         figure, ax = plt.subplots(figsize=(14, 6))
 
+        # TODO: Check if sar_to_x and the inverse are correct
+        # TODO: Check why last point optimization isn't working
+        # TODO: Train agent properly and optimize
+        # TODO: Train TEP With one-step grad training
+
         for it in range(n_iters):
             total_loss = calc_traj_loss(traj_T_sar)
             traj_grad = T.autograd.grad(total_loss, traj_T_sar, allow_unused=True)[0]
@@ -397,7 +402,7 @@ class MooseTestOptimizer:
 
             # Plot gradient changed by hessian
             scaled_grad = hess_inv @ traj_grad
-            traj_T_sar = traj_T_sar + 0.01 * scaled_grad
+            traj_T_sar = traj_T_sar - 0.1 * scaled_grad
 
             # Trajectory xy
             with T.no_grad():
@@ -413,6 +418,7 @@ class MooseTestOptimizer:
             if it % 1 == 0:
                 line1, = ax.plot(list(zip(*traj_T))[0], list(zip(*traj_T))[1], marker="o")
                 ax.scatter([4, 6, 17], [.5, .5, 0], s=200, c=['r', 'r', 'w'])
+                plt.grid()
 
                 # ax.quiver(traj_reshaped[:, 0],
                 #           traj_reshaped[:, 1],

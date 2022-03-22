@@ -9,7 +9,7 @@
   
   <default>
       <default class="buddy_wheel_collision">
-        <geom type="ellipsoid"  size="0.05 0.03 0.05"  friction="1.1 0.005 0.0001" condim="4" contype="1" conaffinity="0" mass="0.05" solimp="0 0.95 0.001 0.5 2" solref="0.02 1" margin="0"/>
+        <geom type="ellipsoid"  size="0.05 0.03 0.05"  friction="1.1 0.005 0.0001" condim="4" contype="1" conaffinity="0" mass="0.3" solimp="0 0.95 0.001 0.5 2" solref="0.02 1" margin="0"/>
       </default> 
       
       <default class="buddy_wheel_visual">
@@ -17,7 +17,7 @@
       </default>
       
       <default class="buddy_steering">
-        <joint type="hinge" axis="0 0 1" limited="true" frictionloss="0.06" damping="0.03" armature="0.0001" range="-0.38 0.38"/>
+        <joint type="hinge" axis="0 0 1" limited="true" frictionloss="0.06" damping="0.03" armature="0.0001" range="-0.42 0.42"/>
       </default>
     
       <default class="buddy_throttle">
