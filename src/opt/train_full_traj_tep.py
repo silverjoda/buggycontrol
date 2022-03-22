@@ -10,7 +10,7 @@ from stable_baselines3 import A2C
 from stable_baselines3.common.vec_env import VecNormalize, DummyVecEnv, VecMonitor
 
 from src.envs.buggy_env_mujoco import BuggyEnv
-from src.policies import TEPTX, TEPMLP, TEPRNN
+from src.policies import TEPTX, TEPMLP, TEPRNN, TEPRNN2
 from src.utils import load_config
 
 plt.ion()
@@ -83,14 +83,17 @@ class TEPDatasetMaker:
 
     def get_successive_angle_representation(self, X):
         X_new = np.zeros((X.shape[0], X.shape[1] // 2))
-        for i in range(X_new.shape[1]):
-            X_new[:, i] = np.arctan2(X[:, i * 2 + 1], X[:, i * 2])
+
+        X_new[:, 0] = np.arctan2(X[:, 1], X[:, 0])
+        for i in range(1, X_new.shape[1]):
+            X_new[:, i] = np.arctan2(X[:, i * 2 + 1] - X[:, (i - 1) * 2 + 1], X[:, i * 2] - X[:, (i - 1) * 2])
         return X_new
 
     def get_delta_representation(self, X):
         X_new = np.zeros_like(X)
         X_new[:, :2] = X[:, :2]
         X_new[:, 2:] = X[:, 2:] - X[:, :-2]
+        return X_new
 
     def train_tep(self):
         # Load dataset
@@ -105,9 +108,10 @@ class TEPDatasetMaker:
 
         # Prepare policy and training
         emb_dim = 36
-        policy = TEPMLP(obs_dim=X_new.shape[1], act_dim=1)
+        policy = TEPMLP(obs_dim=X_new.shape[1], act_dim=1, n_hidden=1)
         #policy = TEPRNN(n_waypts=X_new.shape[1] // 2, hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
-        #policy = TEPTX(n_waypts=X.shape[1] // 2, embed_dim=emb_dim, num_heads=6, kdim=36)
+        #policy = TEPRNN2(n_waypts=X_new.shape[1], hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
+        #policy = TEPTX(n_waypts=X.shape[1], embed_dim=emb_dim, num_heads=6, kdim=36)
         policy_optim = T.optim.Adam(params=policy.parameters(),
                                     lr=self.config['policy_lr'],
                                     weight_decay=self.config['w_decay'])

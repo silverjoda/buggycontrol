@@ -2,6 +2,6 @@
 "max_num_wp" : 50
 "policy_lr" : 0.003
 "w_decay" : 0.001
-"trn_iters" : 3000
-"batchsize" : 64
+"trn_iters" : 30000
+"batchsize" : 256
 

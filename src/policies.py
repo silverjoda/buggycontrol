@@ -217,7 +217,7 @@ class RNN(nn.Module):
         return fc2
 
 class TEPMLP(nn.Module):
-    def __init__(self, obs_dim, act_dim, hid_dim=128):
+    def __init__(self, obs_dim, act_dim, hid_dim=128, n_hidden=1):
         super(TEPMLP, self).__init__()
         self.obs_dim = obs_dim
         self.act_dim = act_dim
@@ -236,7 +236,7 @@ class TEPMLP(nn.Module):
         T.nn.init.xavier_uniform_(self.fc3.weight)
         self.fc3.bias.data.fill_(0.01)
 
-        self.nonlin = F.relu
+        self.nonlin = F.tanh
 
     def forward(self, x):
         fc1 = self.nonlin(self.fc1(x))
@@ -269,6 +269,26 @@ class TEPRNN(nn.Module):
         #rnn1_reshaped = T.reshape(fc2, (len(x), self.n_waypts * self.hid_dim_2))
         #out = self.fc3(rnn1_reshaped)
         return fc3
+
+class TEPRNN2(nn.Module):
+    def __init__(self, n_waypts, hid_dim=64, hid_dim_2=6, num_layers=1, bidirectional=False):
+        super(TEPRNN2, self).__init__()
+        self.n_waypts = n_waypts
+        self.hid_dim = hid_dim
+        self.hid_dim_2 = hid_dim_2
+        self.bidirectional = bidirectional
+
+        self.fc1 = T.nn.Linear(1, 4, bias=True)
+        self.rnn = T.nn.LSTM(input_size=4, hidden_size=self.hid_dim, num_layers=num_layers, bias=True, batch_first=True)
+        self.fc2 = T.nn.Linear(self.hid_dim, 1, bias=True)
+
+        self.nonlin = F.tanh
+
+    def forward(self, x):
+        fc1 = self.nonlin(self.fc1(x.unsqueeze(2)))
+        rnn1, _ = self.rnn(fc1)
+        fc2 = self.fc2(rnn1[:, -1, :])
+        return fc2
 
 class TEPTX(nn.Module):
     def __init__(self, n_waypts, embed_dim, num_heads, kdim):

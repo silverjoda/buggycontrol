@@ -54,7 +54,7 @@ class MooseTestOptimizer:
         #traj = self.optimize_traj_dist(traj, n_iters=1000)
         #traj = self.optimize_traj_exec(traj, self.sb_model.policy, n_iters=1000)
         traj = traj[:50]
-        traj = self.optimize_traj_exec_full(traj, n_iters=300)
+        traj = self.optimize_traj_exec_full_sar(traj, n_iters=300)
         #exit()
 
         for _ in range(100):
@@ -201,7 +201,7 @@ class MooseTestOptimizer:
     def optimize_traj_exec_full(self, traj, n_iters=1):
         traj_len = 50
         # Load TEP
-        tep = TEPMLP(obs_dim=traj_len * 2, act_dim=1)
+        tep = TEPMLP(obs_dim=traj_len, act_dim=1)
         # tep = TEPRNN(n_waypts=len(traj), hid_dim=32, hid_dim_2=6)
         # tep = TEPTX(n_waypts=len(traj) * 2, embed_dim=36, num_heads=6, kdim=36)
         tep.load_state_dict(T.load("agents/full_traj_tep.p"), strict=False)
@@ -321,6 +321,126 @@ class MooseTestOptimizer:
                 print(f"Iter: {it}, total_loss: {total_loss.data}")
 
         optimized_traj = [pt.detach().numpy() for pt in traj_T]
+        return optimized_traj
+
+    def optimize_traj_exec_full_sar(self, traj, n_iters=1):
+        traj_len = 50
+        # Load TEP
+        tep = TEPMLP(obs_dim=traj_len, act_dim=1)
+        # tep = TEPRNN(n_waypts=len(traj), hid_dim=32, hid_dim_2=6)
+        # tep = TEPTX(n_waypts=len(traj) * 2, embed_dim=36, num_heads=6, kdim=36)
+        tep.load_state_dict(T.load("agents/full_traj_tep.p"), strict=False)
+
+        def clipped_mse(a, b):
+            loss = T.minimum(T.sqrt(T.square(a[0] - b[0]) + T.square(a[1] - b[1])), T.tensor(0.5))
+            return loss
+
+        def flattened_mse(p1, p2):
+            a = T.tensor(-1e2)
+            c = T.tensor(.2)
+            x = p1 - p2
+            loss = (T.abs(a - 2.) / (a)) * (T.pow((T.square(x / c) / T.abs(a - 2)) + 1, 0.5 * a) - 1.)
+            return loss
+
+        def dist_T(a, b):
+            return T.sqrt(T.square(a[0] - b[0]) + T.square(a[1] - b[1]))
+
+        def calc_traj_loss(traj_T):
+            # TODO: continue here
+            traj_pairwise = traj_T.reshape((len(traj_T) // 2, 2))
+            cur_traj_T_delta = T.concat((traj_T[:2], traj_T[2:] - traj_T[:-2]))
+
+            # etp loss
+            pred_rew = tep(cur_traj_T_delta)
+
+            # Trajectory losses
+            b1_T = T.tensor(self.b1_pos, requires_grad=False)
+            b2_T = T.tensor(self.b2_pos, requires_grad=False)
+
+            # Barrier constraints
+            barrier_loss_list = []
+            for xy_T in traj_pairwise:
+                barrier_loss_list.append(-(barrier_lf(xy_T, b1_T) + barrier_lf(xy_T, b2_T)) * 0.06)
+            barrier_loss_sum = T.stack(barrier_loss_list).sum()
+
+            # End point stretched out as much as possible
+            # final_pt_loss = mse_loss(traj_T[-1], T.tensor([13., 0.])) * 0.1
+            final_pt_loss = -traj_pairwise[-1][0] * 0.2 + T.square(traj_pairwise[-1][1])
+
+            # Minimize square distance between points
+            inter_pt_loss_list = []
+            for i in range(len(traj_pairwise) - 1):
+                inter_pt_loss_list.append(mse_loss(dist_T(traj_pairwise[i], traj_pairwise[i + 1]), T.tensor(0.17)) * 3)
+
+            total_loss = -pred_rew * 0.005 + T.stack(inter_pt_loss_list).sum() + final_pt_loss + barrier_loss_sum
+
+            return total_loss
+
+        def xy_to_sar(X):
+            X_new = np.zeros(len(X))
+            X_new[0] = np.arctan2(X[0][1], X[0][0])
+            for i in range(1, len(X)):
+                X_new[i] = np.arctan2(X[i][1] - X[i - 1][1], X[i][0] - X[i - 1][0])
+            return X_new
+
+        barrier_lf = flattened_mse
+        mse_loss = T.nn.MSELoss()
+
+        traj_T_sar = T.tensor(xy_to_sar(traj), dtype=T.float32, requires_grad=True).reshape(len(traj))
+
+        # Plot
+        figure, ax = plt.subplots(figsize=(14, 6))
+
+        for it in range(n_iters):
+            total_loss = calc_traj_loss(traj_T_sar)
+
+            traj_grad = T.autograd.grad(total_loss, traj_T_sar, allow_unused=True)[0]
+
+            hess = T.autograd.functional.hessian(calc_traj_loss, traj_T_sar)
+            hess_inv = T.linalg.inv(hess)
+
+            # Plot gradient changed by hessian
+            scaled_grad = hess_inv @ traj_grad
+            traj_T_sar = traj_T_sar + 0.01 * scaled_grad
+
+            # Plot gradient
+            with T.no_grad():
+                traj_reshaped = traj_T_sar.reshape(len(traj_T_sar) // 2, 2).detach().numpy()
+                grad_reshaped = traj_grad.reshape(len(traj_T_sar) // 2, 2).detach().numpy()
+                scaled_grad_reshaped = scaled_grad.reshape(len(traj_T_sar) // 2, 2).detach().numpy()
+
+            # PLOT
+            if it % 1 == 0:
+                line1, = ax.plot(list(zip(*traj))[0], list(zip(*traj))[1], marker="o")
+                ax.scatter([4, 6, 17], [.5, .5, 0], s=200, c=['r', 'r', 'w'])
+
+                ax.quiver(traj_reshaped[:, 0],
+                          traj_reshaped[:, 1],
+                          grad_reshaped[:, 0],
+                          grad_reshaped[:, 1],
+                          width=0.001,
+                          color=[1, 0, 0])
+
+                ax.quiver(traj_reshaped[:, 0],
+                          traj_reshaped[:, 1],
+                          scaled_grad_reshaped[:, 0],
+                          scaled_grad_reshaped[:, 1],
+                          width=0.001,
+                          color=[0, 0, 1])
+
+                x, y = list(zip(*[t.detach().numpy() for t in traj_T_sar.reshape((len(traj_T_sar) // 2, 2))]))
+                line1.set_xdata(x)
+                line1.set_ydata(y)
+                figure.canvas.draw()
+                figure.canvas.flush_events()
+
+                ax.clear()
+
+            if it % 1 == 0:
+                # print(f"Iter: {it}, total_loss: {total_loss.data}, tep_pred_rew: {pred_rew.data}, final_pt_loss: {final_pt_loss.data}, barrier_loss: {barrier_loss_sum.data}")
+                print(f"Iter: {it}, total_loss: {total_loss.data}")
+
+        optimized_traj = [pt.detach().numpy() for pt in traj_T_sar]
         return optimized_traj
 
     def optimize_traj_dist(self, traj, n_iters=1):
