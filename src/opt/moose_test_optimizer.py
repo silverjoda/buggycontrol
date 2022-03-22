@@ -55,7 +55,7 @@ class MooseTestOptimizer:
         #traj = self.optimize_traj_exec(traj, self.sb_model.policy, n_iters=1000)
         traj = traj[:50]
         traj = self.optimize_traj_exec_full_sar(traj, n_iters=300)
-        #exit()
+        exit()
 
         for _ in range(100):
             #traj = self.optimize_traj_dist(traj, n_iters=10)
@@ -345,34 +345,24 @@ class MooseTestOptimizer:
         def dist_T(a, b):
             return T.sqrt(T.square(a[0] - b[0]) + T.square(a[1] - b[1]))
 
-        def calc_traj_loss(traj_T):
-            # TODO: continue here
-            traj_pairwise = traj_T.reshape((len(traj_T) // 2, 2))
-            cur_traj_T_delta = T.concat((traj_T[:2], traj_T[2:] - traj_T[:-2]))
+        def calc_traj_loss(traj_T_sar):
+            traj_T = sar_to_xy(traj_T_sar)
 
             # etp loss
-            pred_rew = tep(cur_traj_T_delta)
-
-            # Trajectory losses
-            b1_T = T.tensor(self.b1_pos, requires_grad=False)
-            b2_T = T.tensor(self.b2_pos, requires_grad=False)
+            pred_rew = tep(traj_T_sar)
 
             # Barrier constraints
+            b1_T = T.tensor(self.b1_pos, requires_grad=False)
+            b2_T = T.tensor(self.b2_pos, requires_grad=False)
             barrier_loss_list = []
-            for xy_T in traj_pairwise:
+            for xy_T in traj_T:
                 barrier_loss_list.append(-(barrier_lf(xy_T, b1_T) + barrier_lf(xy_T, b2_T)) * 0.06)
             barrier_loss_sum = T.stack(barrier_loss_list).sum()
 
             # End point stretched out as much as possible
-            # final_pt_loss = mse_loss(traj_T[-1], T.tensor([13., 0.])) * 0.1
-            final_pt_loss = -traj_pairwise[-1][0] * 0.2 + T.square(traj_pairwise[-1][1])
+            final_pt_loss = mse_loss(traj_T[-1], T.tensor([13., 0.])) * 0.1
 
-            # Minimize square distance between points
-            inter_pt_loss_list = []
-            for i in range(len(traj_pairwise) - 1):
-                inter_pt_loss_list.append(mse_loss(dist_T(traj_pairwise[i], traj_pairwise[i + 1]), T.tensor(0.17)) * 3)
-
-            total_loss = -pred_rew * 0.005 + T.stack(inter_pt_loss_list).sum() + final_pt_loss + barrier_loss_sum
+            total_loss = -pred_rew * 0.01 + barrier_loss_sum + final_pt_loss * 0
 
             return total_loss
 
@@ -382,6 +372,13 @@ class MooseTestOptimizer:
             for i in range(1, len(X)):
                 X_new[i] = np.arctan2(X[i][1] - X[i - 1][1], X[i][0] - X[i - 1][0])
             return X_new
+
+        def sar_to_xy(X):
+            wp_dist = 0.17
+            pd_x = T.cumsum(T.cos(X) * wp_dist, dim=0).unsqueeze(1)
+            pd_y = T.cumsum(T.sin(X) * wp_dist, dim=0).unsqueeze(1)
+            traj_T = T.concat((pd_x, pd_y), dim=1)
+            return traj_T
 
         barrier_lf = flattened_mse
         mse_loss = T.nn.MSELoss()
@@ -393,7 +390,6 @@ class MooseTestOptimizer:
 
         for it in range(n_iters):
             total_loss = calc_traj_loss(traj_T_sar)
-
             traj_grad = T.autograd.grad(total_loss, traj_T_sar, allow_unused=True)[0]
 
             hess = T.autograd.functional.hessian(calc_traj_loss, traj_T_sar)
