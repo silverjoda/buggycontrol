@@ -248,7 +248,6 @@ class MooseTestOptimizer:
 
             total_loss = -pred_rew * 0.005 + T.stack(inter_pt_loss_list).sum() + final_pt_loss + barrier_loss_sum
 
-
             return total_loss
 
         barrier_lf = flattened_mse
@@ -384,11 +383,10 @@ class MooseTestOptimizer:
         mse_loss = T.nn.MSELoss()
 
         traj_T_sar = T.tensor(xy_to_sar(traj), dtype=T.float32, requires_grad=True).reshape(len(traj))
-
+        
         # Plot
         figure, ax = plt.subplots(figsize=(14, 6))
 
-        # TODO: Check if sar_to_x and the inverse are correct
         # TODO: Check why last point optimization isn't working
         # TODO: Train agent properly and optimize
         # TODO: Train TEP With one-step grad training

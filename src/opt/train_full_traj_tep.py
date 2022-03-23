@@ -154,11 +154,7 @@ class TEPDatasetMaker:
         X_new = self.get_successive_angle_representation(X)
 
         # Prepare policy and training
-        emb_dim = 36
         policy = TEPMLP(obs_dim=X_new.shape[1], act_dim=1, n_hidden=1)
-        #policy = TEPRNN(n_waypts=X_new.shape[1] // 2, hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
-        #policy = TEPRNN2(n_waypts=X_new.shape[1], hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
-        #policy = TEPTX(n_waypts=X.shape[1], embed_dim=emb_dim, num_heads=6, kdim=36)
         policy_optim = T.optim.Adam(params=policy.parameters(),
                                     lr=self.config['policy_lr'],
                                     weight_decay=self.config['w_decay'])
@@ -193,4 +189,5 @@ class TEPDatasetMaker:
 if __name__ == "__main__":
     tm = TEPDatasetMaker()
     #tm.make_dataset(render=False)
-    tm.train_tep()
+    #tm.train_tep()
+    tm.train_tep_1step_grad()

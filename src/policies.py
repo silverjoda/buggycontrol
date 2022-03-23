@@ -217,7 +217,7 @@ class RNN(nn.Module):
         return fc2
 
 class TEPMLP(nn.Module):
-    def __init__(self, obs_dim, act_dim, hid_dim=128, n_hidden=1):
+    def __init__(self, obs_dim, act_dim, hid_dim=256, n_hidden=1):
         super(TEPMLP, self).__init__()
         self.obs_dim = obs_dim
         self.act_dim = act_dim
@@ -257,7 +257,7 @@ class TEPRNN(nn.Module):
         self.fc2 = T.nn.Linear(self.hid_dim * (1 + bidirectional), self.hid_dim_2, bias=True)
         self.fc3 = T.nn.Linear(self.hid_dim_2, 1, bias=True)
 
-        self.nonlin = F.relu
+        self.nonlin = F.tanh
 
     def forward(self, x):
         x_reshaped = T.reshape(x, (len(x), self.n_waypts, 2))
