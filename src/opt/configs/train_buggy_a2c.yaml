@@ -2,7 +2,7 @@
 "train" : True
 "render" : False
 "default_session_ID" : "TRN"
-"iters" : 4000000
+"iters" : 3000000
 
 # RL algo
 "algo_name" : "A2C"
