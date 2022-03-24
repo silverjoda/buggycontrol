@@ -113,7 +113,7 @@ class BuggyTrajFollowerTrainer:
                     learning_rate=self.config["learning_rate"],
                     verbose=self.config["verbose"],
                     device="cpu",
-                    policy_kwargs=dict(net_arch=[self.config["policy_hid_dim"], self.config["policy_hid_dim"]]))
+                    policy_kwargs=dict(activation_fn=T.nn.ReLU, net_arch=[self.config["policy_hid_dim"], self.config["policy_hid_dim"]]))
 
         callback_list = CallbackList([checkpoint_callback, eval_callback])
 

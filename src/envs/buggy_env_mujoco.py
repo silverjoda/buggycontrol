@@ -24,7 +24,7 @@ class BuggyEnv(gym.Env):
         self.car_template_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/one_car.xml")
         self.car_rnd_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/one_car_rnd.xml")
 
-        n_traj_obs = self.config["n_traj_pts"] * (2 - self.config["use_engine_2"])
+        n_traj_obs = self.config["n_traj_pts"] * 2 #(3 - self.config["use_engine_2"])
         self.obs_dim = self.config["state_dim"] + n_traj_obs + self.config["allow_latent_input"] * \
                        self.config["latent_dim"] + self.config["allow_lte"]
         self.act_dim = 2
