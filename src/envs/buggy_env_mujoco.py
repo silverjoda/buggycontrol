@@ -168,17 +168,6 @@ class BuggyEnv(gym.Env):
         #done = self.step_ctr > self.config["max_steps"]
         #done = done or self.step_ctr > self.config["max_steps"]
 
-        #if self.config["render"]:
-        #    self.render()
-
-        # wp_list = complete_obs_vec[5:]
-        # X_new = np.zeros(15)
-        # X_new[0] = np.arctan2(wp_list[1], wp_list[0])
-        # for i in range(1, 15):
-        #     X_new[i] = np.arctan2(wp_buggy[i][1] - wp_buggy[i - 1][1], wp_buggy[i][0] - wp_buggy[i - 1][0]) - X_new[
-        #         i - 1]
-        # complete_obs_vec[5:] = X_new
-
         return complete_obs_vec, r, done, {"visited" : wp_visited}
 
     def reset(self):

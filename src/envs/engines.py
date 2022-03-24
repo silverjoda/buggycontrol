@@ -302,12 +302,16 @@ class MujocoEngine2(Engine):
 
         wps_buggy_frame = obs_dict["wp_list"]
 
-        X_new = np.zeros(len(wps_buggy_frame), dtype=np.float32)
-        X_new[0] = np.arctan2(wps_buggy_frame[0][1], wps_buggy_frame[0][0])
-        for i in range(1, len(wps_buggy_frame)):
-            X_new[i] = np.arctan2(wps_buggy_frame[i][1] - wps_buggy_frame[i - 1][1], wps_buggy_frame[i][0] - wps_buggy_frame[i - 1][0]) #- X_new[i - 1]
+        # X_new = np.zeros(len(wps_buggy_frame), dtype=np.float32)
+        # X_new[0] = np.arctan2(wps_buggy_frame[0][1], wps_buggy_frame[0][0])
+        # for i in range(1, len(wps_buggy_frame)):
+        #     X_new[i] = np.arctan2(wps_buggy_frame[i][1] - wps_buggy_frame[i - 1][1], wps_buggy_frame[i][0] - wps_buggy_frame[i - 1][0]) #- X_new[i - 1]
 
-        return state + list(X_new), obs_dict
+        X_new = np.zeros_like(wps_buggy_frame)
+        X_new[:, :2] = wps_buggy_frame[:, :2]
+        X_new[:, 2:] = wps_buggy_frame[:, 2:] - wps_buggy_frame[:, :-2]
+
+        return state + list(X_new.reshape(-1)), obs_dict
 
 class LTEEngine(Engine):
     def __init__(self, config, mujoco_sim, lte):
