@@ -291,7 +291,7 @@ class MujocoEngine2(Engine):
         vel_buggy = np.matmul(ori_mat.T, vel_glob[:, np.newaxis])[:, 0]
         ang_vel = self.mujoco_sim.data.body_xvelr[self.bodyid].copy()
         wps = self.wp_list[self.cur_wp_idx:self.cur_wp_idx + self.config["n_traj_pts"]]
-        wps_buggy_frame = self.transform_wp_to_buggy_frame_sar(wps, pos, ori_q)
+        wps_buggy_frame = self.transform_wp_to_buggy_frame(wps, pos, ori_q)
         turn_angle = np.clip(self.mujoco_sim.get_state().qpos[7] * 2.5, -1, 1)
         rear_wheel_speed = np.clip(((self.mujoco_sim.get_state().qvel[14] + self.mujoco_sim.get_state().qvel[16]) / 2.) / 200, -1, 1)
         return {"pos" : pos, "ori_q" : ori_q, "ori_mat" : ori_mat, "vel" : vel_buggy, "ang_vel" : ang_vel, "wp_list" : wps_buggy_frame, "turn_angle" : turn_angle, "rear_wheel_speed" : rear_wheel_speed}
@@ -299,9 +299,15 @@ class MujocoEngine2(Engine):
     def get_complete_obs_vec(self):
         obs_dict = self.get_obs_dict()
         state = self.get_state_vec(obs_dict)
+
         wps_buggy_frame = obs_dict["wp_list"]
 
-        return state + list(wps_buggy_frame), obs_dict
+        X_new = np.zeros(len(wps_buggy_frame), dtype=np.float32)
+        X_new[0] = np.arctan2(wps_buggy_frame[0][1], wps_buggy_frame[0][0])
+        for i in range(1, len(wps_buggy_frame)):
+            X_new[i] = np.arctan2(wps_buggy_frame[i][1] - wps_buggy_frame[i - 1][1], wps_buggy_frame[i][0] - wps_buggy_frame[i - 1][0]) #- X_new[i - 1]
+
+        return state + list(X_new), obs_dict
 
 class LTEEngine(Engine):
     def __init__(self, config, mujoco_sim, lte):

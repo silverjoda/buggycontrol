@@ -24,7 +24,7 @@ class BuggyEnv(gym.Env):
         self.car_template_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/one_car.xml")
         self.car_rnd_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/one_car_rnd.xml")
 
-        n_traj_obs = self.config["n_traj_pts"] * (1 + self.config["use_engine_2"])
+        n_traj_obs = self.config["n_traj_pts"] * (2 - self.config["use_engine_2"])
         self.obs_dim = self.config["state_dim"] + n_traj_obs + self.config["allow_latent_input"] * \
                        self.config["latent_dim"] + self.config["allow_lte"]
         self.act_dim = 2
@@ -170,6 +170,14 @@ class BuggyEnv(gym.Env):
 
         #if self.config["render"]:
         #    self.render()
+
+        # wp_list = complete_obs_vec[5:]
+        # X_new = np.zeros(15)
+        # X_new[0] = np.arctan2(wp_list[1], wp_list[0])
+        # for i in range(1, 15):
+        #     X_new[i] = np.arctan2(wp_buggy[i][1] - wp_buggy[i - 1][1], wp_buggy[i][0] - wp_buggy[i - 1][0]) - X_new[
+        #         i - 1]
+        # complete_obs_vec[5:] = X_new
 
         return complete_obs_vec, r, done, {"visited" : wp_visited}
 
