@@ -8,7 +8,7 @@
 # Test MPC with distance constraints
 
 # TEP traj opt
-# See how much actual time execution differs from actual trajectory reward
+# test tep after training good policy
 # Train time execution between point A and B, instead of reward
 # In train_full_traj_tep make reward evaluation of 1 step gradient for random trajectories (Does stepping 1 gradient make trajectory better or worse).
 # Make training process so that 1 gradient update trajectories are added to dataset. Theoretical working proof, al la dagger?
