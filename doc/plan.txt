@@ -8,6 +8,7 @@
 # Test MPC with distance constraints
 
 # TEP traj opt
+# Check TEP training performance with successive angle abs or delta (subtracting prev angle)
 # test tep after training good policy
 # Train time execution between point A and B, instead of reward
 # In train_full_traj_tep make reward evaluation of 1 step gradient for random trajectories (Does stepping 1 gradient make trajectory better or worse).

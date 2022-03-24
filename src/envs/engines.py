@@ -74,6 +74,7 @@ class Engine:
         return [turn_angle, rear_wheel_speed, vel[0], vel[1], ang_vel[2]]
 
     def get_complete_obs_vec(self):
+        exit()
         obs_dict = self.get_obs_dict()
         state = self.get_state_vec(obs_dict)
         wps_buggy_frame = obs_dict["wp_list"]
@@ -91,6 +92,20 @@ class Engine:
         t_mat = np.array([[np.cos(-theta), -np.sin(-theta)], [np.sin(-theta), np.cos(-theta)]])
         wp_buggy = np.matmul(t_mat, wp_arr_centered.T).T
         return wp_buggy
+
+    def transform_wp_to_buggy_frame_sar(self, wp_list, pos, ori_q):
+        wp_arr = np.array(wp_list)
+        wp_arr_centered = wp_arr - np.array(pos[0:2])
+        buggy_q = ori_q
+        _, _, theta = self.q2e(*buggy_q)
+        t_mat = np.array([[np.cos(-theta), -np.sin(-theta)], [np.sin(-theta), np.cos(-theta)]])
+        wp_buggy = np.matmul(t_mat, wp_arr_centered.T).T
+
+        X_new = np.zeros(len(wp_buggy))
+        X_new[0] = np.arctan2(wp_buggy[0][1], wp_buggy[0][0])
+        for i in range(1, len(wp_buggy)):
+            X_new[i] = np.arctan2(wp_buggy[i][1] - wp_buggy[i - 1][1], wp_buggy[i][0] - wp_buggy[i - 1][0]) - X_new[i - 1]
+        return X_new
 
     def q2e(self, w, x, y, z):
         pitch = -m.asin(2.0 * (x * z - w * y))
@@ -221,6 +236,72 @@ class MujocoEngine(Engine):
         rear_wheel_speed = np.clip(((self.mujoco_sim.get_state().qvel[14] + self.mujoco_sim.get_state().qvel[16]) / 2.) / 200, -1, 1)
         return {"pos" : pos, "ori_q" : ori_q, "ori_mat" : ori_mat, "vel" : vel_buggy, "ang_vel" : ang_vel, "wp_list" : wps_buggy_frame, "turn_angle" : turn_angle, "rear_wheel_speed" : rear_wheel_speed}
 
+    def get_complete_obs_vec(self):
+        obs_dict = self.get_obs_dict()
+        state = self.get_state_vec(obs_dict)
+        wps_buggy_frame = obs_dict["wp_list"]
+
+        wps_contiguous = []
+        for w in wps_buggy_frame:
+            wps_contiguous.extend(w)
+        return state + wps_contiguous, obs_dict
+
+class MujocoEngine2(Engine):
+    def __init__(self, config, mujoco_sim):
+        super().__init__(config, mujoco_sim)
+        self.bodyid = self.model.body_name2id('buddy')
+
+    def step(self, action):
+        # Step simulation
+        self.mujoco_sim.data.ctrl[:] = action
+        self.mujoco_sim.forward()
+        self.mujoco_sim.step()
+
+        # Update hidden states
+        #self.update_estimators(action)
+
+        return self.step_trajectory(self.mujoco_sim.data.body_xpos[self.bodyid].copy()[0:2])
+
+    def reset(self):
+        self.reset_estimators()
+        self.mujoco_sim.reset()
+        self.reset_trajectory()
+
+    def render(self):
+        if not hasattr(self, 'viewer'):
+            self.viewer = mujoco_py.MjViewerBasic(self.mujoco_sim)
+        self.viewer.render()
+
+    def update_estimators(self, act):
+        # turn: -0.4,0.4, throttle: 0,1
+        turn, throttle = act
+        if turn >= 0:
+            pass
+            #self.turn_est = np.clip(self.turn_est + turn, -0.4, np.minimum(0.4))
+
+    def reset_estimators(self):
+        self.turn_est = 0
+        self.throttle_est = 0
+
+    def get_obs_dict(self):
+        pos = self.mujoco_sim.data.body_xpos[self.bodyid].copy()
+        ori_q = self.mujoco_sim.data.body_xquat[self.bodyid].copy()
+        ori_mat = np.reshape(self.mujoco_sim.data.body_xmat[self.bodyid], (3, 3))
+        vel_glob = self.mujoco_sim.data.body_xvelp[self.bodyid].copy()
+        vel_buggy = np.matmul(ori_mat.T, vel_glob[:, np.newaxis])[:, 0]
+        ang_vel = self.mujoco_sim.data.body_xvelr[self.bodyid].copy()
+        wps = self.wp_list[self.cur_wp_idx:self.cur_wp_idx + self.config["n_traj_pts"]]
+        wps_buggy_frame = self.transform_wp_to_buggy_frame_sar(wps, pos, ori_q)
+        turn_angle = np.clip(self.mujoco_sim.get_state().qpos[7] * 2.5, -1, 1)
+        rear_wheel_speed = np.clip(((self.mujoco_sim.get_state().qvel[14] + self.mujoco_sim.get_state().qvel[16]) / 2.) / 200, -1, 1)
+        return {"pos" : pos, "ori_q" : ori_q, "ori_mat" : ori_mat, "vel" : vel_buggy, "ang_vel" : ang_vel, "wp_list" : wps_buggy_frame, "turn_angle" : turn_angle, "rear_wheel_speed" : rear_wheel_speed}
+
+    def get_complete_obs_vec(self):
+        obs_dict = self.get_obs_dict()
+        state = self.get_state_vec(obs_dict)
+        wps_buggy_frame = obs_dict["wp_list"]
+
+        return state + list(wps_buggy_frame), obs_dict
 
 class LTEEngine(Engine):
     def __init__(self, config, mujoco_sim, lte):
