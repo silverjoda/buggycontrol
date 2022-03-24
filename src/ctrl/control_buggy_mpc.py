@@ -19,17 +19,17 @@ class ControlBuggyMPC:
         self.waypoints = [3, 3]
 
         #self.model = make_bicycle_model()
-        self.model = make_singletrack_model([3.2, 1.5, 0.12, 0.11, 0.056, 1.13, 9.9, 1.88, 0.1, 1.7, 10, 1.69, -0.43, 144])
-        #self.model = make_linmod_model()
+        #self.model = make_singletrack_model([3.2, 1.5, 0.12, 0.11, 0.056, 1.13, 9.9, 1.88, 0.1, 1.7, 10, 1.69, -0.43, 144])
+        self.model = make_linmod_model()
 
         #self.mpc = make_mpc_bicycle(self.model, waypoints=self.waypoints)
-        self.mpc = make_mpc_singletrack(self.model, waypoints=self.waypoints)
-        #self.mpc = make_mpc_linmod_hybrid(self.model)
+        #self.mpc = make_mpc_singletrack(self.model, waypoints=self.waypoints)
+        self.mpc = make_mpc_linmod_hybrid(self.model)
         self.simulator = make_simulator(self.model)
 
         #self.test_mpc_bicycle(self.buggy_env_mujoco, self.model, self.mpc, self.simulator)
-        self.test_mpc_singletrack(self.buggy_env_mujoco, self.model, self.mpc, self.simulator)
-        #self.test_mpc_linmod(self.buggy_env_mujoco, self.model, self.mpc, self.simulator)
+        #self.test_mpc_singletrack(self.buggy_env_mujoco, self.model, self.mpc, self.simulator)
+        self.test_mpc_linmod(self.buggy_env_mujoco, self.model, self.mpc, self.simulator)
 
     def get_mpc_state_singletrack(self, obs_dict):
         # beta, velocity (vec), yaw rate, x, y, phi
@@ -174,7 +174,7 @@ class ControlBuggyMPC:
                     x = np.array(x).reshape(-1, 1)
                 else:
                     # Get next side slip angle from simulator
-                    #u = np.array([0.0, 1]).reshape(-1, 1)
+                    #u = np.array([0.0, -1., 0, 0, 0, 0]).reshape(-1, 1)
                     for _ in range(5):
                         x = simulator.make_step(u)
 

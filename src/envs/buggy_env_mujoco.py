@@ -207,7 +207,7 @@ class BuggyEnv(gym.Env):
             while True:
                 zero_act = np.array([-1.0, -1.0])
                 rnd_act = np.clip(self.noise(), -1, 1)
-                _, r, done, _ = self.step(zero_act) # turn, throttle
+                _, r, done, _ = self.step(rnd_act) # turn, throttle
                 #print(r)
                 cum_rew += r
                 if self.config["render"]:

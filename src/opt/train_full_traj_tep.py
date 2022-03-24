@@ -185,6 +185,9 @@ class TEPDatasetMaker:
             os.makedirs("agents")
         T.save(policy.state_dict(), "agents/full_traj_tep.p")
 
+    def test_tep(self):
+        # TODO: Rollout trajectories and print predicted vs actual rew and time taken
+        pass
 
 if __name__ == "__main__":
     tm = TEPDatasetMaker()

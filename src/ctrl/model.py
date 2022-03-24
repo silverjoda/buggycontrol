@@ -201,13 +201,15 @@ def make_linmod_model():
     s_x = model.set_variable(var_type='_x', var_name='s_x', shape=(1, 1))
     s_y = model.set_variable(var_type='_x', var_name='s_y', shape=(1, 1))
     s_phi = model.set_variable(var_type='_x', var_name='s_phi', shape=(1, 1))
+
     # Latent states and actions
     x = model.set_variable(var_type='_x', var_name='x', shape=(state_dim, 1))
     u = model.set_variable(var_type='_u', var_name='u', shape=(act_dim, 1))
 
-    model.set_rhs('s_x', x[0] * cos(s_phi) - x[1] * sin(s_phi))
-    model.set_rhs('s_y', x[0] * sin(s_phi) + x[1] * cos(s_phi))
-    model.set_rhs('s_phi', x[2])
+    dt = 0.01
+    model.set_rhs('s_x', s_x + x[0] * dt * cos(s_phi))
+    model.set_rhs('s_y', s_y + x[1] * dt * sin(s_phi))
+    model.set_rhs('s_phi', s_phi + x[2] * dt)
 
     # Internal linear model
     model.set_rhs('x', A @ x + B @ u)
