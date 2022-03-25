@@ -338,6 +338,6 @@ class TEPDatasetMaker:
 if __name__ == "__main__":
     tm = TEPDatasetMaker()
     tm.make_dataset(render=False)
-    #tm.train_tep()
+    tm.train_tep()
     #tm.train_tep_1step_grad()
     #tm.test_tep()
