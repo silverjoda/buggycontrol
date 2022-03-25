@@ -56,18 +56,9 @@ class TEPDatasetMaker:
         rew_list = []
         for i in range(self.n_dataset_pts):
             obs = self.venv.reset()
-            episode_rew = 0
-            step_ctr = 0
-            while True:
-                step_ctr += 1
-                action, _states = self.sb_model.predict(obs, deterministic=True)
-                obs, reward, done, info = self.venv.step(action)
-                episode_rew += self.venv.get_original_reward()
-                if render:
-                    self.venv.render()
-                if done:
-                    break
-            obs_list.append([item for sublist in self.env.engine.wp_list[:self.max_num_wp] for item in sublist])
+            traj = [item for sublist in self.env.engine.wp_list[:self.max_num_wp] for item in sublist]
+            obs_list.append(traj)
+            episode_rew = self.evaluate_rollout(obs, traj=None, render=False, deterministic=False)
             rew_list.append(episode_rew)
 
             if i % 10 == 0:
@@ -81,9 +72,28 @@ class TEPDatasetMaker:
 
         return obs_arr, rew_arr
 
+    def evaluate_rollout(self, obs, traj=None, render=False, deterministic=True):
+        if traj is not None:
+            traj_xy = self.sar_to_xy(traj)
+            self.env.engine.wp_list = traj_xy
+
+        obs = self.venv.normalize_obs(obs[0])
+        episode_rew = 0
+        step_ctr = 0
+        for i in range(self.config["max_steps"]):
+            step_ctr += 1
+            action, _states = self.sb_model.predict(obs, deterministic=deterministic)
+            obs, reward, _, info = self.env.step(action)
+            obs = self.venv.normalize_obs(obs)
+            episode_rew += reward
+            if render:
+                self.env.render()
+            if self.env.engine.cur_wp_idx > 30:
+                break
+        return step_ctr * 0.01
+
     def get_successive_angle_representation(self, X):
         X_new = np.zeros((X.shape[0], X.shape[1] // 2))
-
         X_new[:, 0] = np.arctan2(X[:, 1], X[:, 0])
         for i in range(1, X_new.shape[1]):
             X_new[:, i] = np.arctan2(X[:, i * 2 + 1] - X[:, (i - 1) * 2 + 1], X[:, i * 2] - X[:, (i - 1) * 2])
@@ -107,12 +117,15 @@ class TEPDatasetMaker:
         X_new = self.get_successive_angle_representation(X)
 
         # Prepare policy and training
-        emb_dim = 36
-        policy = TEPMLP(obs_dim=X_new.shape[1], act_dim=1, n_hidden=1)
-        #policy = TEPRNN(n_waypts=X_new.shape[1] // 2, hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
-        #policy = TEPRNN2(n_waypts=X_new.shape[1], hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
-        #policy = TEPTX(n_waypts=X.shape[1], embed_dim=emb_dim, num_heads=6, kdim=36)
-        policy_optim = T.optim.Adam(params=policy.parameters(),
+        tep = TEPMLP(obs_dim=X_new.shape[1], act_dim=1, n_hidden=1)
+
+        #RNN
+        #tep = TEPRNN(n_waypts=X_new.shape[1] // 2, hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
+        #tep = TEPRNN2(n_waypts=X_new.shape[1], hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
+
+        # emb_dim = 36
+        #tep = TEPTX(n_waypts=X.shape[1], embed_dim=emb_dim, num_heads=6, kdim=36)
+        policy_optim = T.optim.Adam(params=tep.parameters(),
                                     lr=self.config['policy_lr'],
                                     weight_decay=self.config['w_decay'])
         lossfun = T.nn.MSELoss()
@@ -125,7 +138,7 @@ class TEPDatasetMaker:
             x_T = T.tensor(x, dtype=T.float32)
             y_T = T.tensor(y, dtype=T.float32)
 
-            y_ = policy(x_T)
+            y_ = tep(x_T)
             policy_loss = lossfun(y_, y_T)
 
             total_loss = policy_loss
@@ -140,7 +153,7 @@ class TEPDatasetMaker:
         print("Done training, saving model")
         if not os.path.exists("agents"):
             os.makedirs("agents")
-        T.save(policy.state_dict(), "agents/full_traj_tep.p")
+        T.save(tep.state_dict(), "agents/full_traj_tep.p")
 
     def train_tep_1step_grad(self):
         # Load pretrained tep
@@ -169,7 +182,8 @@ class TEPDatasetMaker:
         n_data = len(X)
         for ep in range(n_epochs):
             # Do single epoch
-            rnd_indeces = np.random.shuffle(np.arange(n_data))
+            rnd_indeces = np.arange(n_data)
+            np.random.shuffle(rnd_indeces)
             for i in range(0, n_data, self.config["batchsize"] // 2):
                 # Halfbatch from core dataset
                 x_c = X[i:i + self.config["batchsize"] // 2]
@@ -192,13 +206,17 @@ class TEPDatasetMaker:
                 policy_optim.step()
                 policy_optim.zero_grad()
 
-                if i % 50 == 0:
-                    print(
-                        "Iter {}/{}, policy_loss: {}".format(i, self.config['trn_iters'], policy_loss.data))
+                print("Epoch: {}, Iter {}, policy_loss: {}".format(ep, i, policy_loss.data))
 
             # Update ud dataset
             for t_idx in range(len(X)):
-                X_ud[t_idx] = self.perform_grad_update_full_traj(X[t_idx], tep)
+                x_ud_traj = T.clone(X[t_idx]).detach()
+                x_ud_traj.requires_grad = True
+                X_ud[t_idx] = self.perform_grad_update_full_traj(x_ud_traj, tep)
+
+                # Annotate the new X_ud
+                obs = self.env.reset()
+                Y_ud = self.evaluate_rollout(obs, X_ud[t_idx])
 
         print("Done training, saving model")
         if not os.path.exists("agents"):
@@ -213,21 +231,7 @@ class TEPDatasetMaker:
         render = True
         for i in range(N_eval):
             obs = self.env.reset()
-            obs = self.venv.normalize_obs(obs)
-
-            episode_rew = 0
-            step_ctr = 0
-            while True:
-                step_ctr += 1
-                action, _states = self.sb_model.predict(obs.unsqueeze(0), deterministic=True)
-                obs, reward, done, info = self.env.step(action)
-                obs = self.venv.normalize_obs(obs)
-                episode_rew += reward
-
-                if render:
-                    self.env.render()
-                if self.env.engine.cur_wp_idx > 50 or step_ctr > 700:
-                    break
+            time_taken = self.evaluate_rollout(obs, render=render, deterministic=False)
 
             # Make tep prediction
             traj = self.env.engine.wp_list
@@ -235,7 +239,7 @@ class TEPDatasetMaker:
             traj_T_sar = T.tensor(traj_sar, dtype=T.float32)
             tep_pred = tep(traj_T_sar)
 
-            print(f"Reward gathered: {episode_rew}, reward predicted: {tep_pred}, time taken: {step_ctr * 0.01}")
+            print(f"Time taken: {time_taken}, time taken predicted: {tep_pred}")
 
     def test_tep_full(self):
         tep_def = TEPMLP(obs_dim=50, act_dim=1)
@@ -310,13 +314,13 @@ class TEPDatasetMaker:
 
         traj_grad = T.autograd.grad(loss, traj, allow_unused=True)[0]
 
-        hess = T.autograd.functional.hessian(loss, traj)
-        hess_inv = T.linalg.inv(hess)
+        #hess = T.autograd.functional.hessian(lambda x : -tep(x), traj)
+        #hess_inv = T.linalg.inv(hess)
 
-        scaled_grad = hess_inv @ traj_grad
+        #scaled_grad = hess_inv @ traj_grad
 
         with T.no_grad():
-            traj = traj - 0.05 * scaled_grad
+            traj = traj - 0.01 * traj_grad
 
         return traj
 
@@ -337,6 +341,6 @@ class TEPDatasetMaker:
 if __name__ == "__main__":
     tm = TEPDatasetMaker()
     #tm.make_dataset(render=False)
-    #tm.train_tep()
+    tm.train_tep()
     #tm.train_tep_1step_grad()
-    tm.test_tep()
+    #tm.test_tep()
