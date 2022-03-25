@@ -19,7 +19,7 @@ class ControlBuggyMPC:
         self.waypoints = [3, 3]
 
         #self.model = make_bicycle_model()
-        #self.model = make_singletrack_model([3.2, 1.5, 0.12, 0.11, 0.056, 1.13, 9.9, 1.88, 0.1, 1.7, 10, 1.69, -0.43, 144])
+        #self.model = make_singletrack_model([3.2, 1.4, 0.12, 0.11, 0.056, 1.13, 9.9, 1.88, 0.1, 1.7, 10, 1.69, -0.43, 144])
         self.model = make_linmod_model()
 
         #self.mpc = make_mpc_bicycle(self.model, waypoints=self.waypoints)

@@ -74,7 +74,7 @@ class LINMOD(nn.Module):
         self.act_enc_dim = act_enc_dim
         self.hid_dim = hid_dim
         self.extra_hidden=extra_hidden
-        self.non_linearity = T.nn.Tanh() # T.tanh
+        self.non_linearity = T.nn.Tanh()
 
         # State encoder
         fc_state_enc_layers = []

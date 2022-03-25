@@ -6,7 +6,7 @@
 "n_traj_pts" : 15
 "randomize_env" : False
 "allow_latent_input" : False
-"latent_dim" : 5
+"latent_dim" : 4
 "allow_lte" : False
 "lte_prob" : 0.3
 "wp_sample_dist" : 0.17
@@ -16,4 +16,4 @@
 "traj_smoothness_variance" : 200
 "act_pen" : 0.013
 "enforce_bilateral_symmetry" : False
-"use_engine_2" : False
+"use_engine_2" : True

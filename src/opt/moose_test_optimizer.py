@@ -479,7 +479,7 @@ class MooseTestOptimizer:
         # plt.ion()
         # figure, ax = plt.subplots(figsize=(14, 6))
         # line1, = ax.plot(list(zip(*traj))[0], list(zip(*traj))[1], marker="o")
-        # ax.scatter([4,6,17], [.5,.5, 0], s=200, c=['r', 'r', 'w'])
+        # ax.scatter([4,6,17], [.4,.4, 0], s=200, c=['r', 'r', 'w'])
         #
 
         for it in range(n_iters):
@@ -549,7 +549,7 @@ class MooseTestOptimizer:
         windowing_func = 5 / np.exp(1.0 * np.abs(x - 5))
         y = y * windowing_func
 
-        #y = np.log(6 * np.abs(y) + 1) * np.sign(y) * 0.5
+        #y = np.log(6 * np.abs(y) + 1) * np.sign(y) * 0.4
 
         # import matplotlib.pyplot as plt
         # plt.ioff()
@@ -559,7 +559,7 @@ class MooseTestOptimizer:
 
         # import matplotlib.pyplot as plt
         # x = np.linspace(0, 1, N)
-        # plt.plot(x, 1. / np.exp(10 * np.abs(x - .5)))
+        # plt.plot(x, 1. / np.exp(10 * np.abs(x - .4)))
         # plt.show()
         # exit()
 

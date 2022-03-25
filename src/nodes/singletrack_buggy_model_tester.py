@@ -19,7 +19,7 @@ class BuggyModelTester:
         self.act_msg = None
         self.act_lock = threading.Lock()
 
-        #model = make_singletrack_model([3, 2, 0.14, 0.16, 0.04, 1, 6.9, 1.8, 0.1, 1, 15, 1.7, -0.5, 100])
+        #model = make_singletrack_model([3, 2, 0.14, 0.16, 0.04, 1, 6.9, 1.8, 0.1, 1, 15, 1.7, -0.4, 100])
         model = make_singletrack_model([3.2, 1.5, 0.12, 0.11, 0.056, 1.13, 9.9, 1.88, 0.1, 1.7, 10, 1.69, -0.43, 144])
         #model = make_bicycle_model()
         self.simulator = make_simulator(model)

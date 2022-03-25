@@ -12,7 +12,7 @@ def gen_buddy_xml(params):
     
       <default>
           <default class="buddy_wheel_collision">
-            <geom type="ellipsoid"  size="0.05 0.03 0.05"  friction="{} 0.005 0.0001" condim="3" contype="1" conaffinity="0" mass="0.498952" solimp="0 0.95 0.001 0.5 2" solref="0.02 1" margin="0"/>
+            <geom type="ellipsoid"  size="0.05 0.03 0.05"  friction="{} 0.005 0.0001" condim="3" contype="1" conaffinity="0" mass="0.498952" solimp="0 0.95 0.001 0.4 2" solref="0.02 1" margin="0"/>
           </default> 
     
           <default class="buddy_wheel_visual">
@@ -28,7 +28,7 @@ def gen_buddy_xml(params):
           </default>
     
           <default class="buddy_suspension">
-            <joint type="slide" axis="0 0 1" frictionloss="0.001" stiffness="500.0" springref="-0.05" damping="12.5" armature="0.01" limited="false"/>
+            <joint type="slide" axis="0 0 1" frictionloss="0.001" stiffness="500.0" springref="-0.05" damping="12.4" armature="0.01" limited="false"/>
           </default>
       </default>
     
@@ -92,8 +92,8 @@ def gen_buddy_xml(params):
         <fixed name="buddy_throttle">
           <joint joint="buddy_wheel_fl_throttle" coef="0"/>
           <joint joint="buddy_wheel_fr_throttle" coef="0"/>
-          <joint joint="buddy_wheel_bl_throttle" coef="0.5"/>
-          <joint joint="buddy_wheel_br_throttle" coef="0.5"/>
+          <joint joint="buddy_wheel_bl_throttle" coef="0.4"/>
+          <joint joint="buddy_wheel_br_throttle" coef="0.4"/>
         </fixed>
       </tendon>
       <sensor>
@@ -108,7 +108,7 @@ def gen_car_xml(params):
     car_str = """<mujoco model="mushr_nano">
   <compiler angle="radian" />
   <size njmax="500" nconmax="300"/>
-  <option timestep="0.001" integrator="RK4" solver="Newton" o_solimp="0 0.95 0.001 0.5 2" o_solref="0.02 1" o_margin="0"/>
+  <option timestep="0.001" integrator="RK4" solver="Newton" o_solimp="0 0.95 0.001 0.4 2" o_solref="0.02 1" o_margin="0"/>
   <include file="cars/base_car/buddy_rnd.xml"/>
   <asset>
     <texture name="texplane" type="2d" builtin="checker" rgb1="0.26 0.12 0.36" rgb2="0.23 0.09 0.33" width="512" height="512" mark="cross" markrgb=".8 .8 .8"/>
@@ -117,10 +117,10 @@ def gen_car_xml(params):
     <material name="matgeom" texture="texgeom" texuniform="true" rgba="0.8 0.6 .4 1"/>
   </asset>
   <visual>
-    <headlight ambient="0.6 0.6 0.6" diffuse="0.5 0.5 0.5" specular="0.2 0.2 0.2"/>
+    <headlight ambient="0.6 0.6 0.6" diffuse="0.4 0.4 0.4" specular="0.2 0.2 0.2"/>
     <map znear="0.001" />
   </visual>
   <worldbody>
-    <geom contype="1" name="floor" friction="{} 0.005 0.0001" pos="0 0 0" size="0 0 .25" type="plane" material="matplane" condim="3" solimp="0 0.95 0.001 0.5 2" solref="0.02 1" margin="0"/>
+    <geom contype="1" name="floor" friction="{} 0.005 0.0001" pos="0 0 0" size="0 0 .25" type="plane" material="matplane" condim="3" solimp="0 0.95 0.001 0.4 2" solref="0.02 1" margin="0"/>
   </worldbody>
 </mujoco> """.format(params[0])

@@ -14,5 +14,5 @@
 "airl_iters" : 8000000
 "batchsize" : 128
 "recurrent_batchsize" : 10
-"n_latent_params" : 5
+"n_latent_params" : 4
 "mlp_hid_dim" : 256

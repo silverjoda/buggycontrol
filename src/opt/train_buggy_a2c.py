@@ -57,9 +57,7 @@ class BuggyTrajFollowerTrainer:
         return config
 
     def get_logpath(self):
-        prefix = "def"
-        if self.config["enforce_bilateral_symmetry"]:
-            prefix = "sym"
+        prefix = self.config["log_prefix"]
 
         logpath = f'./logs/{prefix}'
 
@@ -98,7 +96,7 @@ class BuggyTrajFollowerTrainer:
         # setup logpath
         logpath = self.get_logpath()
 
-        callback_on_best = StopTrainingOnRewardThreshold(reward_threshold=34, verbose=1)
+        callback_on_best = StopTrainingOnRewardThreshold(reward_threshold=36, verbose=1)
         eval_callback = EvalCallback(normed_env, best_model_save_path='agents_cp/', callback_on_new_best=callback_on_best,
                                      log_path=logpath, eval_freq=10000, n_eval_episodes=30,
                                      deterministic=False, render=False)
@@ -113,7 +111,7 @@ class BuggyTrajFollowerTrainer:
                     learning_rate=self.config["learning_rate"],
                     verbose=self.config["verbose"],
                     device="cpu",
-                    policy_kwargs=dict(activation_fn=T.nn.ReLU, net_arch=[self.config["policy_hid_dim"], self.config["policy_hid_dim"]]))
+                    policy_kwargs=dict(activation_fn=T.nn.Tanh, net_arch=[self.config["policy_hid_dim"], self.config["policy_hid_dim"]]))
 
         callback_list = CallbackList([checkpoint_callback, eval_callback])
 

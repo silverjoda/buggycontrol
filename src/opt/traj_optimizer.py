@@ -28,7 +28,7 @@ class TrajOptimizer:
         return x_indeces, y_indeces, xy_indeces, thr_indeces
 
     def optimize_traj(self, obs, mode=TrajOptMode.WP_ONLY):
-        # First 5 vars are state, rest are trajectory (x,y,thr ... repeated)
+        # First 4 vars are state, rest are trajectory (x,y,thr ... repeated)
         obs_T = T.tensor(obs, requires_grad=True)
 
         for i in range(self.config["opt_iters"]):

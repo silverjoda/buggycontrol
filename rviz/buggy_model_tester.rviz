@@ -22,7 +22,7 @@ Panels:
     Expanded:
       - /Current View1
     Name: Views
-    Splitter Ratio: 0.5
+    Splitter Ratio: 0.4
   - Class: rviz/Time
     Experimental: false
     Name: Time
@@ -35,7 +35,7 @@ Toolbars:
 Visualization Manager:
   Class: ""
   Displays:
-    - Alpha: 0.5
+    - Alpha: 0.4
       Cell Size: 1
       Class: rviz/Grid
       Color: 160; 160; 164
@@ -95,7 +95,7 @@ Visualization Manager:
       Class: rviz/Odometry
       Covariance:
         Orientation:
-          Alpha: 0.5
+          Alpha: 0.4
           Color: 255; 255; 127
           Color Style: Unique
           Frame: Local
@@ -143,8 +143,8 @@ Visualization Manager:
     - Class: rviz/SetInitialPose
       Theta std deviation: 0.2617993950843811
       Topic: /initialpose
-      X std deviation: 0.5
-      Y std deviation: 0.5
+      X std deviation: 0.4
+      Y std deviation: 0.4
     - Class: rviz/SetGoal
       Topic: /move_base_simple/goal
     - Class: rviz/PublishPoint

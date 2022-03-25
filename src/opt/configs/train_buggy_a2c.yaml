@@ -1,8 +1,8 @@
 # Train config
-"train" : True
+"train" : False
 "render" : False
 "default_session_ID" : "TRN"
-"iters" : 1000000
+"iters" : 3000000
 
 # RL algo
 "algo_name" : "A2C"
@@ -17,4 +17,6 @@
 "verbose" : 1
 "full_tensorboard_log" : False
 "policy_hid_dim" : 256
+"log_prefix" : "be2"
+
 

@@ -106,7 +106,7 @@ class BuggyEnv(gym.Env):
         path_deviation = np.abs((cur_wp[0] - prev_wp[0]) * (prev_wp[1] - pos[1]) - (prev_wp[0] - pos[0]) * (cur_wp[1] - prev_wp[1])) / np.sqrt(np.square(cur_wp[0] - prev_wp[0]) + np.square(cur_wp[1] - prev_wp[1]))
         dist_between_cur_wp = np.sqrt(np.square((cur_wp[0] - pos[0])) + np.square((cur_wp[1] - pos[1])))
 
-        r = wp_visited * (1 / (1 + 1 * path_deviation)) - dist_between_cur_wp * 0.01
+        r = wp_visited * (1 / (1 + 0.5 * path_deviation)) - dist_between_cur_wp * 0.01
         #r = wp_visited * 1
         return r, dist_between_cur_wp
 
