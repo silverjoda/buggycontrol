@@ -12,7 +12,7 @@ class ModelDataset:
 
     def get_lhs_weights(self):
         # Check LHS here
-        k = 10
+        k = 7
         D = 5
         A = np.random.randn(k, D)
         X = self.X_trn.reshape((self.X_trn.shape[0] * self.X_trn.shape[1], self.X_trn.shape[2]))[:, 2:]
@@ -28,7 +28,7 @@ class ModelDataset:
 
         W_lhs = []
         for zt in Zt:
-            W_lhs.append(1./np.sqrt(HS[zt]))
+            W_lhs.append(1./np.power(HS[zt], 1/3))
         return np.array(W_lhs)
 
     def load_real_dataset(self):
@@ -181,9 +181,10 @@ class ModelTrainer:
     def train_linmod(self):
         policy = LINMOD(state_dim=3, act_dim=2, state_enc_dim=12, act_enc_dim=4, hid_dim=32, extra_hidden=False)
         optim = T.optim.Adam(params=policy.parameters(), lr=self.config['lr'], weight_decay=self.config['w_decay'])
-        lossfun = T.nn.MSELoss()
+        mse_lossfun = T.nn.MSELoss()
         for i in range(self.config['iters']):
-            X, Y = self.dataset.get_random_batch(self.config['batchsize'])
+            X, Y, W = self.dataset.get_random_batch_weighted(self.config['batchsize'])
+            lossfun = lambda x,y : T.mean((W * (x - y) ** 2))
 
             # Extract components from batch
             X_s = X[:, 2:5]
@@ -191,9 +192,9 @@ class ModelTrainer:
             Y_s = Y[:, 2:5]
 
             next_state_dec, state_dec, act_dec = policy(X_s, A_s)
-            next_state_loss = lossfun(next_state_dec, Y_s)
-            state_recon_loss = lossfun(state_dec, X_s)
-            act_recon_loss = lossfun(act_dec, A_s)
+            next_state_loss = mse_lossfun(next_state_dec, Y_s)
+            state_recon_loss = mse_lossfun(state_dec, X_s)
+            act_recon_loss = mse_lossfun(act_dec, A_s)
             total_loss = next_state_loss + act_recon_loss + state_recon_loss
             total_loss.backward()
             optim.step()
@@ -205,9 +206,9 @@ class ModelTrainer:
                     A_val_s = X_val[:, 5:7]
                     Y_val_s = Y_val[:, 2:5]
                     next_state_dec_val, state_dec_val, act_dec_val = policy(X_val_s, A_val_s)
-                    next_state_loss_val = lossfun(next_state_dec_val, Y_val_s)
-                    state_recon_loss_val = lossfun(state_dec_val, X_val_s)
-                    act_recon_loss_val = lossfun(act_dec_val, A_val_s)
+                    next_state_loss_val = mse_lossfun(next_state_dec_val, Y_val_s)
+                    state_recon_loss_val = mse_lossfun(state_dec_val, X_val_s)
+                    act_recon_loss_val = mse_lossfun(act_dec_val, A_val_s)
                     total_val_loss_val = next_state_loss_val + act_recon_loss_val + state_recon_loss_val
                 print("Iter {}/{}, loss: {}, loss_val: {}".format(i, self.config['iters'], total_loss.data, total_val_loss_val.data))
         print("Done training, saving model")
@@ -255,8 +256,8 @@ if __name__=="__main__":
 
     # Train
     if config["train"]:
-        #model_trainer.train_linmod()
-        model_trainer.train_lin()
+        model_trainer.train_linmod()
+        #model_trainer.train_lin()
         #model_trainer.train_linmod_hybrid()
         #model_trainer.train()
 

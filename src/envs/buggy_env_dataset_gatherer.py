@@ -15,7 +15,7 @@ from src.envs import buggy_env_mujoco
 from src.opt.simplex_noise import SimplexNoise
 from src.utils import merge_dicts
 import numpy as np
-GLOBAL_DEBUG = False
+GLOBAL_DEBUG = True
 
 class BuggyMujocoDatasetGatherer:
     def __init__(self):
@@ -47,7 +47,7 @@ class BuggyMujocoDatasetGatherer:
             act_list = []
 
             zero_throttle = False
-            if np.random.rand() < 0.05:
+            if np.random.rand() < 0.07:
                 zero_throttle = True
 
             for j in range(self.config["traj_len"]):
@@ -58,7 +58,7 @@ class BuggyMujocoDatasetGatherer:
 
                 # Condition act (turn, throttle)
                 rnd_act[0] = np.clip(rnd_act[0], -1, 1)
-                rnd_act[1] = np.clip(rnd_act[1], -1, 1)
+                rnd_act[1] = np.clip(rnd_act[1] * 2, -1, 1)
 
                 if zero_throttle: rnd_act[1] = -1
 
