@@ -1,9 +1,11 @@
 import seaborn as sns
 import matplotlib.pyplot as plt
 
-# loading dataset
-data = sns.load_dataset("iris")
+import numpy as np
+from numpy import cos, sin, sqrt
 
-# draw lineplot
-sns.lineplot(x="sepal_length", y="sepal_width", data=data)
-plt.show()
+th1 = 3.1415
+th2 = 0
+
+d = -(cos(th1) * cos(th2) + sin(th1) * sin(th2)) + 1
+print(d)

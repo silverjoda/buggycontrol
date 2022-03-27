@@ -1,17 +1,18 @@
 #!/usr/bin/env python3
-import os
+import pickle
 import threading
 from copy import deepcopy
 
+import numpy as np
 import rospy
 import tf.transformations
-import tf2_ros
 from buggycontrol.msg import ActionsStamped
 from geometry_msgs.msg import Vector3, PoseWithCovariance, Pose, Quaternion, TwistStamped, Twist, TransformStamped
 from nav_msgs.msg import Odometry
+import tf2_ros
+import os
 
 from src.policies import *
-
 
 def rotate_vector_by_quat(v, q):
     qm = tf.transformations.quaternion_matrix([q.x, q.y, q.z, q.w])[:3, :3]
@@ -29,8 +30,8 @@ if __name__=="__main__":
 
     integrated_pose = Pose(orientation=Quaternion(x=0, y=0, z=0, w=1))
 
-    policy = LINMOD_HYBRID(state_dim=3, act_dim=2, state_enc_dim=12, act_enc_dim=4, hid_dim=32, extra_hidden=False)
-    agent_path = os.path.join(os.path.dirname(__file__), "../opt/agents/buggy_linmod_hybrid.p")
+    policy = LIN(state_dim=3, act_dim=2)
+    agent_path = os.path.join(os.path.dirname(__file__), "../opt/agents/buggy_lin.p")
     policy.load_state_dict(T.load(agent_path), strict=False)
 
     print("Starting buggy tester node")
@@ -66,8 +67,8 @@ if __name__=="__main__":
         policy_input_state = T.tensor([buggy_lin_vel_x, buggy_lin_vel_y, buggy_ang_vel_z], dtype=T.float32)
         policy_input_act = T.tensor([turn, throttle], dtype=T.float32)
         with T.no_grad():
-            next_state, _ = policy(T.unsqueeze(policy_input_state, 0), T.unsqueeze(policy_input_act, 0))
-        buggy_lin_vel_x, buggy_lin_vel_y, buggy_ang_vel_z = next_state[0].numpy()
+            next_state = policy(policy_input_state, policy_input_act)
+        buggy_lin_vel_x, buggy_lin_vel_y, buggy_ang_vel_z = next_state.numpy()
 
         # Transform linear velocities to base_link frame
         base_link_linear = rotate_vector_by_quat(Vector3(x=buggy_lin_vel_x, y=buggy_lin_vel_y, z=buggy_ang_vel_z),

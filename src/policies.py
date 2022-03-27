@@ -65,6 +65,19 @@ class LTE(nn.Module):
         y_T = self.forward(o_T)
         return y_T.detach().numpy()[0]
 
+class LIN(nn.Module):
+    def __init__(self, state_dim, act_dim):
+        super(LIN, self).__init__()
+        self.state_dim = state_dim
+        self.act_dim = act_dim
+
+        # Linear system
+        self.A = T.nn.Parameter(T.randn((self.state_dim, self.state_dim), requires_grad=True))
+        self.B = T.nn.Parameter(T.randn((self.state_dim, self.act_dim), requires_grad=True))
+
+    def forward(self, state, act):
+        return (self.A @ state.T).T + (self.B @ act.T).T
+
 class LINMOD(nn.Module):
     def __init__(self, state_dim, act_dim, state_enc_dim, act_enc_dim, hid_dim=64, extra_hidden=False):
         super(LINMOD, self).__init__()
@@ -306,7 +319,7 @@ class TEPTX(nn.Module):
 
         self.fc_final = T.nn.Linear(embed_dim, 1)
 
-        self.nonlin = F.relu
+        self.nonlin = F.tanh
 
         # T.nn.init.xavier_uniform_(self.fc3.weight)
         # self.fc3.bias.data.fill_(0.01)

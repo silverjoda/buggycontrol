@@ -111,17 +111,17 @@ class TEPDatasetMaker:
         Y = np.load(self.y_file_path)
 
         # Change X to relative coordinates
-        X = self.get_delta_representation(X)
+        #X = self.get_delta_representation(X)
 
         # Change to successive angle representation
-        #X = self.get_successive_angle_representation(X)
+        X = self.get_successive_angle_representation(X)
 
         # Prepare policy and training
         tep = TEPMLP(obs_dim=X.shape[1], act_dim=1, n_hidden=1)
 
         #RNN
-        #tep = TEPRNN(n_waypts=X_new.shape[1] // 2, hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
-        #tep = TEPRNN2(n_waypts=X_new.shape[1], hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
+        #tep = TEPRNN(n_waypts=X.shape[1] // 2, hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
+        #tep = TEPRNN2(n_waypts=X.shape[1], hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
 
         # emb_dim = 36
         #tep = TEPTX(n_waypts=X.shape[1], embed_dim=emb_dim, num_heads=6, kdim=36)
@@ -337,7 +337,7 @@ class TEPDatasetMaker:
 
 if __name__ == "__main__":
     tm = TEPDatasetMaker()
-    tm.make_dataset(render=False)
-    tm.train_tep()
+    #tm.make_dataset(render=False)
+    #tm.train_tep()
     #tm.train_tep_1step_grad()
-    #tm.test_tep()
+    tm.test_tep()
