@@ -308,8 +308,8 @@ class MujocoEngine2(Engine):
         #     X_new[i] = np.arctan2(wps_buggy_frame[i][1] - wps_buggy_frame[i - 1][1], wps_buggy_frame[i][0] - wps_buggy_frame[i - 1][0]) #- X_new[i - 1]
 
         X_new = np.zeros_like(wps_buggy_frame)
-        X_new[:, :2] = wps_buggy_frame[:, :2]
-        X_new[:, 2:] = wps_buggy_frame[:, 2:] - wps_buggy_frame[:, :-2]
+        X_new[0] = wps_buggy_frame[0]
+        X_new[1:] = wps_buggy_frame[1:] - wps_buggy_frame[:-1]
 
         return state + list(X_new.reshape(-1)), obs_dict
 

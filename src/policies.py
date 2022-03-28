@@ -257,6 +257,54 @@ class TEPMLP(nn.Module):
         out = self.fc3(fc2)
         return out
 
+class TEPMLPDEEP(nn.Module):
+    def __init__(self, obs_dim, act_dim, hid_dim=256, n_hidden=1):
+        super(TEPMLPDEEP, self).__init__()
+        self.obs_dim = obs_dim
+        self.act_dim = act_dim
+        self.hid_dim = hid_dim
+
+        self.fc1 = T.nn.Linear(self.obs_dim, self.hid_dim, bias=True)
+        self.fc2 = T.nn.Linear(self.hid_dim, self.hid_dim, bias=True)
+        self.fc3 = T.nn.Linear(self.hid_dim, self.hid_dim, bias=True)
+        self.fc4 = T.nn.Linear(self.hid_dim, self.hid_dim, bias=True)
+        self.fc5 = T.nn.Linear(self.hid_dim, self.hid_dim, bias=True)
+        self.fc6 = T.nn.Linear(self.hid_dim, self.hid_dim, bias=True)
+        self.fc7 = T.nn.Linear(self.hid_dim, self.act_dim, bias=True)
+
+        T.nn.init.xavier_uniform_(self.fc1.weight)
+        self.fc1.bias.data.fill_(0.01)
+
+        T.nn.init.xavier_uniform_(self.fc2.weight)
+        self.fc2.bias.data.fill_(0.01)
+
+        T.nn.init.xavier_uniform_(self.fc3.weight)
+        self.fc3.bias.data.fill_(0.01)
+
+        T.nn.init.xavier_uniform_(self.fc4.weight)
+        self.fc4.bias.data.fill_(0.01)
+
+        T.nn.init.xavier_uniform_(self.fc5.weight)
+        self.fc5.bias.data.fill_(0.01)
+
+        T.nn.init.xavier_uniform_(self.fc6.weight)
+        self.fc6.bias.data.fill_(0.01)
+
+        T.nn.init.xavier_uniform_(self.fc7.weight)
+        self.fc7.bias.data.fill_(0.01)
+
+        self.nonlin = F.tanh
+
+    def forward(self, x):
+        fc1 = self.nonlin(self.fc1(x))
+        fc2 = self.nonlin(self.fc2(fc1))
+        fc3 = self.nonlin(self.fc3(fc2))
+        fc4 = self.nonlin(self.fc4(fc3))
+        fc5 = self.nonlin(self.fc5(fc4))
+        fc6 = self.nonlin(self.fc6(fc5))
+        fc7 = self.fc7(fc6)
+        return fc7
+
 class TEPRNN(nn.Module):
     def __init__(self, n_waypts, hid_dim=32, hid_dim_2=6, num_layers=1, bidirectional=False):
         super(TEPRNN, self).__init__()

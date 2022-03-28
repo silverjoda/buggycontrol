@@ -208,11 +208,13 @@ class BuggyEnv(gym.Env):
             while True:
                 zero_act = np.array([-1.0, -1.0])
                 rnd_act = np.clip(self.noise(), -1, 1)
-                _, r, done, _ = self.step(rnd_act) # turn, throttle
+                obs, r, done, _ = self.step(rnd_act) # turn, throttle
                 cum_rew += r
                 if self.config["render"]:
                     self.engine.render()
                     time.sleep(1. / self.config["rate"])
+
+                print(obs)
 
                 if done: break
             print("Cumulative rew: {}".format(cum_rew))

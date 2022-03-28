@@ -1,4 +1,3 @@
-
 # Model Fitting:
 # Need to somehow prevent simulation from going into low velocity states
 # Check new optimization, try positional error instead of velocity. Play around with parameters
