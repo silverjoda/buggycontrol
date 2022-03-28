@@ -1,22 +1,11 @@
-# Model Fitting:
-# Need to somehow prevent simulation from going into low velocity states
-# Check new optimization, try positional error instead of velocity. Play around with parameters
-
-# MPC:
-# Test MPC on singletrack model
-# Test MPC with distance constraints
-
 # TEP traj opt
-# Check TEP training performance with successive angle abs or delta (subtracting prev angle)
-# test tep after training good policy
-# Train time execution between point A and B, instead of reward
+# Figure out why TEP is not working
 # In train_full_traj_tep make reward evaluation of 1 step gradient for random trajectories (Does stepping 1 gradient make trajectory better or worse).
 # Make training process so that 1 gradient update trajectories are added to dataset. Theoretical working proof, al la dagger?
 # Analyze possibilities of learning a trajectory delta regressor for faster trajectories (do we need to train by gradient? or can we do otherwise)
 
 # Buggy agent training:
-Explore relative waypoint representation (with increasing distances towards the end of traj)
-Explore successive angle representation for waypoints (with static or increasing distance)
+-
 
 # Mission: Model learning and transfer
 - Make proper trajectory testing script with qualitative and quantitative metrics for comparing learned model with mujoco env (with visualization).

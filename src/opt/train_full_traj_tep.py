@@ -58,7 +58,6 @@ class TEPDatasetMaker:
         for i in range(self.n_dataset_pts):
             obs = self.env.reset()
             traj = [item for sublist in self.env.engine.wp_list[:self.max_num_wp] for item in sublist]
-            obs_list.append(traj)
             episode_rew = self.evaluate_rollout(obs, traj=None, render=False, deterministic=True)
             # #DEBUG TO SEE HOW CONSISTENT EVALUATION IS
             # traj_raw = deepcopy(self.env.engine.wp_list)
@@ -69,13 +68,14 @@ class TEPDatasetMaker:
             #     print(f"Deterministic: {det}", episode_rew)
             #     obs = self.env.reset()
             #     self.env.engine.wp_list = traj_raw
+            obs_list.append(traj)
             rew_list.append(episode_rew)
 
             if i % 10 == 0:
                 print(f"Iter: {i}/{self.n_dataset_pts}")
 
-        obs_arr = np.array(obs_list)
-        rew_arr = np.array(rew_list)
+        obs_arr = np.array(obs_list, dtype=np.float32)
+        rew_arr = np.array(rew_list, dtype=np.float32)
 
         np.save(self.x_file_path, obs_arr)
         np.save(self.y_file_path, rew_arr)
@@ -119,6 +119,7 @@ class TEPDatasetMaker:
         # Load dataset
         X = np.load(self.x_file_path, allow_pickle=True)
         Y = np.load(self.y_file_path)
+        Y = np.expand_dims(Y, 1)
 
         # Change X to relative coordinates
         #X = self.get_delta_representation(X)
@@ -127,15 +128,15 @@ class TEPDatasetMaker:
         #X = self.get_successive_angle_representation(X)
 
         # Prepare policy and training
-        #tep = TEPMLP(obs_dim=X.shape[1], act_dim=1, n_hidden=1)
-        tep = TEPMLPDEEP(obs_dim=X.shape[1], act_dim=1)
+        tep = TEPMLP(obs_dim=X.shape[1], act_dim=1, n_hidden=1)
+        #tep = TEPMLPDEEP(obs_dim=X.shape[1], act_dim=1)
 
         #RNN
         #tep = TEPRNN(n_waypts=X.shape[1] // 2, hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
         #tep = TEPRNN2(n_waypts=X.shape[1], hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
 
         # emb_dim = 36
-        #tep = TEPTX(n_waypts=X.shape[1], embed_dim=emb_dim, num_heads=6, kdim=36)
+        #tep = TEPTX(n_waypts=X.shape[1], embed_dim=36, num_heads=6, kdim=36)
         tep_optim = T.optim.Adam(params=tep.parameters(),
                                     lr=self.config['policy_lr'],
                                     weight_decay=self.config['w_decay'])
@@ -351,4 +352,4 @@ if __name__ == "__main__":
     #tm.make_dataset(render=False)
     tm.train_tep()
     #tm.train_tep_1step_grad()
-    tm.test_tep()
+    #tm.test_tep()

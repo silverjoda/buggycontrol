@@ -16,4 +16,4 @@
 "traj_smoothness_variance" : 200
 "act_pen" : 0.013
 "enforce_bilateral_symmetry" : False
-"use_engine_2" : True
+"use_engine_2" : False
