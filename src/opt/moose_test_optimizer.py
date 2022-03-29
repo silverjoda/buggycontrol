@@ -355,13 +355,14 @@ class MooseTestOptimizer:
             b2_T = T.tensor(self.b2_pos, requires_grad=False)
             barrier_loss_list = []
             for xy_T in traj_T:
-                barrier_loss_list.append(-(barrier_lf(xy_T, b1_T) + barrier_lf(xy_T, b2_T)) * 0.06)
+                barrier_loss_list.append((barrier_lf(xy_T, b1_T) + barrier_lf(xy_T, b2_T)))
             barrier_loss_sum = T.stack(barrier_loss_list).sum()
 
             # End point stretched out as much as possible
-            final_pt_loss = mse_loss(traj_T[-1], T.tensor([13., 0.])) * 0.1
+            init_pt_loss = mse_loss(traj_T[0], T.tensor([0., 0.])) * 0.1
+            final_pt_loss = mse_loss(traj_T[-1], T.tensor([8., 0.])) * 0.1
 
-            total_loss = -pred_rew * 0.00 + barrier_loss_sum * 0 + final_pt_loss * 1
+            total_loss = pred_rew + barrier_loss_sum * 0.1 + init_pt_loss * 0.5 + final_pt_loss * 0.5
 
             return total_loss
 
@@ -387,20 +388,15 @@ class MooseTestOptimizer:
         # Plot
         figure, ax = plt.subplots(figsize=(14, 6))
 
-        # TODO: Check why last point optimization isn't working
-        # TODO: Train agent properly and optimize
-        # TODO: Train TEP With one-step grad training
-
         for it in range(n_iters):
             total_loss = calc_traj_loss(traj_T_sar)
             traj_grad = T.autograd.grad(total_loss, traj_T_sar, allow_unused=True)[0]
 
-            hess = T.autograd.functional.hessian(calc_traj_loss, traj_T_sar)
-            hess_inv = T.linalg.inv(hess)
+            #hess = T.autograd.functional.hessian(calc_traj_loss, traj_T_sar)
 
             # Plot gradient changed by hessian
-            scaled_grad = hess_inv @ traj_grad
-            traj_T_sar = traj_T_sar - 0.1 * scaled_grad
+            #scaled_grad = T.linalg.inv(hess) @ traj_grad
+            traj_T_sar = traj_T_sar - 0.03 * traj_grad
 
             # Trajectory xy
             with T.no_grad():
@@ -417,6 +413,8 @@ class MooseTestOptimizer:
                 line1, = ax.plot(list(zip(*traj_T))[0], list(zip(*traj_T))[1], marker="o")
                 ax.scatter([4, 6, 17], [.5, .5, 0], s=200, c=['r', 'r', 'w'])
                 plt.grid()
+                plt.xlim([0, 14])
+                plt.ylim([-2, 2])
 
                 # ax.quiver(traj_reshaped[:, 0],
                 #           traj_reshaped[:, 1],

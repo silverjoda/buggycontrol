@@ -122,13 +122,13 @@ class TEPDatasetMaker:
         Y = np.expand_dims(Y, 1)
 
         # Change X to relative coordinates
-        #X = self.get_delta_representation(X)
+        X = self.get_delta_representation(X)
 
         # Change to successive angle representation
         #X = self.get_successive_angle_representation(X)
 
         # Prepare policy and training
-        tep = TEPMLP(obs_dim=X.shape[1], act_dim=1, n_hidden=1)
+        #tep = TEPMLP(obs_dim=X.shape[1], act_dim=1, n_hidden=1)
         #tep = TEPMLPDEEP(obs_dim=X.shape[1], act_dim=1)
 
         #RNN
@@ -136,7 +136,7 @@ class TEPDatasetMaker:
         #tep = TEPRNN2(n_waypts=X.shape[1], hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
 
         # emb_dim = 36
-        #tep = TEPTX(n_waypts=X.shape[1], embed_dim=36, num_heads=6, kdim=36)
+        tep = TEPTX(n_waypts=X.shape[1] // 2, embed_dim=36, num_heads=6, kdim=36)
         tep_optim = T.optim.Adam(params=tep.parameters(),
                                     lr=self.config['policy_lr'],
                                     weight_decay=self.config['w_decay'])
@@ -176,6 +176,7 @@ class TEPDatasetMaker:
         # Change to successive angle representation
         X = T.tensor(self.get_successive_angle_representation(X), dtype=T.float32)
         Y = T.tensor(Y, dtype=T.float32)
+        Y = Y.unsqueeze(1)
 
         # Make updated dataset
         X_ud = X.clone().detach()
@@ -221,11 +222,14 @@ class TEPDatasetMaker:
             for t_idx in range(len(X)):
                 x_ud_traj = T.clone(X[t_idx]).detach()
                 x_ud_traj.requires_grad = True
-                X_ud[t_idx] = self.perform_grad_update_full_traj(x_ud_traj, tep)
+                X_ud[t_idx] = self.perform_grad_update_full_traj(x_ud_traj, tep, use_hessian=True)
 
                 # Annotate the new X_ud
                 obs = self.env.reset()
                 Y_ud = self.evaluate_rollout(obs, X_ud[t_idx])
+
+                if t_idx % 1 == 0:
+                    print(f"Dataset updating: {t_idx}")
 
         print("Done training, saving model")
         if not os.path.exists("agents"):
@@ -240,7 +244,7 @@ class TEPDatasetMaker:
         render = True
         for i in range(N_eval):
             obs = self.env.reset()
-            time_taken = self.evaluate_rollout(obs, render=render, deterministic=False)
+            time_taken = self.evaluate_rollout(obs, render=render, deterministic=True)
 
             # Make tep prediction
             traj = self.env.engine.wp_list
@@ -254,57 +258,31 @@ class TEPDatasetMaker:
         tep_def = TEPMLP(obs_dim=50, act_dim=1)
         tep_def.load_state_dict(T.load("agents/full_traj_tep.p"), strict=False)
 
-        tep_1step = TEPMLP(obs_dim=50, act_dim=1)
-        tep_1step.load_state_dict(T.load("agents/full_traj_tep_1step.p"), strict=False)
+        tep_1step = tep_def
+        #tep_1step = TEPMLP(obs_dim=50, act_dim=1)
+        #tep_1step.load_state_dict(T.load("agents/full_traj_tep_1step.p"), strict=False)
 
         N_eval = 100
-        render = True
+        render = False
         for i in range(N_eval):
             obs = self.env.reset()
-            obs = self.venv.normalize_obs(obs)
-
-            # Rollout on randomly generated traj
-            episode_rew = 0
-            step_ctr = 0
-            while True:
-                step_ctr += 1
-                action, _states = self.sb_model.predict(obs.unsqueeze(0), deterministic=True)
-                obs, reward, done, info = self.env.step(action)
-                obs = self.venv.normalize_obs(obs)
-                episode_rew += reward
-
-                if render:
-                    self.env.render()
-                if self.env.engine.cur_wp_idx > 50 or step_ctr > 700:
-                    break
+            time_taken = self.evaluate_rollout(obs, render=render, deterministic=True)
 
             # Make tep prediction
             traj = self.env.engine.wp_list
             traj_sar = self.xy_to_sar(traj[:50])
-            traj_T_sar = T.tensor(traj_sar, dtype=T.float32)
+            traj_T_sar = T.tensor(traj_sar, dtype=T.float32, requires_grad=True)
             tep_def_pred = tep_def(traj_T_sar)
             tep_1step_pred = tep_1step(traj_T_sar)
 
             # Make trajectory update
-            traj_T_sar_ud = self.perform_grad_update_full_traj(traj_T_sar)
+            traj_T_sar_ud = self.perform_grad_update_full_traj(traj_T_sar, tep_def, use_hessian=False)
             traj_T_ud = self.sar_to_xy(traj_T_sar_ud)
             self.env.reset()
-            self.env.engine.wp_list = list(traj_T_ud)
+            self.env.engine.wp_list = list(traj_T_ud.detach().numpy())
 
-            # Rollout on randomly generated traj
-            episode_rew_1step = 0
-            step_ctr_1step = 0
-            while True:
-                step_ctr_1step += 1
-                action, _states = self.sb_model.predict(obs.unsqueeze(0), deterministic=True)
-                obs, reward, done, info = self.env.step(action)
-                obs = self.venv.normalize_obs(obs)
-                episode_rew_1step += reward
-
-                if render:
-                    self.env.render()
-                if self.env.engine.cur_wp_idx > 50 or step_ctr_1step > 700:
-                    break
+            # Rollout on corrected traj
+            time_taken_1step = self.evaluate_rollout(obs, render=render, deterministic=True)
 
             # Make tep prediction on updated traj
             traj = self.env.engine.wp_list
@@ -313,23 +291,27 @@ class TEPDatasetMaker:
             tep_def_pred_1step = tep_def(traj_T_sar)
             tep_1step_pred_1step = tep_1step(traj_T_sar)
 
-            print(f"Reward gathered on initial traj: {episode_rew}, reward predicted: {tep_def_pred}, reward predicted by tep_1step: {tep_1step_pred}, time taken: {step_ctr * 0.01}")
-            print(f"Reward gathered on 1step traj: {episode_rew_1step}, reward predicted: {tep_def_pred_1step}, reward predicted by tep_1step: {tep_1step_pred_1step},  time taken: {step_ctr_1step * 0.01}")
+            print(f"Time taken: {time_taken}, time predicted: {tep_def_pred}")
+            print(f"Time taken after n step update: {time_taken_1step}, time predicted after n step update: {tep_def_pred_1step}")
             print("------------------------------------------------------------------------------------------------------------")
 
-    def perform_grad_update_full_traj(self, traj, tep):
-        # etp loss
-        loss = -tep(traj)
+    def perform_grad_update_full_traj(self, traj, tep, use_hessian=False):
+        for i in range(5):
+            # etp loss
+            loss = tep(traj)
 
-        traj_grad = T.autograd.grad(loss, traj, allow_unused=True)[0]
+            traj_grad = T.autograd.grad(loss, traj, allow_unused=True)[0]
 
-        #hess = T.autograd.functional.hessian(lambda x : -tep(x), traj)
-        #hess_inv = T.linalg.inv(hess)
+            if use_hessian:
+                hess = T.autograd.functional.hessian(lambda x : -tep(x), traj)
+                hess_inv = T.linalg.inv(hess)
+                scaled_grad = hess_inv @ traj_grad
+            else:
+                scaled_grad = traj_grad
 
-        #scaled_grad = hess_inv @ traj_grad
-
-        with T.no_grad():
-            traj = traj - 0.01 * traj_grad
+            with T.no_grad():
+                traj = traj - 0.03 * scaled_grad
+            traj.requires_grad = True
 
         return traj
 
@@ -350,6 +332,7 @@ class TEPDatasetMaker:
 if __name__ == "__main__":
     tm = TEPDatasetMaker()
     #tm.make_dataset(render=False)
-    tm.train_tep()
+    #tm.train_tep()
     #tm.train_tep_1step_grad()
     #tm.test_tep()
+    tm.test_tep_full()

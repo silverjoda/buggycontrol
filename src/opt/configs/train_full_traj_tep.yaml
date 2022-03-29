@@ -1,4 +1,4 @@
-"n_dataset_pts" : 2000
+"n_dataset_pts" : 3000
 "max_num_wp" : 50
 "max_steps" : 500
 "policy_lr" : 0.003
