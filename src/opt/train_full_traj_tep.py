@@ -170,8 +170,8 @@ class TEPDatasetMaker:
         tep.load_state_dict(T.load("agents/full_traj_tep.p"), strict=False)
 
         # Core dataset
-        X = np.load(self.x_file_path, allow_pickle=True)
-        Y = np.load(self.y_file_path)
+        X = np.load(self.x_file_path, allow_pickle=True)[:1000]
+        Y = np.load(self.y_file_path)[:1000]
 
         # Change to successive angle representation
         X = T.tensor(self.get_successive_angle_representation(X), dtype=T.float32)
@@ -188,45 +188,47 @@ class TEPDatasetMaker:
                                     weight_decay=self.config['w_decay'])
         lossfun = T.nn.MSELoss()
 
-        n_epochs = 100
+        n_epochs = 3
         n_data = len(X)
         for ep in range(n_epochs):
             # Do single epoch
             rnd_indeces = np.arange(n_data)
             np.random.shuffle(rnd_indeces)
-            for i in range(0, n_data, self.config["batchsize"] // 2):
-                # Halfbatch from core dataset
-                x_c = X[i:i + self.config["batchsize"] // 2]
-                y_c = Y[i:i + self.config["batchsize"] // 2]
+            n_reps = 10
+            for _ in range(n_reps):
+                for i in range(0, n_data, self.config["batchsize"] // 2):
+                    # Halfbatch from core dataset
+                    x_c = X[i:i + self.config["batchsize"] // 2]
+                    y_c = Y[i:i + self.config["batchsize"] // 2]
 
-                # Halfbatch from ud dataset
-                x_ud = X_ud[rnd_indeces[i:i + self.config["batchsize"] // 2]]
-                y_ud = Y_ud[rnd_indeces[i:i + self.config["batchsize"] // 2]]
+                    # Halfbatch from ud dataset
+                    x_ud = X_ud[rnd_indeces[i:i + self.config["batchsize"] // 2]]
+                    y_ud = Y_ud[rnd_indeces[i:i + self.config["batchsize"] // 2]]
 
-                # Combine datasets
-                x = T.concat((x_c, x_ud), dim=0)
-                y = T.concat((y_c, y_ud), dim=0)
+                    # Combine datasets
+                    x = T.concat((x_c, x_ud), dim=0)
+                    y = T.concat((y_c, y_ud), dim=0)
 
-                y_ = tep(x)
-                policy_loss = lossfun(y_, y)
+                    y_ = tep(x)
+                    policy_loss = lossfun(y_, y)
 
-                total_loss = policy_loss
-                total_loss.backward()
+                    total_loss = policy_loss
+                    total_loss.backward()
 
-                policy_optim.step()
-                policy_optim.zero_grad()
+                    policy_optim.step()
+                    policy_optim.zero_grad()
 
-                print("Epoch: {}, Iter {}, policy_loss: {}".format(ep, i, policy_loss.data))
+            print("Epoch: {}, Iter {}, policy_loss: {}".format(ep, i, policy_loss.data))
 
             # Update ud dataset
-            for t_idx in range(len(X)):
+            for t_idx in range(10):
                 x_ud_traj = T.clone(X[t_idx]).detach()
                 x_ud_traj.requires_grad = True
-                X_ud[t_idx] = self.perform_grad_update_full_traj(x_ud_traj, tep, use_hessian=True)
+                X_ud[t_idx] = self.perform_grad_update_full_traj(x_ud_traj, tep, use_hessian=False)
 
                 # Annotate the new X_ud
                 obs = self.env.reset()
-                Y_ud = self.evaluate_rollout(obs, X_ud[t_idx])
+                Y_ud[t_idx] = self.evaluate_rollout(obs, X_ud[t_idx].detach())
 
                 if t_idx % 1 == 0:
                     print(f"Dataset updating: {t_idx}")
@@ -329,10 +331,11 @@ class TEPDatasetMaker:
         traj_T = T.concat((pd_x, pd_y), dim=1)
         return traj_T
 
+
 if __name__ == "__main__":
     tm = TEPDatasetMaker()
     #tm.make_dataset(render=False)
     #tm.train_tep()
-    #tm.train_tep_1step_grad()
+    tm.train_tep_1step_grad()
     #tm.test_tep()
-    tm.test_tep_full()
+    #tm.test_tep_full()

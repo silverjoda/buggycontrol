@@ -1,17 +1,22 @@
 # TEP traj opt
-# Figure out why TEP is not working
-# In train_full_traj_tep make reward evaluation of 1 step gradient for random trajectories (Does stepping 1 gradient make trajectory better or worse).
-# Make training process so that 1 gradient update trajectories are added to dataset. Theoretical working proof, al la dagger?
+# Refactor and debug train_full_traj_tep. Parallelize traj_evaluation
+# Train n_step gradient estimation
+# Add spline representation for TEP
+# Make new trajectory generation (using shortest path algo) for buggy based on racing and obstacle avoidance (for experiments and evaluation)
+# No-regret proof for n-step gradient training?
+# Try RNN and transformer as TEP
 # Analyze possibilities of learning a trajectory delta regressor for faster trajectories (do we need to train by gradient? or can we do otherwise)
 
 # Buggy agent training:
 -
 
 # Mission: Model learning and transfer
+- Train buggy on learned mujoco model and test on mujoco.
+- Make better trajectory generation for gataset gathering for model training
+- Does training model using a dagger like method work (if default training fails).
 - Make proper trajectory testing script with qualitative and quantitative metrics for comparing learned model with mujoco env (with visualization).
 - Try dataset augmentation by using bilateral symmetry (Does the slow turning and forward velocity go away)
 - Try balanced training to represent state with lower velocity more(somehow)
-- Try dagger-like learning where trajectory rollouts are annotated using simulator
 - Implement meta learning for model learning (for example using a proxy neural network with attached layers for gradient prop)
 - Train RMA-style
 - Compare RMA-style with trained model transfer
