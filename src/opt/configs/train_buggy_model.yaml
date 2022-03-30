@@ -1,5 +1,5 @@
 lr : 0.003
 w_decay : 0.0001
-iters : 5000
+iters : 3000
 batchsize : 2048
 "train" : True

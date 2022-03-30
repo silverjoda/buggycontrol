@@ -5,6 +5,9 @@ import numpy as np
 import torch as T
 from collections import Counter
 
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
+T.set_num_threads(2)
+
 class ModelDataset:
     def __init__(self):
         self.X_trn, self.Y_trn, self.X_val, self.Y_val = self.load_mujoco_dataset()
@@ -12,7 +15,7 @@ class ModelDataset:
 
     def get_lhs_weights(self):
         # Check LHS here
-        k = 7
+        k = 8
         D = 5
         A = np.random.randn(k, D)
         X = self.X_trn.reshape((self.X_trn.shape[0] * self.X_trn.shape[1], self.X_trn.shape[2]))[:, 2:]
@@ -76,6 +79,16 @@ class ModelDataset:
         X = np.load(os.path.join(dataset_dir, "X.npy"))
         Y = np.load(os.path.join(dataset_dir, "Y.npy"))
 
+        X_sym = np.copy(X)
+        Y_sym = np.copy(Y)
+
+        # Correct sym datasets. # turn_angle, rear_wheel_speed, vel[0], vel[1], ang_vel[2]
+        X_sym[:,:, np.array([0, 3, 4, 5])] *= -1
+        Y_sym[:, :, np.array([0, 3, 4])] *= -1
+
+        X = np.concatenate((X, X_sym), axis=0)
+        Y = np.concatenate((Y, Y_sym), axis=0)
+
         n_traj = len(X)
         assert n_traj > 10
         print("Loaded dataset with {} trajectories".format(n_traj))
@@ -133,8 +146,10 @@ class ModelTrainer:
         lossfun = T.nn.MSELoss()
         for i in range(self.config['iters']):
             X, Y = self.dataset.get_random_batch(self.config['batchsize'])
+            #X, Y, W = self.dataset.get_random_batch_weighted(self.config['batchsize'])
             Y_ = self.policy(X)
             loss = lossfun(Y_, Y)
+            #loss = T.mean((W * (Y_ - Y) ** 2))
             loss.backward()
             optim.step()
             optim.zero_grad()
@@ -256,8 +271,8 @@ if __name__=="__main__":
 
     # Train
     if config["train"]:
-        model_trainer.train_linmod()
+        #model_trainer.train_linmod()
         #model_trainer.train_lin()
         #model_trainer.train_linmod_hybrid()
-        #model_trainer.train()
+        model_trainer.train()
 

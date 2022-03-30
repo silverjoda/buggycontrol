@@ -24,14 +24,15 @@ class BuggyEnv(gym.Env):
         self.car_template_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/one_car.xml")
         self.car_rnd_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/one_car_rnd.xml")
 
-        n_traj_obs = self.config["n_traj_pts"] * 2 #(3 - self.config["use_engine_2"])
+        n_traj_obs = self.config["n_traj_pts"] * 2
         self.obs_dim = self.config["state_dim"] + n_traj_obs + self.config["allow_latent_input"] * \
                        self.config["latent_dim"] + self.config["allow_lte"]
         self.act_dim = 2
 
         if self.config["allow_lte"]:
-            self.lte = LTE(obs_dim=self.config["state_dim"] + self.act_dim, act_dim=self.config["state_dim"])
-            self.lte.load_state_dict(T.load("agents/buggy_lte.p"), strict=False)
+            self.lte = LTE(obs_dim=self.config["state_dim"] + self.act_dim, act_dim=self.config["state_dim"], hid_dim=256)
+            lte_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "opt/agents/buggy_lte.p")
+            self.lte.load_state_dict(T.load(lte_path), strict=False)
 
         self.observation_space = spaces.Box(low=-10, high=10, shape=(self.obs_dim,), dtype=np.float32)
         self.action_space = spaces.Box(low=-2.0, high=2.0, shape=(self.act_dim,), dtype=np.float32)
@@ -206,15 +207,16 @@ class BuggyEnv(gym.Env):
             self.set_barrier_positions([4.0, 0.0], [6.0, 1.0])
             cum_rew = 0
             while True:
-                zero_act = np.array([-1.0, -1.0])
+                zero_act = np.array([0, -1.0])
                 rnd_act = np.clip(self.noise(), -1, 1)
                 obs, r, done, _ = self.step(rnd_act) # turn, throttle
                 cum_rew += r
                 if self.config["render"]:
-                    self.engine.render()
-                    time.sleep(1. / self.config["rate"])
+                    self.set_external_state({"x_pos": self.engine.xy_pos[0],
+                                            "y_pos": self.engine.xy_pos[1],
+                                            "phi": self.engine.theta})
 
-                print(obs)
+                    self.render()
 
                 if done: break
             print("Cumulative rew: {}".format(cum_rew))
