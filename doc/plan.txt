@@ -11,7 +11,7 @@
 -
 
 # Mission: Model learning and transfer
-- Train buggy on learned mujoco model and test on mujoco.
+- TODO: cont here, debug lte engine: Train buggy on learned mujoco model and test on mujoco.
 - Make better trajectory generation for gataset gathering for model training
 - Does training model using a dagger like method work (if default training fails).
 - Make proper trajectory testing script with qualitative and quantitative metrics for comparing learned model with mujoco env (with visualization).
