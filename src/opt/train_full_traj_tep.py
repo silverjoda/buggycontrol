@@ -4,6 +4,8 @@ import os
 import time
 
 import matplotlib.pyplot as plt
+import numpy as np
+import torch.nn
 import yaml
 from stable_baselines3 import A2C
 from stable_baselines3.common.vec_env import VecNormalize, DummyVecEnv, VecMonitor
@@ -80,9 +82,9 @@ class TEPDatasetMaker:
 
         return obs_arr, rew_arr
 
-    def evaluate_rollout(self, obs, traj=None, render=False, deterministic=True):
+    def evaluate_rollout(self, obs, traj=None, distances=None, render=False, deterministic=True):
         if traj is not None:
-            traj_xy = self.sar_to_xy(traj)
+            traj_xy = self.sar_to_xy(traj, distances)
             self.env.engine.wp_list = traj_xy
 
         obs = self.venv.normalize_obs(obs[0])
@@ -248,7 +250,7 @@ class TEPDatasetMaker:
 
             # Make tep prediction
             traj = self.env.engine.wp_list
-            traj_sar = self.xy_to_sar(traj[:50])
+            traj_sar, distances = self.xy_to_sar(traj[:50])
             traj_T_sar = T.tensor(traj_sar, dtype=T.float32)
             tep_pred = tep(traj_T_sar)
 
@@ -271,14 +273,14 @@ class TEPDatasetMaker:
 
             # Make tep prediction
             traj = self.env.engine.wp_list
-            traj_sar = self.xy_to_sar(traj[:50])
+            traj_sar, distances = self.xy_to_sar(traj[:50])
             traj_T_sar = T.tensor(traj_sar, dtype=T.float32, requires_grad=True)
             tep_def_pred = tep_def(traj_T_sar)
             tep_1step_pred = tep_1step(traj_T_sar)
 
             # Make trajectory update
             traj_T_sar_ud = self.perform_grad_update_full_traj(traj_T_sar, tep_def, use_hessian=False)
-            traj_T_ud = self.sar_to_xy(traj_T_sar_ud)
+            traj_T_ud = self.sar_to_xy(traj_T_sar_ud, distances)
             self.env.reset()
             self.env.engine.wp_list = list(traj_T_ud.detach().numpy())
 
@@ -286,11 +288,11 @@ class TEPDatasetMaker:
             time_taken_1step = self.evaluate_rollout(obs, render=render, deterministic=True)
 
             # Make tep prediction on updated traj
-            traj = self.env.engine.wp_list
-            traj_sar = self.xy_to_sar(traj[:50])
-            traj_T_sar = T.tensor(traj_sar, dtype=T.float32)
-            tep_def_pred_1step = tep_def(traj_T_sar)
-            tep_1step_pred_1step = tep_1step(traj_T_sar)
+            #traj = self.env.engine.wp_list
+            #traj_sar, distances = self.xy_to_sar(traj[:50])
+            #traj_T_sar = T.tensor(traj_sar, dtype=T.float32)
+            tep_def_pred_1step = tep_def(traj_T_sar_ud)
+            tep_1step_pred_1step = tep_1step(traj_T_sar_ud)
 
             print(f"Time taken: {time_taken}, time predicted: {tep_def_pred}")
             print(f"Time taken after n step update: {time_taken_1step}, time predicted after n step update: {tep_def_pred_1step}")
@@ -298,13 +300,14 @@ class TEPDatasetMaker:
 
             # Plot before and after trajectories
             if plot:
-                self.plot_trajs(traj_T_sar, traj_T_sar_ud)
+                self.plot_trajs(traj[:50], traj_T_sar_ud)
                 time.sleep(0.8)
 
-    def plot_trajs(self, traj_T_sar, traj_T_sar_ud):
+    def plot_trajs(self, traj_xy, traj_T_sar_ud):
         if not hasattr(self, 'ax'):
             self.figure, self.ax = plt.subplots(figsize=(14, 6))
-        traj_T = self.sar_to_xy(traj_T_sar).detach().numpy()
+        #traj_T = self.sar_to_xy(traj_T_sar).detach().numpy()
+        traj_T = traj_xy
         traj_T_ud = self.sar_to_xy(traj_T_sar_ud).detach().numpy()
 
         line1, = self.ax.plot(list(zip(*traj_T))[0], list(zip(*traj_T))[1], marker="o", color="r", markersize=3)
@@ -337,12 +340,21 @@ class TEPDatasetMaker:
         self.ax.clear()
 
     def perform_grad_update_full_traj(self, traj, tep, use_hessian=False):
+        mse_loss = torch.nn.MSELoss()
+        traj_xy = self.sar_to_xy(traj.detach())
         traj_opt = T.clone(traj).detach()
         traj_opt.requires_grad = True
-        optimizer = T.optim.SGD(params=[traj_opt], lr=0.01, momentum=.0)
-        for i in range(5):
+        #optimizer = T.optim.SGD(params=[traj_opt], lr=0.03, momentum=.0)
+        optimizer = T.optim.Adam(params=[traj_opt], lr=0.01)
+        #optimizer = T.optim.LBFGS(params=[traj_opt], lr=0.03)
+        for i in range(10):
             # etp loss
-            loss = tep(traj_opt)
+            tep_loss = tep(traj_opt)
+
+            # Last point loss
+            traj_opt_xy = self.sar_to_xy(traj_opt)
+            last_pt_loss = mse_loss(traj_opt_xy[-1], traj_xy[-1])
+            loss = tep_loss + last_pt_loss
             loss.backward()
 
             #traj_grad = T.autograd.grad(loss, traj, allow_unused=True)[0]
@@ -352,21 +364,27 @@ class TEPDatasetMaker:
             #traj.requires_grad = True
 
             optimizer.step()
+            #optimizer.step(lambda : tep(traj_opt))
             optimizer.zero_grad()
 
         return traj_opt
 
     def xy_to_sar(self, X):
-        X_new = np.zeros(len(X))
-        X_new[0] = np.arctan2(X[0][1], X[0][0])
-        for i in range(1, len(X)):
-            X_new[i] = np.arctan2(X[i][1] - X[i - 1][1], X[i][0] - X[i - 1][0])
-        return X_new
+        X = np.concatenate((np.zeros(2)[np.newaxis, :], np.array(X)))
+        X_new = np.arctan2(X[1:, 1] - X[:-1, 1], X[1:, 0] - X[:-1, 0])
 
-    def sar_to_xy(self, X):
-        wp_dist = 0.17
-        pd_x = T.cumsum(T.cos(X) * wp_dist, dim=0).unsqueeze(1)
-        pd_y = T.cumsum(T.sin(X) * wp_dist, dim=0).unsqueeze(1)
+        distances = np.sqrt(np.square(X[1:] - X[:-1]).sum(axis=1))
+
+        return X_new, distances
+
+    def sar_to_xy(self, X, distances=None):
+        if distances is None:
+            distances = T.ones(len(X), dtype=T.float32) * 0.175
+        else:
+            distances = T.tensor(distances, dtype=T.float32)
+        #wp_dist = 0.17
+        pd_x = T.cumsum(T.cos(X) * distances, dim=0).unsqueeze(1)
+        pd_y = T.cumsum(T.sin(X) * distances, dim=0).unsqueeze(1)
         traj_T = T.concat((pd_x, pd_y), dim=1)
         return traj_T
 
