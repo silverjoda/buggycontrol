@@ -1,10 +1,9 @@
 # MLP and Transformer training on whole trajectory
 
 import os
+import time
 
 import matplotlib.pyplot as plt
-import numpy as np
-import torch as T
 import yaml
 from stable_baselines3 import A2C
 from stable_baselines3.common.vec_env import VecNormalize, DummyVecEnv, VecMonitor
@@ -12,7 +11,6 @@ from stable_baselines3.common.vec_env import VecNormalize, DummyVecEnv, VecMonit
 from src.envs.buggy_env_mujoco import BuggyEnv
 from src.policies import *
 from src.utils import load_config
-from copy import deepcopy
 
 plt.ion()
 
@@ -266,6 +264,7 @@ class TEPDatasetMaker:
 
         N_eval = 100
         render = False
+        plot = True
         for i in range(N_eval):
             obs = self.env.reset()
             time_taken = self.evaluate_rollout(obs, render=render, deterministic=True)
@@ -297,25 +296,65 @@ class TEPDatasetMaker:
             print(f"Time taken after n step update: {time_taken_1step}, time predicted after n step update: {tep_def_pred_1step}")
             print("------------------------------------------------------------------------------------------------------------")
 
+            # Plot before and after trajectories
+            if plot:
+                self.plot_trajs(traj_T_sar, traj_T_sar_ud)
+                time.sleep(0.8)
+
+    def plot_trajs(self, traj_T_sar, traj_T_sar_ud):
+        if not hasattr(self, 'ax'):
+            self.figure, self.ax = plt.subplots(figsize=(14, 6))
+        traj_T = self.sar_to_xy(traj_T_sar).detach().numpy()
+        traj_T_ud = self.sar_to_xy(traj_T_sar_ud).detach().numpy()
+
+        line1, = self.ax.plot(list(zip(*traj_T))[0], list(zip(*traj_T))[1], marker="o", color="r", markersize=3)
+        line2, = self.ax.plot(list(zip(*traj_T_ud))[0], list(zip(*traj_T_ud))[1], marker="o", color="b", markersize=3)
+        #self.ax.scatter([4, 6, 17], [.5, .5, 0], s=200, c=['r', 'r', 'w'])
+        plt.grid()
+        plt.xlim([-6, 6])
+        plt.ylim([-6, 6])
+
+        # ax.quiver(traj_reshaped[:, 0],
+        #           traj_reshaped[:, 1],
+        #           grad_reshaped[:, 0],
+        #           grad_reshaped[:, 1],
+        #           width=0.001,
+        #           color=[1, 0, 0])
+        #
+        # ax.quiver(traj_reshaped[:, 0],
+        #           traj_reshaped[:, 1],
+        #           scaled_grad_reshaped[:, 0],
+        #           scaled_grad_reshaped[:, 1],
+        #           width=0.001,
+        #           color=[0, 0, 1])
+
+        # x, y = list(zip(*[t.detach().numpy() for t in traj_T.reshape((len(traj_T) // 2, 2))]))
+        # line1.set_xdata(x)
+        # line1.set_ydata(y)
+        self.figure.canvas.draw()
+        self.figure.canvas.flush_events()
+
+        self.ax.clear()
+
     def perform_grad_update_full_traj(self, traj, tep, use_hessian=False):
+        traj_opt = T.clone(traj).detach()
+        traj_opt.requires_grad = True
+        optimizer = T.optim.SGD(params=[traj_opt], lr=0.01, momentum=.0)
         for i in range(5):
             # etp loss
-            loss = tep(traj)
+            loss = tep(traj_opt)
+            loss.backward()
 
-            traj_grad = T.autograd.grad(loss, traj, allow_unused=True)[0]
+            #traj_grad = T.autograd.grad(loss, traj, allow_unused=True)[0]
 
-            if use_hessian:
-                hess = T.autograd.functional.hessian(lambda x : -tep(x), traj)
-                hess_inv = T.linalg.inv(hess)
-                scaled_grad = hess_inv @ traj_grad
-            else:
-                scaled_grad = traj_grad
+            # with T.no_grad():
+            #     traj = traj - 0.03 * scaled_grad
+            #traj.requires_grad = True
 
-            with T.no_grad():
-                traj = traj - 0.03 * scaled_grad
-            traj.requires_grad = True
+            optimizer.step()
+            optimizer.zero_grad()
 
-        return traj
+        return traj_opt
 
     def xy_to_sar(self, X):
         X_new = np.zeros(len(X))
@@ -336,6 +375,6 @@ if __name__ == "__main__":
     tm = TEPDatasetMaker()
     #tm.make_dataset(render=False)
     #tm.train_tep()
-    tm.train_tep_1step_grad()
+    #tm.train_tep_1step_grad()
     #tm.test_tep()
-    #tm.test_tep_full()
+    tm.test_tep_full()

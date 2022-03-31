@@ -7,7 +7,7 @@
 "randomize_env" : False
 "allow_latent_input" : False
 "latent_dim" : 4
-"allow_lte" : True
+"allow_lte" : False
 "lte_prob" : 1.0
 "wp_sample_dist" : 0.17
 "wp_reach_dist" : 0.3
