@@ -297,17 +297,19 @@ class LTEEngine(Engine):
         self.reset_vars()
 
     def step(self, action):
+        print(action)
         # Make observation for lte out of current vel and action
-        obs = np.array((0, 0, *self.xy_vel, self.ang_vel_z, *action), dtype=np.float32)
+        obs = np.array((self.turn_angle, self.rear_wheel_speed, *self.xy_vel, self.ang_vel_z, *action), dtype=np.float32)
 
         # Update velocities
         self.turn_angle, self.rear_wheel_speed, self.xy_vel[0], self.xy_vel[1], self.ang_vel_z = self.lte.predict_next_vel(obs)
 
         # Update position
-        self.xy_pos[0] += self.xy_vel[0] * self.dt
-        self.xy_pos[1] += self.xy_vel[1] * self.dt
+        self.xy_pos[0] = self.xy_pos[0] + np.cos(self.theta) * self.xy_vel[0] * self.dt
+        self.xy_pos[1] = self.xy_pos[1] + np.sin(self.theta) * self.xy_vel[1] * self.dt
         self.theta += self.ang_vel_z * self.dt
 
+        #print(f"Turn angle: {self.turn_angle}, Rear wheel speed: {self.rear_wheel_speed}, xy_vel: {self.xy_vel}, XYpos: {self.xy_pos}, Theta: {self.theta}")
         return self.step_trajectory(self.xy_pos)
 
     def reset(self):

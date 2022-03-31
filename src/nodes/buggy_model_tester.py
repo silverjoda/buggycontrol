@@ -51,7 +51,7 @@ if __name__=="__main__":
     buggy_lin_vel_y = 0.
     buggy_ang_vel_z = 0.
     buggy_turn = 0.
-    buggy_throttle = -1.
+    buggy_throttle = 0.
 
     turn = 0
     throttle = 0
@@ -76,7 +76,7 @@ if __name__=="__main__":
         #    buggy_ang_vel_z = 0
 
         # Transform linear velocities to base_link frame
-        base_link_linear = rotate_vector_by_quat(Vector3(x=buggy_lin_vel_x, y=buggy_lin_vel_y, z=buggy_ang_vel_z),
+        base_link_linear = rotate_vector_by_quat(Vector3(x=buggy_lin_vel_x, y=buggy_lin_vel_y, z=0),
                                                  integrated_pose.orientation)
 
         # Modify integrated pose using twist message

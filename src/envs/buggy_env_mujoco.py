@@ -150,7 +150,9 @@ class BuggyEnv(gym.Env):
                 act = [act[0] * -1, act[1]]
 
         # Turn, throttle
-        scaled_act = [np.clip(act[0] * 0.2, -0.42, 0.42), np.clip(act[1] * 0.5 + 0.5, 0, 1)]
+        scaled_act = act
+        if self.engine.__class__.__name__ != 'LTEEngine':
+            scaled_act = [np.clip(act[0] * 0.2, -0.42, 0.42), np.clip(act[1] * 0.5 + 0.5, 0, 1)]
         done, wp_visited = self.engine.step(scaled_act)
 
         # Get new observation
@@ -212,10 +214,10 @@ class BuggyEnv(gym.Env):
                 obs, r, done, _ = self.step(rnd_act) # turn, throttle
                 cum_rew += r
                 if self.config["render"]:
-                    self.set_external_state({"x_pos": self.engine.xy_pos[0],
-                                            "y_pos": self.engine.xy_pos[1],
-                                            "phi": self.engine.theta})
-
+                    if self.engine.__class__.__name__ == 'LTEEngine':
+                        self.set_external_state({"x_pos": self.engine.xy_pos[0],
+                                                 "y_pos": self.engine.xy_pos[1],
+                                                 "phi": self.engine.theta})
                     self.render()
 
                 if done: break
