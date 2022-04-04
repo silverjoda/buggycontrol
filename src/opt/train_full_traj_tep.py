@@ -357,14 +357,15 @@ class TEPDatasetMaker:
             loss = tep_loss + last_pt_loss
             loss.backward()
 
-            #traj_grad = T.autograd.grad(loss, traj, allow_unused=True)[0]
-
-            # with T.no_grad():
-            #     traj = traj - 0.03 * scaled_grad
-            #traj.requires_grad = True
+            # For LBFGS
+            def closure():
+                optimizer.zero_grad()
+                loss = tep(traj_opt)
+                loss.backward()
+                return loss
 
             optimizer.step()
-            #optimizer.step(lambda : tep(traj_opt))
+            #optimizer.step(closure) # For LBFGS
             optimizer.zero_grad()
 
         return traj_opt
@@ -392,7 +393,7 @@ class TEPDatasetMaker:
 if __name__ == "__main__":
     tm = TEPDatasetMaker()
     #tm.make_dataset(render=False)
-    #tm.train_tep()
+    tm.train_tep()
     #tm.train_tep_1step_grad()
     #tm.test_tep()
-    tm.test_tep_full()
+    #tm.test_tep_full()
