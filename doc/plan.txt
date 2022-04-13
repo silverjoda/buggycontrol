@@ -10,6 +10,9 @@
 # Buggy agent training:
 -
 
+# MPPI
+- Start implementing MPPI
+
 # Mission: Model learning and transfer
 - TODO: cont here, debug lte engine: Train buggy on learned mujoco model and test on mujoco.
 - Make better trajectory generation for gataset gathering for model training
