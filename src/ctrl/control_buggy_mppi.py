@@ -2,11 +2,9 @@ import math as m
 
 import yaml
 
-from src.ctrl.model import *
-from src.ctrl.mpc import *
-from src.ctrl.simulator import make_simulator
+from src.policies import *
 from src.envs.buggy_env_mujoco import BuggyEnv
-from src.utils import q2e
+import os
 
 class ControlBuggyMPPI:
     def __init__(self, mppi_config, buggy_config):
@@ -14,47 +12,75 @@ class ControlBuggyMPPI:
         self.buggy_config = buggy_config
         self.buggy_env_mujoco = BuggyEnv(self.buggy_config)
         self.dynamics_model = self.load_dynamics_model()
+        self.dt = self.mppi_config["dt"]
 
     def load_dynamics_model(self):
-        pass
+        dynamics_model = MLP(self.mppi_config["model_obs_dim"], self.mppi_config["model_act_dim"], hid_dim=256)
+        model_path = os.path.join(os.path.dirname(__file__), "../opt/agents/buggy_lte.p")
+        dynamics_model.load_state_dict(T.load(model_path), strict=False)
+        return dynamics_model
 
-    def test_mppi(self, env, N=100, render=False):
-        for _ in range(N):
+    def test_mppi(self, env, n_episodes=100, n_samples=300, n_horizon=100, act_std=1, render=False):
+        for _ in range(n_episodes):
             # New env and trajectory
-            env.reset()
+            mujoco_obs = env.reset()
 
-            waypts = [[3, 0], [-3, 0]]
-            current_wp_idx = 0
-            self.waypoints[:] = waypts[current_wp_idx]
+            # Initial action trajectory
+            u_vec = np.zeros(n_horizon, dtype=np.float32)
 
-            for _ in range(3000):
+            while True:
                 # Predict using MPC
-                u = self.mppi_predict(x)
+                u_vec = self.mppi_predict(mujoco_obs, n_samples, n_horizon, u_vec, act_std)
+                mujoco_obs, _, done, _ = env.step(u_vec[0])
 
-                if np.sqrt((x[0] - self.waypoints[0]) ** 2 + (x[1] - self.waypoints[1]) ** 2) < 0.5:
-                    current_wp_idx = int(not current_wp_idx)
-                    self.waypoints[:] = waypts[current_wp_idx]
-                    print("Visited", current_wp_idx, self.waypoints)
+                if render: env.render()
+                if done: break
 
-                if render:
-                    env.render()
+    def mppi_predict(self, mujoco_obs, n_samples, n_horizon, act_mean_seq, act_std):
+        # Sample random action matrix
+        act_noises = np.random.randn(n_samples, n_horizon, self.mppi_config["act_dim"]) * act_std
+        acts = act_mean_seq + act_noises
 
-    def mppi_predict(self, state):
-        pass
+        # Sample rollouts from learned dynamics
+        init_model_state = mujoco_obs[:5]
+        mppi_rollouts = self.make_mppi_rollouts(self.dynamics_model, init_model_state, acts)
 
-    def mppi_predict_mujoco(self, state):
-        pass
+        # Evaluate rollouts
+        costs = self.evaluate_mppi_rollouts(mppi_rollouts)
 
-    def make_mppi_rollouts(self, dynamics_model, n):
-        pass
+        # Choose trajectory using MPPI update
+        acts_opt = self.calculate_mppi_trajectory(act_mean_seq, act_noises, costs)
 
-    def make_mppi_rollouts_mujoco(self, env, n):
-        pass
+        return acts_opt
+
+    def make_mppi_rollouts(self, dynamics_model, init_model_state, acts):
+        n_samples, n_horizon, acts_dim = acts.shape
+        states = np.tile(init_model_state, (n_samples, 1))
+        positions = np.zeros((n_samples, n_horizon, 3))
+
+        obs = np.concatenate((states, acts[:, 0]), dim=1)
+        for h in range(n_horizon - 1):
+            states = dynamics_model(obs)
+
+            # Update positions array
+            positions[:, h, 0] = positions[:, h, 0] + np.cos(states[:, 2]) * self.dt
+            positions[:, h, 1] = positions[:, h, 1] + np.sin(states[:, 3]) * self.dt
+            positions[:, h, 2] = positions[:, h, 2] + states[:, 3] * self.dt
+
+            obs = np.concatenate((states, acts[:, h + 1]), dim=1)
+
+        return positions
 
     def evaluate_mppi_rollouts(self, rollouts):
         pass
 
+    def calculate_mppi_trajectory(self, act_mean_seq, act_noises, costs):
+        # acts: n_samples, n_horizon, act_dim
+        # costs: n_samples
+        weights = np.exp(-1. / (self.mppi_config["mppi_lambda"] * costs))
+        acts = act_mean_seq + np.sum(weights * act_noises, axis=1) / np.sum(weights)
 
+        return acts
 
 if __name__ == "__main__":
     with open(os.path.join(os.path.dirname(__file__), "configs/control_buggy_mppi.yaml"), 'r') as f:
