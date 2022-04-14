@@ -77,7 +77,7 @@ class ControlBuggyMPPI:
     def calculate_mppi_trajectory(self, act_mean_seq, act_noises, costs):
         # acts: n_samples, n_horizon, act_dim
         # costs: n_samples
-        weights = np.exp(-1. / (self.mppi_config["mppi_lambda"] * costs))
+        weights = np.exp(-costs / (self.mppi_config["mppi_lambda"]))
         acts = act_mean_seq + np.sum(weights * act_noises, axis=1) / np.sum(weights)
 
         return acts
