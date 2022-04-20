@@ -11,10 +11,15 @@
 -
 
 # MPPI
-- Start implementing MPPI
+- Finish implementing mppi
+
+# Buggy env:
+- Separate env which launches buggy with random or selected maize world and shortest path traj. Implement fast cost calculation for given traj for mppi.
 
 # Mission: Model learning and transfer
+- TODO: make new buggy maize env
 - TODO: cont here, debug lte engine: Train buggy on learned mujoco model and test on mujoco.
+- TODO: Test mppi
 - Make better trajectory generation for gataset gathering for model training
 - Does training model using a dagger like method work (if default training fails).
 - Make proper trajectory testing script with qualitative and quantitative metrics for comparing learned model with mujoco env (with visualization).
