@@ -46,7 +46,6 @@ def q2e(w, x, y, z):
     yaw = m.atan2(2.0 * (w * z + x * y), w * w + x * x - y * y - z * z)
     return (roll, pitch, yaw)
 
-
 def e2q(roll, pitch, yaw):
     qx = m.sin(roll / 2) * m.cos(pitch / 2) * m.cos(yaw / 2) - m.cos(roll / 2) * m.sin(pitch / 2) * m.sin(
         yaw / 2)
@@ -57,3 +56,10 @@ def e2q(roll, pitch, yaw):
     qw = m.cos(roll / 2) * m.cos(pitch / 2) * m.cos(yaw / 2) + m.sin(roll / 2) * m.sin(pitch / 2) * m.sin(
         yaw / 2)
     return (qw, qx, qy, qz)
+
+def theta_to_quat(theta):
+    qx = 0
+    qy = 0
+    qz = m.sin(theta / 2)
+    qw = m.cos(theta / 2)
+    return [qw, qx, qy, qz]

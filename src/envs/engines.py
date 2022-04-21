@@ -4,16 +4,43 @@ import os
 import numpy as np
 import time
 from src.opt.simplex_noise import SimplexNoise
-from src.utils import load_config
+from src.utils import load_config, theta_to_quat
 from copy import deepcopy
 import math as m
+from src.policies import LTE
+from src.envs.xml_gen import *
 
 class Engine:
-    def __init__(self, config, mujoco_sim):
+    def __init__(self, config):
         self.config = config
-        self.mujoco_sim = mujoco_sim
-        self.model = mujoco_sim.model
-        self.current_difficulty = 0.
+
+        self.buddy_template_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/cars/base_car/buddy.xml")
+        self.buddy_rnd_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/cars/base_car/buddy_rnd.xml")
+
+        self.car_template_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/one_car.xml")
+        self.car_rnd_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/one_car_rnd.xml")
+
+    @abstractmethod
+    def step(self, action):
+        pass
+
+    @abstractmethod
+    def reset(self):
+        pass
+
+    @abstractmethod
+    def render(self):
+        pass
+
+    @abstractmethod
+    def get_obs_dict(self):
+        pass
+
+    def set_trajectory(self, traj):
+        self.wp_list = traj
+        self.cur_wp_idx = 0
+        self.cur_mujoco_wp_idx = 0
+        self.set_wp_visuals()
 
     def reset_trajectory(self):
         self.wp_list = self.generate_random_traj()
@@ -21,11 +48,17 @@ class Engine:
         self.cur_mujoco_wp_idx = 0
         self.set_wp_visuals()
 
-    def set_trajectory(self, traj):
-        self.wp_list = traj
-        self.cur_wp_idx = 0
-        self.cur_mujoco_wp_idx = 0
-        self.set_wp_visuals()
+    def set_wp_visuals(self):
+        for i in range(self.config["n_traj_pts"]):
+            self.mujoco_sim.data.set_mocap_pos(f"waypoint{i}", np.hstack((self.wp_list[i], [0])))
+
+    def set_wp_visuals_externally(self, traj):
+        assert len(traj) == self.config["n_traj_pts"]
+        for i in range(self.config["n_traj_pts"]):
+            self.mujoco_sim.data.set_mocap_pos(f"waypoint{i}", np.hstack((traj[i], [0])))
+
+    def update_wp_visuals(self):
+        self.mujoco_sim.data.set_mocap_pos(f"waypoint{self.cur_mujoco_wp_idx }", np.hstack((self.wp_list[self.cur_wp_idx + self.config["n_traj_pts"]], [0])))
 
     def step_trajectory(self, pos):
         if self.cur_wp_idx >= len(self.wp_list):
@@ -50,30 +83,12 @@ class Engine:
 
         return done, wp_visited
 
-    @abstractmethod
-    def step(self, action):
-        pass
-
-    @abstractmethod
-    def reset(self):
-        pass
-
-    @abstractmethod
-    def render(self):
-        pass
-
-    @abstractmethod
-    def get_obs_dict(self):
-        pass
-
     def get_state_vec(self, obs_dict):
         vel = obs_dict['vel']
         ang_vel = obs_dict['ang_vel']
-        turn_angle = obs_dict['turn_angle']
-        rear_wheel_speed = obs_dict['rear_wheel_speed']
-        return [turn_angle, rear_wheel_speed, vel[0], vel[1], ang_vel[2]]
+        return [vel[0], vel[1], ang_vel[2]]
 
-    def get_complete_obs_vec(self):
+    def get_complete_obs_vec(self, allow_latent_input):
         obs_dict = self.get_obs_dict()
         state = self.get_state_vec(obs_dict)
         wps_buggy_frame = obs_dict["wp_list"]
@@ -81,7 +96,12 @@ class Engine:
         wps_contiguous = []
         for w in wps_buggy_frame:
             wps_contiguous.extend(w)
-        return state + wps_contiguous, obs_dict
+
+        complete_obs_vec = state + wps_contiguous
+        if allow_latent_input:
+            complete_obs_vec += self.random_params_normalized
+
+        return complete_obs_vec, obs_dict
 
     def transform_wp_to_buggy_frame(self, wp_list, pos, ori_q):
         wp_arr = np.array(wp_list)
@@ -106,13 +126,7 @@ class Engine:
             X_new[i] = np.arctan2(wp_buggy[i][1] - wp_buggy[i - 1][1], wp_buggy[i][0] - wp_buggy[i - 1][0]) - X_new[i - 1]
         return X_new
 
-    def q2e(self, w, x, y, z):
-        pitch = -m.asin(2.0 * (x * z - w * y))
-        roll = m.atan2(2.0 * (w * x + y * z), w * w - x * x - y * y + z * z)
-        yaw = m.atan2(2.0 * (w * z + x * y), w * w + x * x - y * y - z * z)
-        return (roll, pitch, yaw)
-
-    def generate_random_traj(self, traj_pts=None):
+    def generate_random_traj(self):
         #traj_smoothness = self.config["traj_smoothness"] - self.current_difficulty * 200
         traj_smoothness = self.config["traj_smoothness"] - np.random.rand() * self.config["traj_smoothness_variance"]
         self.noise = SimplexNoise(dim=1, smoothness=traj_smoothness, multiplier=1)
@@ -140,6 +154,7 @@ class Engine:
         return wp_list
 
     def plot_traj(self, traj_pts, wp_list):
+        # For debugging
         traj_pts_x = [x for x,_ in traj_pts]
         traj_pts_y = [y for _, y in traj_pts]
         wp_x = [x for x,_ in wp_list]
@@ -151,18 +166,6 @@ class Engine:
 
     def dist_between_wps(self, wp_1, wp_2):
         return np.sqrt(np.square(wp_1[0] - wp_2[0]) + np.square(wp_1[1] - wp_2[1]))
-
-    def set_wp_visuals(self):
-        for i in range(self.config["n_traj_pts"]):
-            self.mujoco_sim.data.set_mocap_pos(f"waypoint{i}", np.hstack((self.wp_list[i], [0])))
-
-    def set_wp_visuals_externally(self, traj):
-        assert len(traj) == self.config["n_traj_pts"]
-        for i in range(self.config["n_traj_pts"]):
-            self.mujoco_sim.data.set_mocap_pos(f"waypoint{i}", np.hstack((traj[i], [0])))
-
-    def update_wp_visuals(self):
-        self.mujoco_sim.data.set_mocap_pos(f"waypoint{self.cur_mujoco_wp_idx }", np.hstack((self.wp_list[self.cur_wp_idx + self.config["n_traj_pts"]], [0])))
 
     def demo(self):
         self.reset()
@@ -186,9 +189,38 @@ class Engine:
                     #print(self.cur_wp_idx, self.cur_mujoco_wp_idx)
 
 class MujocoEngine(Engine):
-    def __init__(self, config, mujoco_sim):
-        super().__init__(config, mujoco_sim)
-        self.bodyid = self.model.body_name2id('buddy')
+    def __init__(self, config):
+        super().__init__(config)
+
+    def generate_random_sim_parameters(self):
+        # 0: friction (0.4), 1: steering_range (0.38), 2: body mass (3.47), 3: kv (3000), 4: gear (0.003)
+        random_param_scale_offset_list = [[0.15, 0.4], [0.1, 0.38], [1, 3.5], [1000, 3000], [0.001, 0.003]]
+        random_params_normalized = list(np.clip(np.random.randn(len(random_param_scale_offset_list)) * 0.4, -1, 1))
+        random_params_sim = [(self.random_params_normalized[i] - rso[0]) / rso[1] for i, rso in enumerate(random_param_scale_offset_list)]
+        return random_params_normalized, random_params_sim
+
+    def load_env(self):
+        if self.config["randomize_env"]:
+            self.random_params_normalized, self.random_params_sim = self.generate_random_sim_parameters()
+
+            buddy_xml = gen_buddy_xml(self.random_params_sim)
+            with open(self.buddy_rnd_path, "w") as out_file:
+                for s in buddy_xml.splitlines():
+                    out_file.write(s)
+            car_xml = gen_car_xml(self.random_params_sim)
+            model = mujoco_py.load_model_from_xml(car_xml)
+            # This might be uneccessary to write the top level xml, as we can load it from xml directly and it will call the overwritten buddy xml
+            # with open(self.car_rnd_path, "w") as out_file:
+            #     for s in car_xml.splitlines():
+            #         out_file.write(s)
+            # model = mujoco_py.load_model_from_path(self.car_rnd_path)
+        else:
+            model = mujoco_py.load_model_from_path(self.car_template_path)
+
+        mujoco_sim = mujoco_py.MjSim(model, nsubsteps=self.config['n_substeps'])
+        bodyid = model.body_name2id('buddy')
+
+        return model, mujoco_sim, bodyid
 
     def step(self, action):
         # Step simulation
@@ -202,13 +234,17 @@ class MujocoEngine(Engine):
         return self.step_trajectory(self.mujoco_sim.data.body_xpos[self.bodyid].copy()[0:2])
 
     def reset(self):
+        if self.config["randomize_env"] or not hasattr(self, "model"):
+            self.model, self.mujoco_sim, self.bodyid = self.load_env()
+
         self.reset_estimators()
         self.mujoco_sim.reset()
         self.reset_trajectory()
 
     def render(self):
         if not hasattr(self, 'viewer'):
-            self.viewer = mujoco_py.MjViewerBasic(self.mujoco_sim)
+            self.viewer = mujoco_py.MjViewer(self.mujoco_sim)
+
         self.viewer.render()
 
     def update_estimators(self, act):
@@ -231,78 +267,42 @@ class MujocoEngine(Engine):
         ang_vel = self.mujoco_sim.data.body_xvelr[self.bodyid].copy()
         wps = self.wp_list[self.cur_wp_idx:self.cur_wp_idx + self.config["n_traj_pts"]]
         wps_buggy_frame = self.transform_wp_to_buggy_frame(wps, pos, ori_q)
-        turn_angle = np.clip(self.mujoco_sim.get_state().qpos[7] * 2.5, -1, 1)
-        rear_wheel_speed = np.clip(((self.mujoco_sim.get_state().qvel[14] + self.mujoco_sim.get_state().qvel[16]) / 2.) / 200, -1, 1)
-        return {"pos" : pos, "ori_q" : ori_q, "ori_mat" : ori_mat, "vel" : vel_buggy, "ang_vel" : ang_vel, "wp_list" : wps_buggy_frame, "turn_angle" : turn_angle, "rear_wheel_speed" : rear_wheel_speed}
-
-class MujocoEngine2(Engine):
-    def __init__(self, config, mujoco_sim):
-        super().__init__(config, mujoco_sim)
-        self.bodyid = self.model.body_name2id('buddy')
-
-    def step(self, action):
-        # Step simulation
-        self.mujoco_sim.data.ctrl[:] = action
-        self.mujoco_sim.forward()
-        self.mujoco_sim.step()
-
-        # Update hidden states
-        #self.update_estimators(action)
-
-        return self.step_trajectory(self.mujoco_sim.data.body_xpos[self.bodyid].copy()[0:2])
-
-    def reset(self):
-        self.reset_estimators()
-        self.mujoco_sim.reset()
-        self.reset_trajectory()
-
-    def render(self):
-        if not hasattr(self, 'viewer'):
-            self.viewer = mujoco_py.MjViewerBasic(self.mujoco_sim)
-        self.viewer.render()
-
-    def update_estimators(self, act):
-        # turn: -0.4,0.4, throttle: 0,1
-        turn, throttle = act
-        if turn >= 0:
-            pass
-            #self.turn_est = np.clip(self.turn_est + turn, -0.4, np.minimum(0.4))
-
-    def reset_estimators(self):
-        self.turn_est = 0
-        self.throttle_est = 0
-
-    def get_obs_dict(self):
-        pos = self.mujoco_sim.data.body_xpos[self.bodyid].copy()
-        ori_q = self.mujoco_sim.data.body_xquat[self.bodyid].copy()
-        ori_mat = np.reshape(self.mujoco_sim.data.body_xmat[self.bodyid], (3, 3))
-        vel_glob = self.mujoco_sim.data.body_xvelp[self.bodyid].copy()
-        vel_buggy = np.matmul(ori_mat.T, vel_glob[:, np.newaxis])[:, 0]
-        ang_vel = self.mujoco_sim.data.body_xvelr[self.bodyid].copy()
-        wps = self.wp_list[self.cur_wp_idx:self.cur_wp_idx + self.config["n_traj_pts"]]
-        wps_buggy_frame = self.transform_wp_to_buggy_frame(wps, pos, ori_q)
-        turn_angle = np.clip(self.mujoco_sim.get_state().qpos[7] * 2.5, -1, 1)
-        rear_wheel_speed = np.clip(((self.mujoco_sim.get_state().qvel[14] + self.mujoco_sim.get_state().qvel[16]) / 2.) / 200, -1, 1)
+        turn_angle = 0#np.clip(self.mujoco_sim.get_state().qpos[7] * 2.5, -1, 1) #
+        rear_wheel_speed = 0#np.clip(((self.mujoco_sim.get_state().qvel[14] + self.mujoco_sim.get_state().qvel[16]) / 2.) / 200, -1, 1)
         return {"pos" : pos, "ori_q" : ori_q, "ori_mat" : ori_mat, "vel" : vel_buggy, "ang_vel" : ang_vel, "wp_list" : wps_buggy_frame, "turn_angle" : turn_angle, "rear_wheel_speed" : rear_wheel_speed}
 
 class LTEEngine(Engine):
-    def __init__(self, config, mujoco_sim, lte):
-        super().__init__(config, mujoco_sim)
-        self.bodyid = self.model.body_name2id('buddy')
-        self.q_dim = self.mujoco_sim.get_state().qpos.shape[0]
-        self.qvel_dim = self.mujoco_sim.get_state().qvel.shape[0]
-        self.lte = lte
-        self.dt = 0.01
+    def __init__(self, config):
+        super().__init__(config)
+        self.lte = self.load_lte()
+        self.dt = 1. / self.config["rate"]
 
         self.reset_vars()
 
+    def load_env(self):
+        self.random_params_normalized = [0, 0, 0, 0, 0, 1.]
+        self.random_params_sim = [0, 0, 0, 0, 0, 1.]
+
+        # For visualization
+        model = mujoco_py.load_model_from_path(self.car_template_path)
+        mujoco_sim = mujoco_py.MjSim(model, nsubsteps=self.config['n_substeps'])
+        bodyid = model.body_name2id('buddy')
+
+        return model, mujoco_sim, bodyid
+
+    def load_lte(self):
+        import torch as T
+        lte = LTE(obs_dim=self.config["state_dim"] + 2, act_dim=self.config["state_dim"], hid_dim=128)
+        lte_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "opt/agents/buggy_lte.p")
+        lte.load_state_dict(T.load(lte_path), strict=False)
+        return lte
+
     def step(self, action):
-        print(action)
         # Make observation for lte out of current vel and action
-        obs = np.array((self.turn_angle, self.rear_wheel_speed, *self.xy_vel, self.ang_vel_z, *action), dtype=np.float32)
+        obs = np.array((*self.xy_vel, self.ang_vel_z, *action), dtype=np.float32)
 
         # Update velocities
-        self.turn_angle, self.rear_wheel_speed, self.xy_vel[0], self.xy_vel[1], self.ang_vel_z = self.lte.predict_next_vel(obs)
+        self.xy_vel[0], self.xy_vel[1], self.ang_vel_z = self.lte.predict_next_vel(obs)
 
         # Update position
         self.xy_pos[0] = self.xy_pos[0] + np.cos(self.theta) * self.xy_vel[0] * self.dt
@@ -313,46 +313,35 @@ class LTEEngine(Engine):
         return self.step_trajectory(self.xy_pos)
 
     def reset(self):
+        if not hasattr(self, "model"):
+            self.model, self.mujoco_sim, self.bodyid = self.load_env()
+
         self.reset_vars()
         self.reset_trajectory()
 
     def render(self):
         if not hasattr(self, 'viewer'):
-            self.viewer = mujoco_py.MjViewerBasic(self.mujoco_sim)
+            self.viewer = mujoco_py.MjViewer(self.mujoco_sim)
         self.viewer.render()
-        time.sleep(1. / self.config["rate"])
-
-    def theta_to_quat(self, theta):
-        qx = 0
-        qy = 0
-        qz = np.sin(theta / 2)
-        qw = np.cos(theta / 2)
-        return [qw, qx, qy, qz]
 
     def reset_vars(self):
         self.xy_pos = [0, 0]
         self.xy_vel = [0, 0]
         self.theta = 0
         self.ang_vel_z = 0
-        self.turn_angle = 0
-        self.rear_wheel_speed = 0
 
     def get_obs_dict(self):
         pos = [*self.xy_pos, 0]
-        ori_q = self.theta_to_quat(self.theta)
+        ori_q = theta_to_quat(self.theta)
         ori_mat = np.eye(3)
         vel = [*self.xy_vel, 0]
         ang_vel = [0, 0, self.ang_vel_z]
         wps = self.wp_list[self.cur_wp_idx:self.cur_wp_idx + self.config["n_traj_pts"]]
         wps_buggy_frame = self.transform_wp_to_buggy_frame(wps, pos, ori_q)
-        return {"pos": pos, "ori_q": ori_q, "ori_mat": ori_mat, "vel": vel, "ang_vel": ang_vel, "wp_list": wps_buggy_frame, "turn_angle" : self.turn_angle, "rear_wheel_speed" : self.rear_wheel_speed}
+        return {"pos": pos, "ori_q": ori_q, "ori_mat": ori_mat, "vel": vel, "ang_vel": ang_vel, "wp_list": wps_buggy_frame}
 
 
 if __name__ == "__main__":
     config = load_config(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_env_mujoco.yaml"))
-    car_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/one_car.xml")
-    model = mujoco_py.load_model_from_path(car_path)
-    sim = mujoco_py.MjSim(model, nsubsteps=config["n_substeps"])
-
-    me = MujocoEngine(config, sim)
+    me = MujocoEngine(config)
     me.demo()

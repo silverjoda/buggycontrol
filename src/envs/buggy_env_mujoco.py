@@ -4,7 +4,7 @@ from gym import spaces
 
 from src.envs.engines import *
 from src.envs.xml_gen import *
-from src.policies import LTE
+
 import mujoco_py
 from src.opt.simplex_noise import SimplexNoise
 from src.utils import e2q
@@ -13,87 +13,44 @@ import timeit
 class BuggyEnv(gym.Env):
     metadata = {
         'render.modes': ['human'],
-        "video.frames_per_second": 100
+        'video.frames_per_second': 100
     }
 
     def __init__(self, config):
         self.config = config
-        self.buddy_template_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/cars/base_car/buddy.xml")
-        self.buddy_rnd_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/cars/base_car/buddy_rnd.xml")
 
-        self.car_template_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/one_car.xml")
-        self.car_rnd_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/one_car_rnd.xml")
-
-        n_traj_obs = self.config["n_traj_pts"] * 2
-        self.obs_dim = self.config["state_dim"] + n_traj_obs + self.config["allow_latent_input"] * \
-                       self.config["latent_dim"] + self.config["allow_lte"]
+        self.obs_dim = self.config["state_dim"] \
+                       + self.config["n_traj_pts"] * 2 \
+                       + self.config["allow_latent_input"] * self.config["latent_dim"] \
+                       + self.config["allow_lte"]
         self.act_dim = 2
-
-        if self.config["allow_lte"]:
-            self.lte = LTE(obs_dim=self.config["state_dim"] + self.act_dim, act_dim=self.config["state_dim"], hid_dim=256)
-            lte_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "opt/agents/buggy_lte.p")
-            self.lte.load_state_dict(T.load(lte_path), strict=False)
 
         self.observation_space = spaces.Box(low=-10, high=10, shape=(self.obs_dim,), dtype=np.float32)
         self.action_space = spaces.Box(low=-2.0, high=2.0, shape=(self.act_dim,), dtype=np.float32)
-        self.current_difficulty = 0.
 
         self.sim, self.engine = self.load_random_env()
 
     def load_random_env(self):
-        # 0: friction (0.4), 1: steering_range (0.38), 2: body mass (3.47), 3: kv (3000), 4: gear (0.003)
-        random_param_scale_offset_list = [[0.15, 0.4], [0.1, 0.38], [1, 3.5], [1000, 3000], [0.001, 0.003]]
-        self.scaled_random_params = list(np.clip(np.random.randn(len(random_param_scale_offset_list)) * 0.5, -1, 1))
-        self.sim_random_params = [self.scaled_random_params[i] * rso[0] + rso[1] for i, rso in enumerate(random_param_scale_offset_list)]
-
-        if self.config["allow_lte"]:
-            self.random_params = np.concatenate([self.sim_random_params, np.array([-1])])
-
         if self.config["allow_lte"] and np.random.rand() < self.config["lte_prob"]:
-            self.scaled_random_params = [0,0,0,0,0,1.]
-            self.sim_random_params = [0,0,0,0,0,1.]
-            model = mujoco_py.load_model_from_path(self.car_template_path)
-            sim = mujoco_py.MjSim(model, nsubsteps=self.config['n_substeps'])
-            engine = LTEEngine(self.config, sim, self.lte)
+            engine = LTEEngine(self.config)
         else:
-            if self.config["randomize_env"]:
-                buddy_xml = gen_buddy_xml(self.random_params)
-                with open(self.buddy_rnd_path, "w") as out_file:
-                    for s in buddy_xml.splitlines():
-                        out_file.write(s)
-                car_xml = gen_car_xml(self.random_params)
-                model = mujoco_py.load_model_from_xml(car_xml)
-                # with open(self.car_rnd_path, "w") as out_file:
-                #     for s in car_xml.splitlines():
-                #         out_file.write(s)
-                # model = mujoco_py.load_model_from_path(self.car_rnd_path)
-            else:
-                model = mujoco_py.load_model_from_path(self.car_template_path)
-            sim = mujoco_py.MjSim(model, nsubsteps=self.config['n_substeps'])
-            if self.config["use_engine_2"]:
-                engine = MujocoEngine2(self.config, sim)
-            else:
-                engine = MujocoEngine(self.config, sim)
-
+            engine = MujocoEngine(self.config)
+        sim = engine.mujoco_sim
         return sim, engine
 
     def set_barrier_positions(self, p1, p2):
+        # TODO: This will accept a whole list of barriers for the maize env
         self.sim.data.set_mocap_pos("barrier1", p1 + [0.2])
         self.sim.data.set_mocap_pos("barrier2", p2 + [0.2])
-
-    def set_trajectory_pts(self, traj_pts):
-        pass
 
     def get_obs_dict(self):
         return self.engine.get_obs_dict()
 
-    def get_state_vec(self):
-        return self.engine.get_state_vec()
+    def get_state_vec(self, obs_dict):
+        return self.engine.get_state_vec(obs_dict)
 
     def get_complete_obs_vec(self):
-        complete_obs_vec, _ = self.engine.get_complete_obs_vec()
-        if self.config["allow_latent_input"]:
-            complete_obs_vec += self.scaled_random_params
+        complete_obs_vec, _ = self.engine.get_complete_obs_vec(allow_latent_input=self.config["allow_latent_input"])
         return complete_obs_vec
 
     def get_reward(self, obs_dict, wp_visited):
@@ -108,27 +65,7 @@ class BuggyEnv(gym.Env):
         dist_between_cur_wp = np.sqrt(np.square((cur_wp[0] - pos[0])) + np.square((cur_wp[1] - pos[1])))
 
         r = wp_visited * (1 / (1 + 0.5 * path_deviation)) - dist_between_cur_wp * 0.01
-        #r = wp_visited * 1
         return r, dist_between_cur_wp
-
-    def is_mirror_obs(self, obs):
-        return obs[3] < 0
-
-    def mirror_obs(self, obs):
-        mirrored_obs = deepcopy(obs)
-
-        # Wheel turn obs
-        mirrored_obs[0] *= -1
-
-        # y obs
-        mirrored_obs[3] *= -1
-        mirrored_obs[5] *= -1
-
-        # Waypoint y coordinate
-        n_wpts = (len(obs) - 5) // 2
-        for i in range(n_wpts):
-            mirrored_obs[5 + i * 2 + 1] *= -1
-        return mirrored_obs
 
     def set_external_state(self, state_dict):
         old_state = self.sim.get_state()
@@ -145,10 +82,6 @@ class BuggyEnv(gym.Env):
     def step(self, act):
         self.step_ctr += 1
 
-        if self.config["enforce_bilateral_symmetry"]:
-            if self.prev_obs_mirrored:
-                act = [act[0] * -1, act[1]]
-
         # Turn, throttle
         scaled_act = act
         if self.engine.__class__.__name__ != 'LTEEngine':
@@ -156,7 +89,7 @@ class BuggyEnv(gym.Env):
         done, wp_visited = self.engine.step(scaled_act)
 
         # Get new observation
-        complete_obs_vec, obs_dict = self.engine.get_complete_obs_vec()
+        complete_obs_vec, obs_dict = self.engine.get_complete_obs_vec(allow_latent_input=self.config["allow_latent_input"])
 
         # calculate reward
         r, dist_to_cur_wp = self.get_reward(obs_dict, wp_visited)
@@ -176,20 +109,13 @@ class BuggyEnv(gym.Env):
     def reset(self):
         # Reset variables
         self.step_ctr = 0
-        self.current_difficulty = np.minimum(self.current_difficulty + 0.00003, 1.)
-        self.engine.current_difficulty = self.current_difficulty
         self.prev_scaled_act = np.zeros(2)
 
         # Reset simulation
         self.engine.reset()
 
         # Reset environment variables
-        obs_vec, _ = self.engine.get_complete_obs_vec()
-
-        if self.config["enforce_bilateral_symmetry"]:
-            self.prev_obs_mirrored = self.is_mirror_obs(obs_vec)
-            if self.prev_obs_mirrored:
-                obs_vec = self.mirror_obs(obs_vec)
+        obs_vec, _ = self.engine.get_complete_obs_vec(allow_latent_input=self.config["allow_latent_input"])
 
         return obs_vec
 
@@ -209,15 +135,18 @@ class BuggyEnv(gym.Env):
             self.set_barrier_positions([4.0, 0.0], [6.0, 1.0])
             cum_rew = 0
             while True:
+                t1 = time.time()
                 zero_act = np.array([0, -1.0])
                 rnd_act = np.clip(self.noise(), -1, 1)
                 obs, r, done, _ = self.step(rnd_act) # turn, throttle
+
                 cum_rew += r
                 if self.config["render"]:
                     if self.engine.__class__.__name__ == 'LTEEngine':
                         self.set_external_state({"x_pos": self.engine.xy_pos[0],
                                                  "y_pos": self.engine.xy_pos[1],
                                                  "phi": self.engine.theta})
+
                     self.render()
 
                 if done: break

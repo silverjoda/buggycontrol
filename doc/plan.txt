@@ -29,3 +29,16 @@
 - Train RMA-style
 - Compare RMA-style with trained model transfer
 - Try RL with difficult initial state distribution predictor to help with difficult environments
+
+# Thurs:
+- Rewrite buggy env properly to separate env from engine.
+- Test both mujoco and learned engine
+- Write new maize env.
+    - Generation of maize. Barriers are objects (can be queried). Render barriers into image, plot etc. Maize can be rendered as grid for sp algo.
+    - Shortest path generation
+    - Mujoco visualization of barriers
+    - Reward calculation
+
+- Make youtube video plan (transformations probably)
+- Make spot plan
+- Make tradr plan (path follower + reactive control)
