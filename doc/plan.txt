@@ -31,7 +31,6 @@
 - Try RL with difficult initial state distribution predictor to help with difficult environments
 
 # Thurs:
-- Rewrite buggy env properly to separate env from engine.
 - Test both mujoco and learned engine
 - Write new maize env.
     - Generation of maize. Barriers are objects (can be queried). Render barriers into image, plot etc. Maize can be rendered as grid for sp algo.
