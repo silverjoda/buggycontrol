@@ -306,6 +306,8 @@ class LTEEngine(Engine):
         # Make observation for lte out of current vel and action
         obs = np.array((*self.xy_vel, self.ang_vel_z, *action), dtype=np.float32)
 
+        # TODO: Check how velocities are integrated. Node tester shows that the LTE is fine.
+
         # Update velocities
         self.xy_vel[0], self.xy_vel[1], self.ang_vel_z = self.lte.predict_next_vel(obs)
 

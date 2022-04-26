@@ -30,7 +30,7 @@ if __name__=="__main__":
 
     integrated_pose = Pose(orientation=Quaternion(x=0, y=0, z=0, w=1))
 
-    policy = MLP(7, 5, hid_dim=256)
+    policy = MLP(5, 3, hid_dim=128)
     agent_path = os.path.join(os.path.dirname(__file__), "../opt/agents/buggy_lte.p")
     policy.load_state_dict(T.load(agent_path), strict=False)
 
@@ -50,8 +50,6 @@ if __name__=="__main__":
     buggy_lin_vel_x = 0.
     buggy_lin_vel_y = 0.
     buggy_ang_vel_z = 0.
-    buggy_turn = 0.
-    buggy_throttle = 0.
 
     turn = 0
     throttle = 0
@@ -65,10 +63,10 @@ if __name__=="__main__":
                 turn = deepcopy(act_msg.turn)
 
         # Predict velocity update
-        policy_input = T.tensor([buggy_turn, buggy_throttle, buggy_lin_vel_x, buggy_lin_vel_y, buggy_ang_vel_z, turn, throttle], dtype=T.float32)
+        policy_input = T.tensor([buggy_lin_vel_x, buggy_lin_vel_y, buggy_ang_vel_z, turn, throttle], dtype=T.float32)
         with T.no_grad():
             pred_vel = policy(policy_input)
-        buggy_turn, buggy_throttle, buggy_lin_vel_x, buggy_lin_vel_y, buggy_ang_vel_z = pred_vel.numpy()
+        buggy_lin_vel_x, buggy_lin_vel_y, buggy_ang_vel_z = pred_vel.numpy()
 
         # Condition the output
         #buggy_lin_vel_x = np.maximum(buggy_lin_vel_x, 0)

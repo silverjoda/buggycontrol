@@ -69,7 +69,7 @@ class BuggyEnv(gym.Env):
 
     def set_external_state(self, state_dict):
         old_state = self.sim.get_state()
-        qpos = old_state.qpos
+        qpos = old_state.qpos # qvel
         qpos[0:2] = state_dict["x_pos"], state_dict["y_pos"]
         quat = e2q(0,0,state_dict["phi"])
         qpos[3:7] = quat
