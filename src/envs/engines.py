@@ -1,14 +1,14 @@
-from abc import abstractmethod
-import mujoco_py
 import os
-import numpy as np
-import time
-from src.opt.simplex_noise import SimplexNoise
-from src.utils import load_config, theta_to_quat
+from abc import abstractmethod
 from copy import deepcopy
-import math as m
-from src.policies import LTE
+
+import mujoco_py
+import numpy as np
+
 from src.envs.xml_gen import *
+from src.opt.simplex_noise import SimplexNoise
+from src.policies import LTE
+from src.utils import load_config, theta_to_quat, q2e
 
 class Engine:
     def __init__(self, config):
@@ -107,7 +107,7 @@ class Engine:
         wp_arr = np.array(wp_list)
         wp_arr_centered = wp_arr - np.array(pos[0:2])
         buggy_q = ori_q
-        _, _, theta = self.q2e(*buggy_q)
+        _, _, theta = q2e(*buggy_q)
         t_mat = np.array([[np.cos(-theta), -np.sin(-theta)], [np.sin(-theta), np.cos(-theta)]])
         wp_buggy = np.matmul(t_mat, wp_arr_centered.T).T
         return wp_buggy
@@ -116,7 +116,7 @@ class Engine:
         wp_arr = np.array(wp_list)
         wp_arr_centered = wp_arr - np.array(pos[0:2])
         buggy_q = ori_q
-        _, _, theta = self.q2e(*buggy_q)
+        _, _, theta = q2e(*buggy_q)
         t_mat = np.array([[np.cos(-theta), -np.sin(-theta)], [np.sin(-theta), np.cos(-theta)]])
         wp_buggy = np.matmul(t_mat, wp_arr_centered.T).T
 
@@ -191,12 +191,13 @@ class Engine:
 class MujocoEngine(Engine):
     def __init__(self, config):
         super().__init__(config)
+        self.model, self.mujoco_sim, self.bodyid = self.load_env()
 
     def generate_random_sim_parameters(self):
         # 0: friction (0.4), 1: steering_range (0.38), 2: body mass (3.47), 3: kv (3000), 4: gear (0.003)
         random_param_scale_offset_list = [[0.15, 0.4], [0.1, 0.38], [1, 3.5], [1000, 3000], [0.001, 0.003]]
         random_params_normalized = list(np.clip(np.random.randn(len(random_param_scale_offset_list)) * 0.4, -1, 1))
-        random_params_sim = [(self.random_params_normalized[i] - rso[0]) / rso[1] for i, rso in enumerate(random_param_scale_offset_list)]
+        random_params_sim = [(random_params_normalized[i] - rso[0]) / rso[1] for i, rso in enumerate(random_param_scale_offset_list)]
         return random_params_normalized, random_params_sim
 
     def load_env(self):
@@ -207,13 +208,15 @@ class MujocoEngine(Engine):
             with open(self.buddy_rnd_path, "w") as out_file:
                 for s in buddy_xml.splitlines():
                     out_file.write(s)
+                    out_file.write("\n")
             car_xml = gen_car_xml(self.random_params_sim)
-            model = mujoco_py.load_model_from_xml(car_xml)
+            #model = mujoco_py.load_model_from_xml(car_xml)
             # This might be uneccessary to write the top level xml, as we can load it from xml directly and it will call the overwritten buddy xml
-            # with open(self.car_rnd_path, "w") as out_file:
-            #     for s in car_xml.splitlines():
-            #         out_file.write(s)
-            # model = mujoco_py.load_model_from_path(self.car_rnd_path)
+            with open(self.car_rnd_path, "w") as out_file:
+                for s in car_xml.splitlines():
+                    out_file.write(s)
+                    out_file.write("\n")
+            model = mujoco_py.load_model_from_path(self.car_rnd_path)
         else:
             model = mujoco_py.load_model_from_path(self.car_template_path)
 
@@ -237,6 +240,9 @@ class MujocoEngine(Engine):
         if self.config["randomize_env"] or not hasattr(self, "model"):
             self.model, self.mujoco_sim, self.bodyid = self.load_env()
 
+        if hasattr(self, 'viewer'):
+            del self.viewer
+
         self.reset_estimators()
         self.mujoco_sim.reset()
         self.reset_trajectory()
@@ -244,7 +250,6 @@ class MujocoEngine(Engine):
     def render(self):
         if not hasattr(self, 'viewer'):
             self.viewer = mujoco_py.MjViewer(self.mujoco_sim)
-
         self.viewer.render()
 
     def update_estimators(self, act):
@@ -275,8 +280,8 @@ class LTEEngine(Engine):
     def __init__(self, config):
         super().__init__(config)
         self.lte = self.load_lte()
+        self.model, self.mujoco_sim, self.bodyid = self.load_env()
         self.dt = 1. / self.config["rate"]
-
         self.reset_vars()
 
     def load_env(self):
@@ -322,6 +327,7 @@ class LTEEngine(Engine):
     def render(self):
         if not hasattr(self, 'viewer'):
             self.viewer = mujoco_py.MjViewer(self.mujoco_sim)
+
         self.viewer.render()
 
     def reset_vars(self):

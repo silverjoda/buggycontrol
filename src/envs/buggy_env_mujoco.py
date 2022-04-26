@@ -135,10 +135,10 @@ class BuggyEnv(gym.Env):
             self.set_barrier_positions([4.0, 0.0], [6.0, 1.0])
             cum_rew = 0
             while True:
-                t1 = time.time()
-                zero_act = np.array([0, -1.0])
+                zero_act = np.array([0.0, -1])
                 rnd_act = np.clip(self.noise(), -1, 1)
-                obs, r, done, _ = self.step(rnd_act) # turn, throttle
+                act = zero_act
+                obs, r, done, _ = self.step(act) # turn, throttle
 
                 cum_rew += r
                 if self.config["render"]:
@@ -149,7 +149,7 @@ class BuggyEnv(gym.Env):
 
                     self.render()
 
-                if done: break
+
             print("Cumulative rew: {}".format(cum_rew))
 
 if __name__ == "__main__":

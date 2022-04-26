@@ -30,14 +30,34 @@
 - Compare RMA-style with trained model transfer
 - Try RL with difficult initial state distribution predictor to help with difficult environments
 
-# Thurs:
-- Test both mujoco and learned engine
-- Write new maize env.
-    - Generation of maize. Barriers are objects (can be queried). Render barriers into image, plot etc. Maize can be rendered as grid for sp algo.
-    - Shortest path generation
-    - Mujoco visualization of barriers
-    - Reward calculation
+# Tuesday:
+- Continue with Buggy project:
+    - Test both mujoco and learned engine
+    - Write new maize env.
+        - Generation of maize. Barriers are objects (can be queried). Render barriers into image, plot etc. Maize can be rendered as grid for sp algo.
+        - Shortest path generation
+        - Mujoco visualization of barriers
+        - Reward calculation
 
-- Make youtube video plan (transformations probably)
-- Make spot plan
-- Make tradr plan (path follower + reactive control)
+# Make tradr plan (path follower + reactive control)
+- Load Tradr robot in simulation. Just staging area with a few cubes is enough
+- On Basestation (BS) test path follower in isolation
+- On BS test extended virtual bumper (reactive control) using joystick
+
+# Robotic transformations and frames:
+Motivation: Spot example in rviz (coordinate frames form a tree, show tf tree, switch between various fixed frames: world, base_link, sensor, etc)
+Defining a frame of reference. What does having a frame of reference mean (point is a linear combination of basis vectors).
+Rigid body transformations (rot+trans), transforming from A to B (ref to 3b1b)
+Rotation representations and conversions (euler, angle axis, quat, matrix)
+Extracting individual rotation axis from transformations
+Rotation example: IMU inclination from gravitational vector
+Homogeneous transformations (4D)
+Sensor example: Transform depth cloud from sensor to world frame
+Defining a rotation frame: Manually, Using a rotation calculator, using optimization
+ROS TF tree
+
+# Spot hand:
+- Try the ericvoll topics to see if hand works
+- See how the high level features are represented in the API.
+
+

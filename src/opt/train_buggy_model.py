@@ -16,7 +16,7 @@ class ModelDataset:
     def get_lhs_weights(self):
         # Check LHS here
         k = 8
-        D = 5
+        D = 3
         A = np.random.randn(k, D)
         X = self.X_trn.reshape((self.X_trn.shape[0] * self.X_trn.shape[1], self.X_trn.shape[2]))[:, 2:]
         Z = np.sign((A @ X.T).T)
@@ -82,9 +82,9 @@ class ModelDataset:
         X_sym = np.copy(X)
         Y_sym = np.copy(Y)
 
-        # Correct sym datasets. # turn_angle, rear_wheel_speed, vel[0], vel[1], ang_vel[2]
-        X_sym[:,:, np.array([0, 3, 4, 5])] *= -1
-        Y_sym[:, :, np.array([0, 3, 4])] *= -1
+        # Correct sym datasets. # vel[0], vel[1], ang_vel[2]
+        X_sym[:,:, np.array([1, 2, 3])] *= -1
+        Y_sym[:, :, np.array([1, 2])] *= -1
 
         X = np.concatenate((X, X_sym), axis=0)
         Y = np.concatenate((Y, Y_sym), axis=0)
@@ -141,7 +141,7 @@ class ModelTrainer:
         self.dataset = dataset
 
     def train(self):
-        self.policy = MLP(obs_dim=7, act_dim=5, hid_dim=256)
+        self.policy = MLP(obs_dim=5, act_dim=3, hid_dim=128)
         optim = T.optim.Adam(params=self.policy.parameters(), lr=self.config['lr'], weight_decay=self.config['w_decay'])
         lossfun = T.nn.MSELoss()
         for i in range(self.config['iters']):

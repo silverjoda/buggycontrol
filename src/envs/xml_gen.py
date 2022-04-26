@@ -102,25 +102,78 @@ def gen_buddy_xml(params):
         <velocimeter name="buddy_velocimeter" site="buddy_imu" />
       </sensor>
     </mujoco>""".format(*params[:5])
+    return buddy_str
 
 
 def gen_car_xml(params):
     car_str = """<mujoco model="mushr_nano">
-  <compiler angle="radian" />
-  <size njmax="500" nconmax="300"/>
-  <option timestep="0.001" integrator="RK4" solver="Newton" o_solimp="0 0.95 0.001 0.4 2" o_solref="0.02 1" o_margin="0"/>
-  <include file="cars/base_car/buddy_rnd.xml"/>
-  <asset>
-    <texture name="texplane" type="2d" builtin="checker" rgb1="0.26 0.12 0.36" rgb2="0.23 0.09 0.33" width="512" height="512" mark="cross" markrgb=".8 .8 .8"/>
-    <texture name="texgeom" type="cube" builtin="flat" mark="cross" width="127" height="1278" rgb1="0.8 0.6 0.4" rgb2="0.8 0.6 0.4" markrgb="1 1 1" random="0.01"/>
-    <material name="matplane" reflectance="0.3" texture="texplane" texrepeat="1 1" texuniform="true"/>
-    <material name="matgeom" texture="texgeom" texuniform="true" rgba="0.8 0.6 .4 1"/>
-  </asset>
-  <visual>
-    <headlight ambient="0.6 0.6 0.6" diffuse="0.4 0.4 0.4" specular="0.2 0.2 0.2"/>
-    <map znear="0.001" />
-  </visual>
-  <worldbody>
-    <geom contype="1" name="floor" friction="{} 0.005 0.0001" pos="0 0 0" size="0 0 .25" type="plane" material="matplane" condim="3" solimp="0 0.95 0.001 0.4 2" solref="0.02 1" margin="0"/>
-  </worldbody>
-</mujoco> """.format(params[0])
+      <compiler angle="radian" />
+      <size njmax="500" nconmax="300"/>
+      <option timestep="0.001" integrator="RK4" solver="Newton" o_solimp="0 0.95 0.001 0.4 2" o_solref="0.02 1" o_margin="0"/>
+      <include file="cars/base_car/buddy.xml"/>
+      <asset>
+        <texture name="texplane" type="2d" builtin="checker" rgb1="0.26 0.12 0.36" rgb2="0.23 0.09 0.33" width="512" height="512" mark="cross" markrgb=".8 .8 .8"/>
+        <texture name="texgeom" type="cube" builtin="flat" mark="cross" width="127" height="1278" rgb1="0.8 0.6 0.4" rgb2="0.8 0.6 0.4" markrgb="1 1 1" random="0.01"/>
+        <material name="matplane" reflectance="0.3" texture="texplane" texrepeat="1 1" texuniform="true"/>
+        <material name="matgeom" texture="texgeom" texuniform="true" rgba="0.8 0.6 .4 1"/>
+      </asset>
+      <visual>
+        <headlight ambient="0.6 0.6 0.6" diffuse="0.4 0.4 0.4" specular="0.2 0.2 0.2"/>
+        <map znear="0.001" />
+      </visual>
+      <worldbody>
+        <geom contype="1" name="floor" friction="{} 0.005 0.0001" pos="0 0 0" size="0 0 .25" type="plane" material="matplane" condim="3" solimp="0 0.95 0.001 0.4 2" solref="0.02 1" margin="0"/>
+            <body name="waypoint0" pos="-10 0 0" mocap="true">
+            <geom contype="0" conaffinity="0" condim="3" size=".05" type="sphere" mass="1" rgba="1 0 0 1"/>
+            </body>
+            <body name="waypoint1" pos="-10 0 0" mocap="true">
+            <geom contype="0" conaffinity="0" condim="3" size=".05" type="sphere" mass="1" rgba="1 0 0 1"/>
+            </body>
+            <body name="waypoint2" pos="-10 0 0" mocap="true">
+            <geom contype="0" conaffinity="0" condim="3" size=".05" type="sphere" mass="1" rgba="1 0 0 1"/>
+            </body>
+            <body name="waypoint3" pos="-10 0 0" mocap="true">
+            <geom contype="0" conaffinity="0" condim="3" size=".05" type="sphere" mass="1" rgba="1 0 0 1"/>
+            </body>
+            <body name="waypoint4" pos="-10 0 0" mocap="true">
+            <geom contype="0" conaffinity="0" condim="3" size=".05" type="sphere" mass="1" rgba="1 0 0 1"/>
+            </body>
+            <body name="waypoint5" pos="-10 0 0" mocap="true">
+            <geom contype="0" conaffinity="0" condim="3" size=".05" type="sphere" mass="1" rgba="1 0 0 1"/>
+            </body>
+            <body name="waypoint6" pos="-10 0 0" mocap="true">
+            <geom contype="0" conaffinity="0" condim="3" size=".05" type="sphere" mass="1" rgba="1 0 0 1"/>
+            </body>
+            <body name="waypoint7" pos="-10 0 0" mocap="true">
+            <geom contype="0" conaffinity="0" condim="3" size=".05" type="sphere" mass="1" rgba="1 0 0 1"/>
+            </body>
+            <body name="waypoint8" pos="-10 0 0" mocap="true">
+            <geom contype="0" conaffinity="0" condim="3" size=".05" type="sphere" mass="1" rgba="1 0 0 1"/>
+            </body>
+            <body name="waypoint9" pos="-10 0 0" mocap="true">
+            <geom contype="0" conaffinity="0" condim="3" size=".05" type="sphere" mass="1" rgba="1 0 0 1"/>
+            </body>
+            <body name="waypoint10" pos="-10 0 0" mocap="true">
+            <geom contype="0" conaffinity="0" condim="3" size=".05" type="sphere" mass="1" rgba="1 0 0 1"/>
+            </body>
+            <body name="waypoint11" pos="-10 0 0" mocap="true">
+            <geom contype="0" conaffinity="0" condim="3" size=".05" type="sphere" mass="1" rgba="1 0 0 1"/>
+            </body>
+            <body name="waypoint12" pos="-10 0 0" mocap="true">
+            <geom contype="0" conaffinity="0" condim="3" size=".05" type="sphere" mass="1" rgba="1 0 0 1"/>
+            </body>
+            <body name="waypoint13" pos="-10 0 0" mocap="true">
+            <geom contype="0" conaffinity="0" condim="3" size=".05" type="sphere" mass="1" rgba="1 0 0 1"/>
+            </body>
+            <body name="waypoint14" pos="-10 0 0" mocap="true">
+            <geom contype="0" conaffinity="0" condim="3" size=".05" type="sphere" mass="1" rgba="1 0 0 1"/>
+            </body>
+                <body name="barrier1" pos="10 0 0" mocap="true">
+            <geom contype="0" conaffinity="0" condim="3" size=".05 0.5 .2" type="box" mass="1" rgba="0 0 1 1"/>
+            </body>
+            <body name="barrier2" pos="10 0 0" mocap="true">
+            <geom contype="0" conaffinity="0" condim="3" size=".05 0.5 .2" type="box" mass="1" rgba="0 0 1 1"/>
+            </body>
+      </worldbody>
+    </mujoco> """.format(params[0])
+    return car_str

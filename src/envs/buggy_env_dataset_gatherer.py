@@ -15,7 +15,7 @@ from src.envs import buggy_env_mujoco
 from src.opt.simplex_noise import SimplexNoise
 from src.utils import merge_dicts
 import numpy as np
-GLOBAL_DEBUG = True
+GLOBAL_DEBUG = False
 
 class BuggyMujocoDatasetGatherer:
     def __init__(self):
@@ -51,7 +51,7 @@ class BuggyMujocoDatasetGatherer:
                 zero_throttle = True
 
             for j in range(self.config["traj_len"]):
-                obs_list.append(obs[:5])
+                obs_list.append(obs[:3])
 
                 # Get random action
                 rnd_act = self.noise()
@@ -79,7 +79,7 @@ class BuggyMujocoDatasetGatherer:
 
             X.append(np.array(x_list))
             Y.append(np.array(y_list))
-            P.append(np.array([self.env.scaled_random_params] * self.config["traj_len"]))
+            P.append(np.array([[0,0,0,0]] * self.config["traj_len"]))
 
             if i % 10 == 0:
                 print("Trajectory gathering: {}/{}".format(i, self.config["n_traj"]))

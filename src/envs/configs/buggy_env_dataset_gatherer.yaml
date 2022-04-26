@@ -1,4 +1,4 @@
-"n_traj" : 2000
+"n_traj" : 1000
 "traj_len" : 400
 "traj_sampling_dist" : 0.17
 "traj_jump_iters" : 100
@@ -15,4 +15,4 @@
 "batchsize" : 128
 "recurrent_batchsize" : 10
 "n_latent_params" : 4
-"mlp_hid_dim" : 256
+"mlp_hid_dim" : 128
