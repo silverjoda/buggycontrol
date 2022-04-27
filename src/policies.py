@@ -43,6 +43,11 @@ class MLP(nn.Module):
         out = self.fc3(fc2)
         return out
 
+    def predict_next_vel(self, o):
+        o_T = T.tensor(o)
+        y_T = self.forward(o_T)
+        return y_T.detach().numpy()
+
 class LTE(nn.Module):
     def __init__(self, obs_dim, act_dim, hid_dim=128):
         super(LTE, self).__init__()

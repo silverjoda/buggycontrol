@@ -30,9 +30,11 @@
 - Compare RMA-style with trained model transfer
 - Try RL with difficult initial state distribution predictor to help with difficult environments
 
-# Tuesday:
+# Wed:
 - Continue with Buggy project:
-    - Test both mujoco and learned engine
+    - Train model on real data
+    - Make training procedure for mujoco/real data discriminator
+    - Make training which fuses mujoco and real data using learned discriminator or LSH.
     - Write new maize env.
         - Generation of maize. Barriers are objects (can be queried). Render barriers into image, plot etc. Maize can be rendered as grid for sp algo.
         - Shortest path generation
@@ -59,5 +61,16 @@ ROS TF tree
 # Spot hand:
 - Try the ericvoll topics to see if hand works
 - See how the high level features are represented in the API.
+
+# Recipes:
+Training buggy model on real data:
+    - Find bagfiles
+    - Launch statictfs.launch
+    - Playback bagfile and launch buggy_model_learning_dataset_creator.py
+    - Repeat for all bagfiles
+    - todo
+
+
+
 
 

@@ -141,7 +141,7 @@ class ModelTrainer:
         self.dataset = dataset
 
     def train(self):
-        self.policy = MLP(obs_dim=5, act_dim=3, hid_dim=128)
+        self.policy = LTE(obs_dim=5, act_dim=3, hid_dim=128)
         optim = T.optim.Adam(params=self.policy.parameters(), lr=self.config['lr'], weight_decay=self.config['w_decay'])
         lossfun = T.nn.MSELoss()
         for i in range(self.config['iters']):

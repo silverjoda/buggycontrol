@@ -7,7 +7,7 @@ import numpy as np
 
 from src.envs.xml_gen import *
 from src.opt.simplex_noise import SimplexNoise
-from src.policies import LTE
+from src.policies import LTE, MLP
 from src.utils import load_config, theta_to_quat, q2e
 
 class Engine:
@@ -298,6 +298,7 @@ class LTEEngine(Engine):
     def load_lte(self):
         import torch as T
         lte = LTE(obs_dim=self.config["state_dim"] + 2, act_dim=self.config["state_dim"], hid_dim=128)
+        #lte = MLP(5, 3, hid_dim=128)
         lte_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "opt/agents/buggy_lte.p")
         lte.load_state_dict(T.load(lte_path), strict=False)
         return lte
@@ -306,17 +307,14 @@ class LTEEngine(Engine):
         # Make observation for lte out of current vel and action
         obs = np.array((*self.xy_vel, self.ang_vel_z, *action), dtype=np.float32)
 
-        # TODO: Check how velocities are integrated. Node tester shows that the LTE is fine.
-
         # Update velocities
         self.xy_vel[0], self.xy_vel[1], self.ang_vel_z = self.lte.predict_next_vel(obs)
 
         # Update position
-        self.xy_pos[0] = self.xy_pos[0] + np.cos(self.theta) * self.xy_vel[0] * self.dt
-        self.xy_pos[1] = self.xy_pos[1] + np.sin(self.theta) * self.xy_vel[1] * self.dt
-        self.theta += self.ang_vel_z * self.dt
+        self.xy_pos[0] = self.xy_pos[0] + np.cos(self.theta) * self.xy_vel[0] * self.dt + np.sin(self.theta) * self.xy_vel[1] * self.dt
+        self.xy_pos[1] = self.xy_pos[1] + np.sin(self.theta) * self.xy_vel[0] * self.dt + np.cos(self.theta) * self.xy_vel[1] * self.dt
+        self.theta = self.theta + self.ang_vel_z * self.dt
 
-        #print(f"Turn angle: {self.turn_angle}, Rear wheel speed: {self.rear_wheel_speed}, xy_vel: {self.xy_vel}, XYpos: {self.xy_pos}, Theta: {self.theta}")
         return self.step_trajectory(self.xy_pos)
 
     def reset(self):

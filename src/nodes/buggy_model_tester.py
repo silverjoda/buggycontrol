@@ -30,7 +30,8 @@ if __name__=="__main__":
 
     integrated_pose = Pose(orientation=Quaternion(x=0, y=0, z=0, w=1))
 
-    policy = MLP(5, 3, hid_dim=128)
+    #policy = MLP(5, 3, hid_dim=128)
+    policy = LTE(5, 3, hid_dim=128)
     agent_path = os.path.join(os.path.dirname(__file__), "../opt/agents/buggy_lte.p")
     policy.load_state_dict(T.load(agent_path), strict=False)
 

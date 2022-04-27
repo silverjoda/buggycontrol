@@ -38,8 +38,9 @@ class BuggyEnv(gym.Env):
         sim = engine.mujoco_sim
         return sim, engine
 
-    def set_barrier_positions(self, p1, p2):
-        # TODO: This will accept a whole list of barriers for the maize env
+    def set_barrier_positions(self, barriers_list):
+        p1, p2 = barriers_list
+        # TODO: This will accept a whole list of rectangular (ellipsoidal) barriers for the maize env. Pos + orientation
         self.sim.data.set_mocap_pos("barrier1", p1 + [0.2])
         self.sim.data.set_mocap_pos("barrier2", p2 + [0.2])
 
@@ -132,10 +133,10 @@ class BuggyEnv(gym.Env):
             self.noise = SimplexNoise(dim=2, smoothness=30, multiplier=1.6)
             self.reset()
 
-            self.set_barrier_positions([4.0, 0.0], [6.0, 1.0])
+            self.set_barrier_positions([[4.0, 0.0], [6.0, 1.0]])
             cum_rew = 0
             while True:
-                zero_act = np.array([0.0, -1])
+                zero_act = np.array([-0.3, -0.5])
                 rnd_act = np.clip(self.noise(), -1, 1)
                 act = zero_act
                 obs, r, done, _ = self.step(act) # turn, throttle
