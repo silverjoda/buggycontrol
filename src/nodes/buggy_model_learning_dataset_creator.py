@@ -67,7 +67,7 @@ class BagfileConverter:
         odom_msg.pose.pose.position.z -= tx.transform.translation.z
 
     def gather(self):
-        print("Started gathering")
+        print("Waiting for data")
 
         while not rospy.is_shutdown():
             with self.gt_odometry_lock:
@@ -78,13 +78,16 @@ class BagfileConverter:
 
             if gt_odometry_rdy and action_rdy: break
 
+        print("Started gathering")
+
         # Wait until user kills
         while not rospy.is_shutdown():
             with self.gt_odometry_lock:
                 self.gt_odometry_list.append(self.gt_odometry_msg)
             with self.actions_lock:
                 self.actions_list.append(self.actions_msg)
-            self.ros_rate.sleep()
+            time.sleep(0.005)
+            #self.ros_rate.sleep()
 
         print("Gathered: {} action and {} odom messages".format(len(self.actions_list), len(self.gt_odometry_list)))
 
@@ -120,8 +123,8 @@ class BagfileConverter:
             x = np.array([current_lin_vel.x,
                           current_lin_vel.y,
                           current_ang_vel.z,
-                          current_act_msg.throttle,
-                          current_act_msg.turn], dtype=np.float32)
+                          current_act_msg.turn,
+                          current_act_msg.throttle * 2 - 1], dtype=np.float32)
             y = np.array([next_lin_vel.x,
                           next_lin_vel.y,
                           next_ang_vel.z], dtype=np.float32)
@@ -131,6 +134,8 @@ class BagfileConverter:
 
         X = np.array(x_list)
         Y = np.array(y_list)
+
+        exit()
 
         return X, Y
 

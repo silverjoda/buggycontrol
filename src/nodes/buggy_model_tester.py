@@ -32,7 +32,7 @@ if __name__=="__main__":
 
     #policy = MLP(5, 3, hid_dim=128)
     policy = LTE(5, 3, hid_dim=128)
-    agent_path = os.path.join(os.path.dirname(__file__), "../opt/agents/buggy_lte.p")
+    agent_path = os.path.join(os.path.dirname(__file__), "../opt/agents/buggy_real_lte.p")
     policy.load_state_dict(T.load(agent_path), strict=False)
 
     print("Starting buggy tester node")

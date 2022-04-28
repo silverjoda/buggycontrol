@@ -8,6 +8,18 @@ from collections import Counter
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 T.set_num_threads(2)
 
+class SourceDiscriminator:
+    def __init__(self):
+        super().__init__()
+
+class NeuralDiscriminator(SourceDiscriminator):
+    def __init__(self):
+        super().__init__()
+
+class LSHDiscriminator(SourceDiscriminator):
+    def __init__(self):
+        super().__init__()
+
 class ModelDataset:
     def __init__(self, use_real_data=False):
         if use_real_data:
@@ -61,6 +73,16 @@ class ModelDataset:
         # Make tensor out of loaded list
         X = np.stack(x_traj_list)
         Y = np.stack(y_traj_list)
+
+        X_sym = np.copy(X)
+        Y_sym = np.copy(Y)
+
+        # Correct sym datasets. # -, y_vel, ang_vel, turn, -
+        X_sym[:, :, np.array([1, 2, 3])] *= -1
+        Y_sym[:, :, np.array([1, 2])] *= -1
+
+        X = np.concatenate((X, X_sym), axis=0)
+        Y = np.concatenate((Y, Y_sym), axis=0)
 
         n_traj = len(X)
         assert n_traj > 100
@@ -136,16 +158,21 @@ class ModelDataset:
         return X, Y
 
 class ModelTrainer:
-    def __init__(self, config, dataset):
+    def __init__(self, config, mujoco_dataset, real_dataset):
         self.config = config
-        self.dataset = dataset
+        self.mujoco_dataset = mujoco_dataset
+        self.real_dataset = real_dataset
 
-    def train(self, policy_name="buggy_lte"):
+    def train(self, dataset, policy_name="buggy_lte", pretrained_model_path=None):
         self.policy = LTE(obs_dim=5, act_dim=3, hid_dim=128)
+
+        if pretrained_model_path is not None:
+            self.policy.load_state_dict(T.load(pretrained_model_path), strict=False)
+
         optim = T.optim.Adam(params=self.policy.parameters(), lr=self.config['lr'], weight_decay=self.config['w_decay'])
         lossfun = T.nn.MSELoss()
         for i in range(self.config['iters']):
-            X, Y = self.dataset.get_random_batch(self.config['batchsize'])
+            X, Y = dataset.get_random_batch(self.config['batchsize'])
             #X, Y, W = self.dataset.get_random_batch_weighted(self.config['batchsize'])
             Y_ = self.policy(X)
             loss = lossfun(Y_, Y)
@@ -154,7 +181,7 @@ class ModelTrainer:
             optim.step()
             optim.zero_grad()
             if i % 100 == 0:
-                X_val, Y_val = self.dataset.get_val_dataset()
+                X_val, Y_val = dataset.get_val_dataset()
                 Y_val_ = self.policy(X_val)
                 loss_val = lossfun(Y_val_, Y_val)
                 print("Iter {}/{}, loss: {}, loss_val: {}".format(i, self.config['iters'], loss.data, loss_val.data))
@@ -261,18 +288,42 @@ class ModelTrainer:
         print("Done training, saving model")
         T.save(policy.state_dict(), "agents/buggy_linmod_hybrid.p")
 
+    def train_data_discriminator(self):
+        discrim = MLP(3 + 3, 2)
+        optim = T.optim.Adam(params=discrim.parameters(), lr=self.config['lr'], weight_decay=self.config['w_decay'])
+        lossfun = T.nn.CrossEntropyLoss()
+
+        n_iters = 1000
+        for i in range(n_iters):
+            # Get minibatch from both datasets
+            x_mujoco = self.mujoco_dataset
+
+            # TODO: Cont here
+
+            # Forward pass
+
+            # Loss
+
+            # Update
+            pass
+
+
 if __name__=="__main__":
     import yaml
     with open(os.path.join(os.path.dirname(__file__), "configs/train_buggy_model.yaml"), 'r') as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
 
-    dataset = ModelDataset(use_real_data=True)
-    model_trainer = ModelTrainer(config, dataset)
+    mujoco_dataset = ModelDataset(use_real_data=False)
+    real_dataset = ModelDataset(use_real_data=True)
+    model_trainer = ModelTrainer(config, mujoco_dataset, real_dataset)
 
     # Train
     if config["train"]:
+        pretrained_model_path = f"agents/buggy_lte.p"
+
+        model_trainer.train_data_discriminator()
         #model_trainer.train_linmod()
         #model_trainer.train_lin()
         #model_trainer.train_linmod_hybrid()
-        model_trainer.train("buggy_real_lte")
+        #model_trainer.train(mujoco_dataset, "buggy_real_lte", pretrained_model_path=None)
 

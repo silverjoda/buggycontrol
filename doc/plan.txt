@@ -32,6 +32,7 @@
 
 # Wed:
 - Continue with Buggy project:
+    - Fix buggy real data synchronization issue
     - Train model on real data
     - Make training procedure for mujoco/real data discriminator
     - Make training which fuses mujoco and real data using learned discriminator or LSH.
@@ -68,7 +69,7 @@ Training buggy model on real data:
     - Launch statictfs.launch
     - Playback bagfile and launch buggy_model_learning_dataset_creator.py
     - Repeat for all bagfiles
-    - todo
+    - run train_buggy_model.py with appropriate configuration
 
 
 
