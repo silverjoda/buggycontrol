@@ -9,8 +9,11 @@ os.environ["CUDA_VISIBLE_DEVICES"] = ""
 T.set_num_threads(2)
 
 class ModelDataset:
-    def __init__(self):
-        self.X_trn, self.Y_trn, self.X_val, self.Y_val = self.load_mujoco_dataset()
+    def __init__(self, use_real_data=False):
+        if use_real_data:
+            self.X_trn, self.Y_trn, self.X_val, self.Y_val = self.load_real_dataset()
+        else:
+            self.X_trn, self.Y_trn, self.X_val, self.Y_val = self.load_mujoco_dataset()
         self.W_lhs = self.get_lhs_weights()
 
     def get_lhs_weights(self):
@@ -37,7 +40,7 @@ class ModelDataset:
     def load_real_dataset(self):
         x_data_list = []
         y_data_list = []
-        dataset_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data/dataset/")
+        dataset_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data/buggy_real_dataset/")
         for i in range(100):
             fp_X = os.path.join(dataset_dir, "X_{}.pkl".format(i))
             fp_Y = os.path.join(dataset_dir, "Y_{}.pkl".format(i))
@@ -46,38 +49,35 @@ class ModelDataset:
                 x_data_list.append(pickle.load(open(fp_X, "rb")))
                 y_data_list.append(pickle.load(open(fp_Y, "rb")))
 
+        # TODO: AFTER RE-RECORDING THE DATASET REMOVE THE X[0] PART (IT WILL ONLY HAVE 2 DIMS)
+        traj_len = 300
+        x_traj_list = []
+        y_traj_list = []
+        for x, y in zip(x_data_list, y_data_list):
+            for traj_idx in range(0, len(x[0]) - traj_len, traj_len):
+                x_traj_list.append(x[0, traj_idx:traj_idx + traj_len])
+                y_traj_list.append(y[0, traj_idx:traj_idx + traj_len])
+
         # Make tensor out of loaded list
-        X_raw = np.concatenate(x_data_list)
-        Y = np.concatenate(y_data_list)
+        X = np.stack(x_traj_list)
+        Y = np.stack(y_traj_list)
 
-        # Turn throttle and turn into real estimated values
-        X = np.copy(X_raw)
-        throttle_queue = [0] * 20
-        turn_queue = [0] * 15
-        for i in range(len(X_raw)):
-            throttle_queue.append(X_raw[i, 0])
-            turn_queue.append(X_raw[i, 1])
-            del throttle_queue[0]
-            del turn_queue[0]
-            X[i, 0] = np.mean(throttle_queue)
-            X[i, 1] = np.mean(turn_queue)
+        n_traj = len(X)
+        assert n_traj > 100
+        print("Loaded dataset with {} trajectories".format(n_traj))
 
-        # Condition the data
-        X[X[:, 0] < 0.05, 0] = 0
-        X[np.abs(X[:, 1]) < 0.01, 1] = 0
-        X[np.abs(X[:, 2]) < 0.03, 2] = 0
-        X[np.abs(X[:, 3]) < 0.03, 3] = 0
-        X[np.abs(X[:, 4]) < 0.01, 4] = 0
+        split_pt = int(n_traj * 0.9)
+        X_trn = X[:split_pt]
+        Y_trn = Y[:split_pt]
+        X_val = X[split_pt:]
+        Y_val = Y[split_pt:]
 
-        n_data_points = len(X)
-        assert n_data_points > 100
-        print("Loaded dataset with {} points".format(n_data_points))
-        return X, Y
+        return X_trn, Y_trn, X_val, Y_val
 
     def load_mujoco_dataset(self):
         dataset_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data/buggy_mujoco_dataset/")
-        X = np.load(os.path.join(dataset_dir, "X.npy"))
-        Y = np.load(os.path.join(dataset_dir, "Y.npy"))
+        X = np.load(os.path.join(dataset_dir, "X.npy"), encoding='latin1', allow_pickle=True)
+        Y = np.load(os.path.join(dataset_dir, "Y.npy"), encoding='latin1', allow_pickle=True)
 
         X_sym = np.copy(X)
         Y_sym = np.copy(Y)
@@ -140,7 +140,7 @@ class ModelTrainer:
         self.config = config
         self.dataset = dataset
 
-    def train(self):
+    def train(self, policy_name="buggy_lte"):
         self.policy = LTE(obs_dim=5, act_dim=3, hid_dim=128)
         optim = T.optim.Adam(params=self.policy.parameters(), lr=self.config['lr'], weight_decay=self.config['w_decay'])
         lossfun = T.nn.MSELoss()
@@ -159,7 +159,7 @@ class ModelTrainer:
                 loss_val = lossfun(Y_val_, Y_val)
                 print("Iter {}/{}, loss: {}, loss_val: {}".format(i, self.config['iters'], loss.data, loss_val.data))
         print("Done training, saving model")
-        T.save(self.policy.state_dict(), "agents/buggy_lte.p")
+        T.save(self.policy.state_dict(), f"agents/{policy_name}.p")
 
     def train_lin(self):
         policy = LIN(state_dim=3, act_dim=2)
@@ -266,7 +266,7 @@ if __name__=="__main__":
     with open(os.path.join(os.path.dirname(__file__), "configs/train_buggy_model.yaml"), 'r') as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
 
-    dataset = ModelDataset()
+    dataset = ModelDataset(use_real_data=True)
     model_trainer = ModelTrainer(config, dataset)
 
     # Train
@@ -274,5 +274,5 @@ if __name__=="__main__":
         #model_trainer.train_linmod()
         #model_trainer.train_lin()
         #model_trainer.train_linmod_hybrid()
-        model_trainer.train()
+        model_trainer.train("buggy_real_lte")
 

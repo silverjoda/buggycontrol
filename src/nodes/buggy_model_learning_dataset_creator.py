@@ -23,8 +23,11 @@ class BagfileConverter:
             os.makedirs(dataset_dir)
 
         # Find last indexed dataset
-        self.x_file_path = os.path.join(dataset_dir, "X.pkl")
-        self.y_file_path = os.path.join(dataset_dir, "Y.pkl")
+        for i in range(100):
+            self.x_file_path = os.path.join(dataset_dir, "X_{}.pkl".format(i))
+            self.y_file_path = os.path.join(dataset_dir, "Y_{}.pkl".format(i))
+            if not os.path.exists(self.x_file_path):
+                break
 
     def init_ros(self):
         rospy.init_node("bagfile_converter")
@@ -94,20 +97,12 @@ class BagfileConverter:
             odom_msg = self.gt_odometry_list[i]
             dataset_dict_list.append({"odom_msg" : odom_msg, "act_msg" : act_msg})
 
-        X_loaded, Y_loaded = self.load_dataset_if_exists()
-        X, Y = self.process_dataset(dataset_dict_list, X_loaded, Y_loaded)
+        X, Y = self.process_dataset(dataset_dict_list)
 
         print("Saving dataset")
         self.save_dataset(X, Y)
 
-    def load_dataset_if_exists(self):
-        X, Y = None, None
-        if os.path.exists(self.x_file_path):
-            X = np.load(self.x_file_path, allow_pickle=True)
-            Y = np.load(self.y_file_path, allow_pickle=True)
-        return X, Y
-
-    def process_dataset(self, dataset_dict_list, X_loaded, Y_loaded):
+    def process_dataset(self, dataset_dict_list):
         x_list = []
         y_list = []
         for i in range(len(dataset_dict_list) - 1):
@@ -134,14 +129,8 @@ class BagfileConverter:
             x_list.append(x)
             y_list.append(y)
 
-        X = np.expand_dims(np.array(x_list), 0)
-        Y = np.expand_dims(np.array(y_list), 0)
-
-        # TODO: save Xs, Ys as separate npy files for each bagfile, as before. They will then be loaded and put into a list
-
-        if X_loaded is not None:
-            X = np.concatenate((X, X_loaded), axis=0)
-            Y = np.concatenate((Y, Y_loaded), axis=0)
+        X = np.array(x_list)
+        Y = np.array(y_list)
 
         return X, Y
 
