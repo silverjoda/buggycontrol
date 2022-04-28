@@ -43,12 +43,13 @@ class BagfileConverter:
         self.actions_sub = rospy.Subscriber("/actions", Actions, callback=self.actions_cb, queue_size=10)
 
         self.bl_to_rs_trans = get_static_tf("odom", "camera_odom_frame")
-        self.ros_rate = rospy.Rate(200)
+        self.ros_rate = rospy.Rate(100)
         time.sleep(0.2)
 
     def gt_odometry_cb(self, msg):
-        with self.gt_odometry_lock:
-            self.gt_odometry_msg = msg
+        self.gt_odometry_list.append(msg)
+        with self.actions_lock:
+            self.actions_list.append(deepcopy(self.actions_msg))
 
     def actions_cb(self, msg):
         with self.actions_lock:
@@ -69,25 +70,17 @@ class BagfileConverter:
     def gather(self):
         print("Waiting for data")
 
-        while not rospy.is_shutdown():
-            with self.gt_odometry_lock:
-                gt_odometry_rdy = self.gt_odometry_msg is not None
-
-            with self.actions_lock:
-                action_rdy = self.actions_msg is not None
-
-            if gt_odometry_rdy and action_rdy: break
+        rospy.spin()
 
         print("Started gathering")
 
         # Wait until user kills
         while not rospy.is_shutdown():
             with self.gt_odometry_lock:
-                self.gt_odometry_list.append(self.gt_odometry_msg)
+                self.gt_odometry_list.append(deepcopy(self.gt_odometry_msg))
             with self.actions_lock:
-                self.actions_list.append(self.actions_msg)
-            time.sleep(0.005)
-            #self.ros_rate.sleep()
+                self.actions_list.append(deepcopy(self.actions_msg))
+            self.ros_rate.sleep()
 
         print("Gathered: {} action and {} odom messages".format(len(self.actions_list), len(self.gt_odometry_list)))
 

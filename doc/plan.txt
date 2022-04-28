@@ -30,10 +30,10 @@
 - Compare RMA-style with trained model transfer
 - Try RL with difficult initial state distribution predictor to help with difficult environments
 
-# Wed:
+# Friday:
 - Continue with Buggy project:
-    - Fix buggy real data synchronization issue
-    - Train model on real data
+    - Get new buggy dataset with fixed sync issue
+    - Train model on real data and test
     - Make training procedure for mujoco/real data discriminator
     - Make training which fuses mujoco and real data using learned discriminator or LSH.
     - Write new maize env.
