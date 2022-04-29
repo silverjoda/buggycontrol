@@ -324,5 +324,5 @@ if __name__=="__main__":
         #model_trainer.train_linmod()
         #model_trainer.train_lin()
         #model_trainer.train_linmod_hybrid()
-        model_trainer.train(real_dataset, "buggy_real_lte", pretrained_model_path=None)
+        model_trainer.train(mujoco_dataset, "buggy_lte", pretrained_model_path=None)
 
