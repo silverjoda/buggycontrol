@@ -32,8 +32,7 @@
 
 # Friday:
 - Continue with Buggy project:
-    - Get new buggy dataset with fixed sync issue
-    - Train model on real data and test
+    - Test real buggy model on mujoco <-
     - Make training procedure for mujoco/real data discriminator
     - Make training which fuses mujoco and real data using learned discriminator or LSH.
     - Write new maize env.

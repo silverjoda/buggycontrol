@@ -55,7 +55,7 @@ if __name__=="__main__":
     turn = 0
     throttle = 0
 
-    delta = 0.005
+    delta = 0.01
 
     while not rospy.is_shutdown():
         with act_lock:
