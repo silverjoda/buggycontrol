@@ -3,7 +3,7 @@ import pickle
 import time
 
 import rospy
-from buggycontrol.msg import Actions
+from buggycontrol.msg import Actions, ActionsStamped
 from nav_msgs.msg import Odometry
 
 from src.utils_ros import *
@@ -41,15 +41,16 @@ class BagfileConverter:
         self.actions_lock = Lock()
         self.actions_msg = None
         self.actions_sub = rospy.Subscriber("/actions", Actions, callback=self.actions_cb, queue_size=10)
+        #self.actions_sub = rospy.Subscriber("/actions_stamped", ActionsStamped, callback=self.actions_cb, queue_size=10)
 
         self.bl_to_rs_trans = get_static_tf("odom", "camera_odom_frame")
-        self.ros_rate = rospy.Rate(100)
         time.sleep(0.2)
 
     def gt_odometry_cb(self, msg):
-        self.gt_odometry_list.append(msg)
         with self.actions_lock:
+            if self.actions_msg is None: return
             self.actions_list.append(deepcopy(self.actions_msg))
+        self.gt_odometry_list.append(msg)
 
     def actions_cb(self, msg):
         with self.actions_lock:
@@ -68,19 +69,9 @@ class BagfileConverter:
         odom_msg.pose.pose.position.z -= tx.transform.translation.z
 
     def gather(self):
-        print("Waiting for data")
-
-        rospy.spin()
-
         print("Started gathering")
 
-        # Wait until user kills
-        while not rospy.is_shutdown():
-            with self.gt_odometry_lock:
-                self.gt_odometry_list.append(deepcopy(self.gt_odometry_msg))
-            with self.actions_lock:
-                self.actions_list.append(deepcopy(self.actions_msg))
-            self.ros_rate.sleep()
+        rospy.spin()
 
         print("Gathered: {} action and {} odom messages".format(len(self.actions_list), len(self.gt_odometry_list)))
 
@@ -93,6 +84,10 @@ class BagfileConverter:
             odom_msg = self.gt_odometry_list[i]
             dataset_dict_list.append({"odom_msg" : odom_msg, "act_msg" : act_msg})
 
+        # for i in range(100):
+        #     print("Odom_msg_seq: ", dataset_dict_list[i]["odom_msg"].header.seq, "act_msg_seq: ", dataset_dict_list[i]["act_msg"].header.seq)
+        # exit()
+
         X, Y = self.process_dataset(dataset_dict_list)
 
         print("Saving dataset")
@@ -101,10 +96,10 @@ class BagfileConverter:
     def process_dataset(self, dataset_dict_list):
         x_list = []
         y_list = []
-        for i in range(len(dataset_dict_list) - 1):
+        for i in range(0, len(dataset_dict_list) - 2, 2):
             current_act_msg = dataset_dict_list[i]["act_msg"]
             current_odom_msg = dataset_dict_list[i]["odom_msg"]
-            next_odom_msg = dataset_dict_list[i+1]["odom_msg"]
+            next_odom_msg = dataset_dict_list[i+2]["odom_msg"]
 
             # Calculate velocity delta from current to next odom
             current_lin_vel = current_odom_msg.twist.twist.linear
@@ -127,8 +122,6 @@ class BagfileConverter:
 
         X = np.array(x_list)
         Y = np.array(y_list)
-
-        exit()
 
         return X, Y
 

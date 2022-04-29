@@ -8,7 +8,7 @@
 "latent_dim" : 4
 
 # LTE
-"allow_lte" : True
+"allow_lte" : False
 "lte_prob" : 1.0
 
 "n_traj_pts" : 15

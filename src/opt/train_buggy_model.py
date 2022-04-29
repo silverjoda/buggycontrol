@@ -61,14 +61,13 @@ class ModelDataset:
                 x_data_list.append(pickle.load(open(fp_X, "rb")))
                 y_data_list.append(pickle.load(open(fp_Y, "rb")))
 
-        # TODO: AFTER RE-RECORDING THE DATASET REMOVE THE X[0] PART (IT WILL ONLY HAVE 2 DIMS)
         traj_len = 300
         x_traj_list = []
         y_traj_list = []
         for x, y in zip(x_data_list, y_data_list):
-            for traj_idx in range(0, len(x[0]) - traj_len, traj_len):
-                x_traj_list.append(x[0, traj_idx:traj_idx + traj_len])
-                y_traj_list.append(y[0, traj_idx:traj_idx + traj_len])
+            for traj_idx in range(0, len(x) - traj_len, traj_len):
+                x_traj_list.append(x[traj_idx:traj_idx + traj_len])
+                y_traj_list.append(y[traj_idx:traj_idx + traj_len])
 
         # Make tensor out of loaded list
         X = np.stack(x_traj_list)
@@ -321,9 +320,9 @@ if __name__=="__main__":
     if config["train"]:
         pretrained_model_path = f"agents/buggy_lte.p"
 
-        model_trainer.train_data_discriminator()
+        #model_trainer.train_data_discriminator()
         #model_trainer.train_linmod()
         #model_trainer.train_lin()
         #model_trainer.train_linmod_hybrid()
-        #model_trainer.train(mujoco_dataset, "buggy_real_lte", pretrained_model_path=None)
+        model_trainer.train(real_dataset, "buggy_real_lte", pretrained_model_path=None)
 
