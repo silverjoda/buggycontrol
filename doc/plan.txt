@@ -32,10 +32,7 @@
 
 # Friday:
 - Continue with Buggy project:
-    - Try buggy model mujoco with pre-training just to see if it runs
-    - Make training procedure for mujoco/real data discriminator
-    - Make training procedure which trains on mujoco data and for each state if there exists a real epsilon close real data point, then ask trained NN model from real data for transition
-    - Make training which fuses mujoco and real data using learned discriminator or LSH or just epsilon nearest neighbors.
+    - Make training which fuses mujoco and real data using learned discriminator or LSH.
     - Write new maize env.
         - Generation of maize. Barriers are objects (can be queried). Render barriers into image, plot etc. Maize can be rendered as grid for sp algo.
         - Shortest path generation

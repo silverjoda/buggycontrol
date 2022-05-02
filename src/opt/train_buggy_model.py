@@ -1,9 +1,12 @@
-import pickle
 import os
-from src.policies import *
+import pickle
+
+import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import torch as T
-from collections import Counter
+
+from src.policies import *
 
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 T.set_num_threads(2)
@@ -61,13 +64,16 @@ class ModelDataset:
                 x_data_list.append(pickle.load(open(fp_X, "rb")))
                 y_data_list.append(pickle.load(open(fp_Y, "rb")))
 
-        traj_len = 300
+
+
+        traj_len = 400
         x_traj_list = []
         y_traj_list = []
         for x, y in zip(x_data_list, y_data_list):
-            for traj_idx in range(0, len(x) - traj_len, traj_len):
-                x_traj_list.append(x[traj_idx:traj_idx + traj_len])
-                y_traj_list.append(y[traj_idx:traj_idx + traj_len])
+            # TODO: REMOVE THE x[0], it's due to an extra dimension which should go away with new data
+            for traj_idx in range(0, len(x[0]) - traj_len, traj_len):
+                x_traj_list.append(x[0,traj_idx:traj_idx + traj_len])
+                y_traj_list.append(y[0,traj_idx:traj_idx + traj_len])
 
         # Make tensor out of loaded list
         X = np.stack(x_traj_list)
@@ -162,6 +168,9 @@ class ModelTrainer:
         self.mujoco_dataset = mujoco_dataset
         self.real_dataset = real_dataset
 
+    def filter_mujoco_dataset(self, dataset, discriminator, threshold):
+        pass
+
     def train(self, dataset, policy_name="buggy_lte", pretrained_model_path=None):
         self.policy = LTE(obs_dim=5, act_dim=3, hid_dim=128)
 
@@ -186,6 +195,53 @@ class ModelTrainer:
                 print("Iter {}/{}, loss: {}, loss_val: {}".format(i, self.config['iters'], loss.data, loss_val.data))
         print("Done training, saving model")
         T.save(self.policy.state_dict(), f"agents/{policy_name}.p")
+
+    def train_fused(self, mujoco_dataset, real_dataset, policy_name="buggy_lte", pretrained_model_path=None):
+        self.policy = LTE(obs_dim=5, act_dim=3, hid_dim=128)
+        if pretrained_model_path is not None:
+            self.policy.load_state_dict(T.load(pretrained_model_path), strict=False)
+
+        data_discriminator = LTE(obs_dim=5, act_dim=2, hid_dim=128)
+        data_discriminator.load_state_dict(T.load("agents/data_discriminator.p"), strict=False)
+
+        # ALGO:
+        # 1) Sample equal sized batches from mujoco and real datasets
+        # 2) Use discriminator to decide which data points from mujoco dataset will get a mujoco label and which will get a real label (or maybe just throw them out)
+        # 3) Apply supervised loss
+
+        # Or maybe...
+        # 1) Use discriminator to filter out mujoco dataset: Remove states which are too close to real states
+        # 2) Train on joint dataset with labels from corresponding dataset
+
+        # Filter out mujoco dataset
+        self.filter_mujoco_dataset(mujoco_dataset, data_discriminator, threshold=0.5)
+
+        optim = T.optim.Adam(params=self.policy.parameters(), lr=self.config['lr'], weight_decay=self.config['w_decay'])
+        lossfun = T.nn.MSELoss()
+        for i in range(self.config['iters']):
+            X_mujo, Y_mujo = mujoco_dataset.get_random_batch(self.config['batchsize'] // 2)
+            X_real, Y_real = real_dataset.get_random_batch(self.config['batchsize'] // 2)
+            #X, Y, W = self.dataset.get_random_batch_weighted(self.config['batchsize'])
+
+            X = np.concatenate((X_mujo, X_real))
+            Y = np.concatenate((Y_mujo, Y_real))
+
+            Y_ = self.policy(X)
+            loss = lossfun(Y_, Y)
+            #loss = T.mean((W * (Y_ - Y) ** 2))
+            loss.backward()
+            optim.step()
+            optim.zero_grad()
+            if i % 100 == 0:
+                X_val_mujo, Y_val_mujo = mujoco_dataset.get_val_dataset()
+                X_val_real, Y_val_reals = real_dataset.get_val_dataset()
+                X_val = np.concatenate((X_val_mujo, Y_val_mujo))
+                Y_val = np.concatenate((X_val_real, Y_val_reals))
+                Y_val_ = self.policy(X_val)
+                loss_val = lossfun(Y_val_, Y_val)
+                print("Iter {}/{}, loss: {}, loss_val: {}".format(i, self.config['iters'], loss.data, loss_val.data))
+        print("Done training, saving model")
+        T.save(self.policy.state_dict(), "agents/{policy_name}.p")
 
     def train_lin(self):
         policy = LIN(state_dim=3, act_dim=2)
@@ -288,32 +344,93 @@ class ModelTrainer:
         T.save(policy.state_dict(), "agents/buggy_linmod_hybrid.p")
 
     def train_data_discriminator(self):
-        discrim = MLP(3 + 3, 2)
+        discrim = MLP(5, 2, hid_dim=128)
         optim = T.optim.Adam(params=discrim.parameters(), lr=self.config['lr'], weight_decay=self.config['w_decay'])
+        dataset_ratio = len(self.real_dataset.X_trn) / len(self.mujoco_dataset.X_trn)
+        #lossfun = T.nn.CrossEntropyLoss(weight=T.tensor([dataset_ratio, 1 - dataset_ratio]))
         lossfun = T.nn.CrossEntropyLoss()
 
-        n_iters = 1000
+        #self.plot_umap()
+
+        n_iters = 2000
         for i in range(n_iters):
             # Get minibatch from both datasets
-            x_mujoco = self.mujoco_dataset
+            x_mujoco, _ = self.mujoco_dataset.get_random_batch(self.config["batchsize"] // 2, tensor=True)
+            x_real, _ = self.real_dataset.get_random_batch(self.config["batchsize"] // 2, tensor=True)
 
-            # TODO: Cont here
+            # Fuse minibatch
+            x_fused = T.concat((x_mujoco, x_real), dim=0)
+            y_fused = T.zeros(self.config["batchsize"], dtype=T.long)
+            y_fused[self.config["batchsize"] // 2 :] = 1
 
             # Forward pass
+            y_ = discrim(x_fused)
 
             # Loss
+            loss = lossfun(y_, y_fused)
 
             # Update
-            pass
+            loss.backward()
+            optim.step()
+            optim.zero_grad(set_to_none=True)
 
+            if i % 100 == 0:
+                x_eval_mujoco, _ = self.mujoco_dataset.get_val_dataset(tensor=True)
+                y_mujoco = discrim(x_eval_mujoco)
+                eval_mujoco_loss = lossfun(y_mujoco, T.zeros(len(x_eval_mujoco), dtype=T.long))
+
+                x_eval_real, _ = self.real_dataset.get_val_dataset(tensor=True)
+                y_real = discrim(x_eval_real)
+                eval_real_loss = lossfun(y_real, T.zeros(len(x_eval_real), dtype=T.long))
+
+                print(f"Iter: {i}/{n_iters}, trn accuracy: {loss.data}, eval mujoco loss: {eval_mujoco_loss.data}, eval real loss: {eval_real_loss.data}")
+
+        print("Done training, saving model")
+        T.save(discrim.state_dict(), f"agents/data_discriminator.p")
+
+        # Use the last eval values for evaluation
+        plt.hist(T.softmax(y_mujoco, dim=1)[:, 0].detach().numpy())
+        plt.hist(T.softmax(y_real, dim=1)[:, 1].detach().numpy())
+        plt.show()
+
+    def plot_umap(self):
+        from sklearn.model_selection import train_test_split
+        from sklearn.preprocessing import StandardScaler
+        import matplotlib.pyplot as plt
+        import seaborn as sns
+        import pandas as pd
+        import time
+        import umap
+        reducer = umap.UMAP()
+
+        data_mujoco = self.mujoco_dataset.X_trn.reshape((-1, 5))
+        data_mujoco = data_mujoco[np.random.choice(np.arange(len(data_mujoco)), size=3000, replace=False)]
+        data_real = self.real_dataset.X_trn.reshape((-1, 5))
+        data_real = data_real[np.random.choice(np.arange(len(data_real)), size=3000, replace=False)]
+        data_joint = np.concatenate((data_mujoco, data_real), axis=0)
+        indeces = np.array(["mujoco"] * len(data_mujoco) + ["real"] * len(data_real))
+        df = pd.DataFrame(data_joint, index=indeces, columns=['velx', 'vely', 'ang_vel', 'turn', 'throttle'])
+        scaled_data = StandardScaler().fit_transform(df)
+
+        embedding = reducer.fit_transform(scaled_data)
+        print(embedding.shape)
+
+        plt.scatter(
+            embedding[:, 0],
+            embedding[:, 1],
+            c=[sns.color_palette()[x] for x in df.index.map({"mujoco": 0, "real": 1})])
+        plt.gca().set_aspect('equal', 'datalim')
+        plt.title('UMAP projection of the buggy dataset', fontsize=24)
+        plt.show()
+        exit()
 
 if __name__=="__main__":
     import yaml
     with open(os.path.join(os.path.dirname(__file__), "configs/train_buggy_model.yaml"), 'r') as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
 
-    mujoco_dataset = ModelDataset(use_real_data=False)
     real_dataset = ModelDataset(use_real_data=True)
+    mujoco_dataset = ModelDataset(use_real_data=False)
     model_trainer = ModelTrainer(config, mujoco_dataset, real_dataset)
 
     # Train
@@ -324,5 +441,5 @@ if __name__=="__main__":
         #model_trainer.train_linmod()
         #model_trainer.train_lin()
         #model_trainer.train_linmod_hybrid()
-        model_trainer.train(mujoco_dataset, "buggy_lte", pretrained_model_path=None)
-
+        #model_trainer.train(mujoco_dataset, "buggy_lte", pretrained_model_path=None)
+        #model_trainer.train_data_discriminator()
