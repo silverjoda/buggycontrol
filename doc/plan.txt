@@ -17,6 +17,7 @@
 - Separate env which launches buggy with random or selected maize world and shortest path traj. Implement fast cost calculation for given traj for mppi.
 
 # Mission: Model learning and transfer
+- TODO: make buggy engine which uses discriminator to switch between mujoco and real engines
 - TODO: make new buggy maize env
 - TODO: cont here, debug lte engine: Train buggy on learned mujoco model and test on mujoco.
 - TODO: Test mppi
@@ -32,7 +33,7 @@
 
 # Friday:
 - Continue with Buggy project:
-    - Make training which fuses mujoco and real data using learned discriminator or LSH.
+    - Make training which fuses mujoco and real data using learned discriminator or LSH. <- Test this
     - Write new maize env.
         - Generation of maize. Barriers are objects (can be queried). Render barriers into image, plot etc. Maize can be rendered as grid for sp algo.
         - Shortest path generation

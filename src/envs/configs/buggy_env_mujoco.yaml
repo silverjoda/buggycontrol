@@ -9,7 +9,9 @@
 
 # LTE
 "allow_lte" : False
+"use_hybrid_engine" : False
 "lte_prob" : 1.0
+"discriminator_thresh" : 0.5
 
 "n_traj_pts" : 15
 "wp_sample_dist" : 0.17

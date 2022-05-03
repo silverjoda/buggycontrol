@@ -33,6 +33,8 @@ class BuggyEnv(gym.Env):
     def load_random_env(self):
         if self.config["allow_lte"] and np.random.rand() < self.config["lte_prob"]:
             engine = LTEEngine(self.config)
+        elif self.config["use_hybrid_engine"]:
+            engine = HybridEngine(self.config)
         else:
             engine = MujocoEngine(self.config)
         sim = engine.mujoco_sim

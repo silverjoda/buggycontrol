@@ -64,8 +64,6 @@ class ModelDataset:
                 x_data_list.append(pickle.load(open(fp_X, "rb")))
                 y_data_list.append(pickle.load(open(fp_Y, "rb")))
 
-
-
         traj_len = 400
         x_traj_list = []
         y_traj_list = []
@@ -350,9 +348,9 @@ class ModelTrainer:
         #lossfun = T.nn.CrossEntropyLoss(weight=T.tensor([dataset_ratio, 1 - dataset_ratio]))
         lossfun = T.nn.CrossEntropyLoss()
 
-        #self.plot_umap()
+        self.plot_umap()
 
-        n_iters = 2000
+        n_iters = 1000
         for i in range(n_iters):
             # Get minibatch from both datasets
             x_mujoco, _ = self.mujoco_dataset.get_random_batch(self.config["batchsize"] // 2, tensor=True)
@@ -442,4 +440,4 @@ if __name__=="__main__":
         #model_trainer.train_lin()
         #model_trainer.train_linmod_hybrid()
         #model_trainer.train(mujoco_dataset, "buggy_lte", pretrained_model_path=None)
-        #model_trainer.train_data_discriminator()
+        model_trainer.train_data_discriminator()

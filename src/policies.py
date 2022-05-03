@@ -43,7 +43,7 @@ class MLP(nn.Module):
         out = self.fc3(fc2)
         return out
 
-    def predict_next_vel(self, o):
+    def predict_next(self, o):
         o_T = T.tensor(o)
         y_T = self.forward(o_T)
         return y_T.detach().numpy()
