@@ -1,0 +1,23 @@
+"seed" :
+"rate" : 100
+"render" : True
+"n_substeps" : 2
+"randomize_env" : False
+"allow_latent_input" : False
+"state_dim" : 3
+"latent_dim" : 4
+
+# LTE
+"allow_lte" : False
+"use_hybrid_engine" : False
+"lte_prob" : 1.0
+"discriminator_thresh" : 0.5
+
+"n_traj_pts" : 15
+"wp_sample_dist" : 0.17
+"wp_reach_dist" : 0.3
+"max_steps" : 300
+"traj_smoothness" : 500
+"traj_smoothness_variance" : 200
+"act_pen" : 0.013
+"enforce_bilateral_symmetry" : False

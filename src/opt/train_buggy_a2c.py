@@ -12,6 +12,7 @@ from stable_baselines3.common.vec_env import VecNormalize, SubprocVecEnv, DummyV
 from src.envs import buggy_env_mujoco
 from src.utils import merge_dicts
 import numpy as np
+import sys
 
 
 class BuggyTrajFollowerTrainer:

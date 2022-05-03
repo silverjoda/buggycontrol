@@ -138,18 +138,21 @@ class Engine:
             X_new[i] = np.arctan2(wp_buggy[i][1] - wp_buggy[i - 1][1], wp_buggy[i][0] - wp_buggy[i - 1][0]) - X_new[i - 1]
         return X_new
 
-    def generate_random_traj(self):
+    def generate_random_traj(self, traj_pts_in=None):
         #traj_smoothness = self.config["traj_smoothness"] - self.current_difficulty * 200
         traj_smoothness = self.config["traj_smoothness"] - np.random.rand() * self.config["traj_smoothness_variance"]
         self.noise = SimplexNoise(dim=1, smoothness=traj_smoothness, multiplier=1)
         traj_pts = []
         current_xy = np.zeros(2)
 
-        # Generate fine grained trajectory
-        for i in range(1300):
-            noise = 5 * self.noise()[0]
-            current_xy += np.array([0.01 * np.cos(noise), 0.01 * np.sin(noise)])
-            traj_pts.append(deepcopy(current_xy))
+        if traj_pts_in is None:
+            # Generate fine grained trajectory
+            for i in range(1300):
+                noise = 5 * self.noise()[0]
+                current_xy += np.array([0.01 * np.cos(noise), 0.01 * np.sin(noise)])
+                traj_pts.append(deepcopy(current_xy))
+        else:
+            traj_pts = traj_pts_in
 
         # Sample equidistant points
         wp_list = []
