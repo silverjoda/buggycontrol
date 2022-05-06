@@ -23,8 +23,8 @@ class BuggyMaize():
         self.n_blocks = 5
         self.grid_resolution = 0.05
 
-        self.blocks, self.all_barriers, self.dense_grid, self.start, self.finish = self.generate_random_maize()
-        self.shortest_path = self.generate_shortest_path(self.dense_grid, self.start, self.finish)
+        self.blocks, self.all_barriers, self.dense_grid, self.grid_offset, self.start, self.finish = self.generate_random_maize()
+        self.shortest_path_pts = self.generate_shortest_path(self.dense_grid, self.start, self.finish)
 
     def generate_random_maize(self):
         # Make list of blocks which represent the maize
@@ -32,8 +32,9 @@ class BuggyMaize():
         blocks = [[0, 0], [cur_x, cur_y]]
         for i in range(self.n_blocks):
             while True:
-                cur_x_candidate = cur_x + random.randint(-1, 1)
-                cur_y_candidate = cur_y + random.randint(-1, 1)
+                shift_in_x = random.randint(0, 1)
+                cur_x_candidate = cur_x + shift_in_x * random.randint(-1, 1)
+                cur_y_candidate = cur_y + (1 - shift_in_x) * random.randint(-1, 1)
                 if [cur_x_candidate, cur_y_candidate] not in blocks and cur_x_candidate > 0:
                     break
             cur_x = cur_x_candidate
@@ -45,25 +46,31 @@ class BuggyMaize():
         for i, bl in enumerate(blocks):
             # Generate list of barriers using given block location
             bl_x, bl_y = bl
-            barriers = [(bl_x + self.block_size / 2, bl_y + self.block_size / 2, False),
-                        (bl_x - self.block_size / 2, bl_y - self.block_size / 2, False),
-                        (bl_x + self.block_size / 2, bl_y + self.block_size / 2, True),
-                        (bl_x - self.block_size / 2, bl_y - self.block_size / 2, True)] # True when vertical
+
+            # True when vertical
+            bar_n = (bl_x + self.block_size / 2, bl_y, False)
+            bar_s = (bl_x - self.block_size / 2, bl_y, False)
+            bar_w = (bl_x, bl_y + self.block_size / 2, True)
+            bar_e = (bl_x, bl_y - self.block_size / 2, True)
+            barriers = [bar_n, bar_s, bar_w, bar_e]
+            all_barriers.extend(barriers)
 
             # Filter barriers according to previous neighbors
             if i > 0:
                 p_bl_x, p_bl_y = blocks[i - 1]
-                if p_bl_x > bl_x: del barriers[0]
-                if p_bl_x < bl_x: del barriers[1]
-                if p_bl_x > bl_y: del barriers[2]
-                if p_bl_x < bl_x: del barriers[3]
-            all_barriers.append(barriers)
+                for _ in range(2):
+                    if p_bl_x > bl_x and bar_n in all_barriers: all_barriers.remove(bar_n)
+                    if p_bl_x < bl_x and bar_s in all_barriers: all_barriers.remove(bar_s)
+                    if p_bl_y > bl_y and bar_w in all_barriers: all_barriers.remove(bar_w)
+                    if p_bl_y < bl_y and bar_e in all_barriers: all_barriers.remove(bar_e)
 
         # Make dense grid representation
         n_squares_per_meter = int(1. / self.grid_resolution)
-        dense_grid = np.zeros(int((self.n_blocks + 2) * n_squares_per_meter),
-                              int(2 * self.n_blocks * n_squares_per_meter))
-        grid_offset_x, grid_offset_y = int(self.block_size * n_squares_per_meter), int(self.n_blocks * n_squares_per_meter)
+        grid_M, grid_N = int((self.n_blocks + 2) * n_squares_per_meter),\
+                         int(2 * self.n_blocks * n_squares_per_meter)
+
+        dense_grid = np.ones((grid_M, grid_N))
+        grid_offset_x, grid_offset_y = grid_M - int(self.block_size * n_squares_per_meter * 0.5), grid_N - int(self.n_blocks * n_squares_per_meter)
         grid_barrier_half_length = int(0.5 * self.block_size * n_squares_per_meter)
         grid_barrier_half_width = int(0.5 * self.block_size * 5)
         for bar in all_barriers:
@@ -77,13 +84,23 @@ class BuggyMaize():
 
             # Add barrier to grid
             dense_grid[
-            bar_x * n_squares_per_meter + grid_offset_x - x_side: bar_x * n_squares_per_meter + grid_offset_x + x_side,
-            bar_y * n_squares_per_meter + grid_offset_y - y_side: bar_y * n_squares_per_meter + grid_offset_y + y_side] = 1
+            grid_offset_x + int(bar_x * n_squares_per_meter + grid_offset_x - x_side): int(bar_x * n_squares_per_meter + grid_offset_x + x_side),
+            int(bar_y * n_squares_per_meter + grid_offset_y - y_side): int(bar_y * n_squares_per_meter + grid_offset_y + y_side)] = 0
 
-        start = blocks[0][0] * n_squares_per_meter, blocks[0][1] * n_squares_per_meter
-        finish = blocks[-1][0] * n_squares_per_meter, blocks[-1][1] * n_squares_per_meter
+        # TODO: Fix conversions, everything else is probably fine
 
-        return blocks, all_barriers, dense_grid, start, finish
+        start = grid_offset_x + blocks[0][1] * n_squares_per_meter, grid_offset_y + blocks[0][0] * n_squares_per_meter
+        finish = grid_offset_x + blocks[-1][1] * n_squares_per_meter, grid_offset_y + blocks[-1][0] * n_squares_per_meter
+
+        return blocks, all_barriers, dense_grid, (grid_offset_x, grid_offset_y), start, finish
+
+    def xy_to_grid(self, xy):
+        # TODO: Make conversion properly
+        grid_x = self.grid_offset[0] + xy[0]
+        pass
+
+    def grid_to_xy(self):
+        pass
 
     def generate_shortest_path(self, grid, start, finish):
         grid = Grid(matrix=grid)
@@ -130,10 +147,10 @@ class BuggyMaizeEnv(gym.Env):
         return sim, engine
 
     def set_barrier_positions(self, barriers_list):
-        p1, p2 = barriers_list
-        # TODO: This will accept a whole list of rectangular (ellipsoidal) barriers for the maize env. Pos + orientation
-        self.sim.data.set_mocap_pos("barrier1", p1 + [0.2])
-        self.sim.data.set_mocap_pos("barrier2", p2 + [0.2])
+        for p in barriers_list:
+            # TODO: Set this correctly
+            self.sim.data.set_mocap_pos("barrier1", p)
+            self.sim.data.set_mocap_quat("barrier1", p)
 
     def get_obs_dict(self):
         return self.engine.get_obs_dict()
@@ -255,5 +272,7 @@ class BuggyMaizeEnv(gym.Env):
 
 if __name__ == "__main__":
     config = load_config(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_maize_env_mujoco.yaml"))
-    be = BuggyMaizeEnv(config)
-    be.demo()
+
+    bm = BuggyMaize(config)
+    #be = BuggyMaizeEnv(config)
+    #be.demo()
