@@ -11,6 +11,10 @@ from src.utils import e2q
 import timeit
 import random
 
+from pathfinding.core.diagonal_movement import DiagonalMovement
+from pathfinding.core.grid import Grid
+from pathfinding.finder.a_star import AStarFinder
+
 class BuggyMaize():
     def __init__(self, config):
         self.config = config
@@ -18,6 +22,9 @@ class BuggyMaize():
         self.block_size = 1 # 1 meter block size
         self.n_blocks = 5
         self.grid_resolution = 0.05
+
+        self.blocks, self.all_barriers, self.dense_grid, self.start, self.finish = self.generate_random_maize()
+        self.shortest_path = self.generate_shortest_path(self.dense_grid, self.start, self.finish)
 
     def generate_random_maize(self):
         # Make list of blocks which represent the maize
@@ -33,16 +40,62 @@ class BuggyMaize():
             cur_y = cur_y_candidate
             blocks.append([cur_x, cur_y])
 
-        # Make dense grid representation
-        dense_grid = np.zeros()
-
         # Decide barriers from block list
+        all_barriers = []
+        for i, bl in enumerate(blocks):
+            # Generate list of barriers using given block location
+            bl_x, bl_y = bl
+            barriers = [(bl_x + self.block_size / 2, bl_y + self.block_size / 2, False),
+                        (bl_x - self.block_size / 2, bl_y - self.block_size / 2, False),
+                        (bl_x + self.block_size / 2, bl_y + self.block_size / 2, True),
+                        (bl_x - self.block_size / 2, bl_y - self.block_size / 2, True)] # True when vertical
 
-    def generate_shortest_path(self):
-        pass
+            # Filter barriers according to previous neighbors
+            if i > 0:
+                p_bl_x, p_bl_y = blocks[i - 1]
+                if p_bl_x > bl_x: del barriers[0]
+                if p_bl_x < bl_x: del barriers[1]
+                if p_bl_x > bl_y: del barriers[2]
+                if p_bl_x < bl_x: del barriers[3]
+            all_barriers.append(barriers)
+
+        # Make dense grid representation
+        n_squares_per_meter = int(1. / self.grid_resolution)
+        dense_grid = np.zeros(int((self.n_blocks + 2) * n_squares_per_meter),
+                              int(2 * self.n_blocks * n_squares_per_meter))
+        grid_offset_x, grid_offset_y = int(self.block_size * n_squares_per_meter), int(self.n_blocks * n_squares_per_meter)
+        grid_barrier_half_length = int(0.5 * self.block_size * n_squares_per_meter)
+        grid_barrier_half_width = int(0.5 * self.block_size * 5)
+        for bar in all_barriers:
+            bar_x, bar_y, vert = bar
+
+            x_side = grid_barrier_half_width
+            y_side = grid_barrier_half_length
+            if vert:
+                x_side = grid_barrier_half_length
+                y_side = grid_barrier_half_width
+
+            # Add barrier to grid
+            dense_grid[
+            bar_x * n_squares_per_meter + grid_offset_x - x_side: bar_x * n_squares_per_meter + grid_offset_x + x_side,
+            bar_y * n_squares_per_meter + grid_offset_y - y_side: bar_y * n_squares_per_meter + grid_offset_y + y_side] = 1
+
+        start = blocks[0][0] * n_squares_per_meter, blocks[0][1] * n_squares_per_meter
+        finish = blocks[-1][0] * n_squares_per_meter, blocks[-1][1] * n_squares_per_meter
+
+        return blocks, all_barriers, dense_grid, start, finish
+
+    def generate_shortest_path(self, grid, start, finish):
+        grid = Grid(matrix=grid)
+        start = grid.node(*start)
+        end = grid.node(*finish)
+        finder = AStarFinder(diagonal_movement=DiagonalMovement.always)
+        path, runs = finder.find_path(start, end, grid)
+        print('operations:', runs, 'path length:', len(path))
+        print(grid.grid_str(path=path, start=start, end=end))
 
     def get_barriers(self):
-        pass
+        return self.all_barriers
 
 class BuggyMaizeEnv(gym.Env):
     metadata = {

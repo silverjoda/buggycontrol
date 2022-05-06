@@ -7,41 +7,15 @@
 # Try RNN and transformer as TEP
 # Analyze possibilities of learning a trajectory delta regressor for faster trajectories (do we need to train by gradient? or can we do otherwise)
 
-# Buggy agent training:
--
-
-# MPPI
-- Finish implementing mppi
-
-# Buggy env:
-- Separate env which launches buggy with random or selected maize world and shortest path traj. Implement fast cost calculation for given traj for mppi.
-
-# Mission: Model learning and transfer
-- TODO: make new buggy maize env
-- TODO: Test mppi
-- Make better trajectory generation for gataset gathering for model training
-- Does training model using a dagger like method work (if default training fails).
-- Make proper trajectory testing script with qualitative and quantitative metrics for comparing learned model with mujoco env (with visualization).
-- Try dataset augmentation by using bilateral symmetry (Does the slow turning and forward velocity go away)
-- Try balanced training to represent state with lower velocity more(somehow)
-- Implement meta learning for model learning (for example using a proxy neural network with attached layers for gradient prop)
-- Train RMA-style
-- Compare RMA-style with trained model transfer
-- Try RL with difficult initial state distribution predictor to help with difficult environments
 
 # Friday:
 - Continue with Buggy project:
-    - Make training which fuses mujoco and real data using learned discriminator or LSH. <- Test this
     - Write new maize env.
-        - Generation of maize. Barriers are objects (can be queried). Render barriers into image, plot etc. Maize can be rendered as grid for sp algo.
+        - Generation of maize. Barriers are objects (can be queried). Render barriers into image, plot etc. Maize can be rendered as grid for sp algo. CONT_HERE
         - Shortest path generation
         - Mujoco visualization of barriers
         - Reward calculation
-
-# Make tradr plan (path follower + reactive control)
-- Load Tradr robot in simulation. Just staging area with a few cubes is enough
-- On Basestation (BS) test path follower in isolation
-- On BS test extended virtual bumper (reactive control) using joystick
+    - Make training which fuses mujoco and real data using learned discriminator or LSH. <- Test this
 
 # Robotic transformations and frames:
 Motivation: Spot example in rviz (coordinate frames form a tree, show tf tree, switch between various fixed frames: world, base_link, sensor, etc)
