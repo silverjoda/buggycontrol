@@ -20,7 +20,7 @@ class BuggyMaize():
 
         self.block_size = 1.0 # 1 meter block size
         self.n_blocks = 5
-        self.grid_resolution = 0.05
+        self.grid_resolution = 0.03
         self.grid_X_len = int(self.block_size * (self.n_blocks + 2) / self.grid_resolution)
         self.grid_Y_len = int(self.block_size * (self.n_blocks * 2 + 1) / self.grid_resolution)
         self.grid_block_len = int(self.block_size / self.grid_resolution)
@@ -29,7 +29,7 @@ class BuggyMaize():
 
         self.blocks, self.all_barriers, self.dense_grid, self.start, self.finish = self.generate_random_maize()
         self.shortest_path_pts = self.generate_shortest_path(self.dense_grid, self.start, self.finish)
-        self.plot_grid(self.dense_grid)
+        self.plot_grid(self.dense_grid, self.shortest_path_pts)
 
     def generate_random_maize(self):
         # Make list of blocks which represent the maize
@@ -106,9 +106,13 @@ class BuggyMaize():
         y = 0.5 * self.grid_Y_len / self.grid_block_len - n / self.grid_block_len
         return x, y
 
-    def plot_grid(self, grid):
+    def plot_grid(self, grid, shortest_path_pts):
+        grid_cpy = np.copy(grid)
+        for pt in shortest_path_pts:
+            grid_cpy[pt[1], pt[0]] = 10
+
         # Plot
-        plt.imshow(grid)
+        plt.imshow(grid_cpy)
         plt.show()
 
     def generate_shortest_path(self, grid, start, finish):
@@ -118,7 +122,8 @@ class BuggyMaize():
         finder = AStarFinder(diagonal_movement=DiagonalMovement.always)
         path, runs = finder.find_path(start, end, grid)
         print('operations:', runs, 'path length:', len(path))
-        print(grid.grid_str(path=path, start=start, end=end))
+        #print(grid.grid_str(path=path, start=start, end=end))
+        return path
 
     def get_barriers(self):
         return self.all_barriers
