@@ -6,6 +6,8 @@
 "allow_latent_input" : False
 "state_dim" : 3
 "latent_dim" : 4
+"car_xml" : "one_car"
+
 
 # LTE
 "allow_lte" : False

@@ -9,12 +9,11 @@
 
 # Monday:
 - Continue with Buggy project:
-    - Debug and test maize env
-    - Finish MPPI and test
+    - Make maize env block size scalable
+    - Finish MPPI reward calculation and test
     - Write evaluation script for learned model on mujoco and real data (on withheld trajectories)
     - Debug and test buggy mujoco/model fusion training using discriminator
     - Do RMA-style training
-    - Record data on SPOT before leaving
 
 # Robotic transformations and frames:
 Motivation: Spot example in rviz (coordinate frames form a tree, show tf tree, switch between various fixed frames: world, base_link, sensor, etc)

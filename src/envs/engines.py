@@ -13,12 +13,13 @@ from src.utils import load_config, theta_to_quat, q2e, e2q
 class Engine:
     def __init__(self, config):
         self.config = config
+        car_xml = config["car_xml"]
 
         self.buddy_template_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/cars/base_car/buddy.xml")
         self.buddy_rnd_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/cars/base_car/buddy_rnd.xml")
 
-        self.car_template_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/one_car.xml")
-        self.car_rnd_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "assets/models/one_car_rnd.xml")
+        self.car_template_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), f"assets/models/{car_xml}.xml")
+        self.car_rnd_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), f"assets/models/{car_xml}_rnd.xml")
 
     @abstractmethod
     def step(self, action):
@@ -42,8 +43,8 @@ class Engine:
         self.cur_mujoco_wp_idx = 0
         self.set_wp_visuals()
 
-    def reset_trajectory(self):
-        self.wp_list = self.generate_random_traj()
+    def reset_trajectory(self, traj_pts_in=None):
+        self.wp_list = self.generate_random_traj(traj_pts_in=traj_pts_in)
         self.cur_wp_idx = 0
         self.cur_mujoco_wp_idx = 0
         self.set_wp_visuals()
@@ -138,7 +139,7 @@ class Engine:
             X_new[i] = np.arctan2(wp_buggy[i][1] - wp_buggy[i - 1][1], wp_buggy[i][0] - wp_buggy[i - 1][0]) - X_new[i - 1]
         return X_new
 
-    def generate_random_traj(self, traj_pts_in=None):
+    def generate_random_traj(self, traj_pts_in=None, plot=False):
         #traj_smoothness = self.config["traj_smoothness"] - self.current_difficulty * 200
         traj_smoothness = self.config["traj_smoothness"] - np.random.rand() * self.config["traj_smoothness_variance"]
         self.noise = SimplexNoise(dim=1, smoothness=traj_smoothness, multiplier=1)
@@ -164,7 +165,8 @@ class Engine:
                 cum_wp_dist = 0
 
         # Debug plot
-        #self.plot_traj(traj_pts, wp_list)
+        if plot:
+            self.plot_traj(traj_pts, wp_list)
 
         return wp_list
 

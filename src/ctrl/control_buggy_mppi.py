@@ -1,5 +1,3 @@
-import math as m
-
 import yaml
 
 from src.policies import *
@@ -20,7 +18,7 @@ class ControlBuggyMPPI:
         dynamics_model.load_state_dict(T.load(model_path), strict=False)
         return dynamics_model
 
-    def test_mppi(self, env, n_episodes=100, n_samples=300, n_horizon=100, act_std=1, render=False):
+    def test_mppi(self, env, n_episodes=100, n_samples=100, n_horizon=100, act_std=1, render=False):
         for _ in range(n_episodes):
             # New env and trajectory
             mujoco_obs = env.reset()
@@ -72,7 +70,11 @@ class ControlBuggyMPPI:
         return positions
 
     def evaluate_mppi_rollouts(self, rollouts):
-        pass
+        costs = []
+        for rollout in rollouts:
+            cost = self.buggy_env_mujoco.evaluate_rollout(rollout)
+            costs.append(cost)
+        return np.array(costs)
 
     def calculate_mppi_trajectory(self, act_mean_seq, act_noises, costs):
         # acts: n_samples, n_horizon, act_dim

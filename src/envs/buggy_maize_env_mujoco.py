@@ -20,16 +20,14 @@ class BuggyMaize():
 
         self.block_size = 1.0 # 1 meter block size
         self.n_blocks = 5
-        self.grid_resolution = 0.03
+        self.grid_resolution = 0.05
         self.grid_X_len = int(self.block_size * (self.n_blocks + 2) / self.grid_resolution)
         self.grid_Y_len = int(self.block_size * (self.n_blocks * 2 + 1) / self.grid_resolution)
         self.grid_block_len = int(self.block_size / self.grid_resolution)
         self.barrier_halflength_coeff = 0.5
         self.barrier_halfwidth_coeff = 0.05
 
-        self.blocks, self.all_barriers, self.dense_grid, self.start, self.finish = self.generate_random_maize()
-        self.shortest_path_pts = self.generate_shortest_path(self.dense_grid, self.start, self.finish)
-        self.plot_grid(self.dense_grid, self.shortest_path_pts)
+        self.reset()
 
     def generate_random_maize(self):
         # Make list of blocks which represent the maize
@@ -109,7 +107,7 @@ class BuggyMaize():
     def plot_grid(self, grid, shortest_path_pts):
         grid_cpy = np.copy(grid)
         for pt in shortest_path_pts:
-            grid_cpy[pt[1], pt[0]] = 10
+            grid_cpy[pt[0], pt[1]] = 10
 
         # Plot
         plt.imshow(grid_cpy)
@@ -121,12 +119,26 @@ class BuggyMaize():
         end = grid.node(finish[1], finish[0])
         finder = AStarFinder(diagonal_movement=DiagonalMovement.always)
         path, runs = finder.find_path(start, end, grid)
-        print('operations:', runs, 'path length:', len(path))
+        #print('operations:', runs, 'path length:', len(path))
         #print(grid.grid_str(path=path, start=start, end=end))
-        return path
+        path_cpy = []
+        for p in path:
+            path_cpy.append((p[1], p[0]))
+        return path_cpy
 
     def get_barriers(self):
         return self.all_barriers
+
+    def get_shortest_path_pts_xy(self):
+        sptxy = []
+        for pt_x, pt_y in self.shortest_path_pts:
+            sptxy.append(self.grid_to_xy(pt_x, pt_y))
+        return sptxy
+
+    def reset(self):
+        self.blocks, self.all_barriers, self.dense_grid, self.start, self.finish = self.generate_random_maize()
+        self.shortest_path_pts = self.generate_shortest_path(self.dense_grid, self.start, self.finish)
+        # self.plot_grid(self.dense_grid, self.shortest_path_pts)
 
 class BuggyMaizeEnv(gym.Env):
     metadata = {
@@ -161,14 +173,14 @@ class BuggyMaizeEnv(gym.Env):
         return sim, engine
 
     def set_barrier_positions(self, barriers_list):
-        for p in barriers_list:
+        for i, p in enumerate(barriers_list):
             x, y, vert = p
             pos = (x,y,0)
-            quat = 0.707,0,0,0.707
+            quat = 1, 0, 0, 0
             if vert:
-                quat = 1, 0, 0, 0
-            self.sim.data.set_mocap_pos("barrier1", pos)
-            self.sim.data.set_mocap_quat("barrier1", quat)
+                quat = 0.707, 0, 0, 0.707
+            self.sim.data.set_mocap_pos(f"barrier{i}", pos)
+            self.sim.data.set_mocap_quat(f"barrier{i}", quat)
 
     def get_obs_dict(self):
         return self.engine.get_obs_dict()
@@ -245,10 +257,10 @@ class BuggyMaizeEnv(gym.Env):
         self.maize.reset()
 
         # Force engine trajectory to be same as maize
-        self.engine.generate_random_traj(traj_pts=self.maize.shortest_path_pts)
+        self.engine.reset_trajectory(traj_pts_in=self.maize.get_shortest_path_pts_xy())
 
         # Draw the barrier visuals
-        self.engine.draw_barriers(self.maize.get_barriers())
+        self.set_barrier_positions(self.maize.get_barriers())
 
         # Reset environment variables
         obs_vec, _ = self.engine.get_complete_obs_vec(allow_latent_input=self.config["allow_latent_input"])
@@ -268,7 +280,6 @@ class BuggyMaizeEnv(gym.Env):
             self.noise = SimplexNoise(dim=2, smoothness=30, multiplier=1.6)
             self.reset()
 
-            self.set_barrier_positions([[4.0, 0.0], [6.0, 1.0]])
             cum_rew = 0
             while True:
                 zero_act = np.array([-0.3, -0.5])
@@ -288,9 +299,14 @@ class BuggyMaizeEnv(gym.Env):
 
             print("Cumulative rew: {}".format(cum_rew))
 
+    def evaluate_rollout(self, rollout):
+        for r in rollout:
+            pass
+        # TODO: HERE
+
 if __name__ == "__main__":
     config = load_config(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_maize_env_mujoco.yaml"))
 
-    bm = BuggyMaize(config)
-    #be = BuggyMaizeEnv(config)
-    #be.demo()
+    #bm = BuggyMaize(config)
+    be = BuggyMaizeEnv(config)
+    be.demo()
