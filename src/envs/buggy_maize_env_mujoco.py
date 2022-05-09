@@ -1,45 +1,45 @@
-import gym
-import torch as T
-from gym import spaces
-
-from src.envs.engines import *
-from src.envs.xml_gen import *
-
-import mujoco_py
-from src.opt.simplex_noise import SimplexNoise
-from src.utils import e2q
-import timeit
 import random
+import time
 
+import gym
 import matplotlib.pyplot as plt
-
+import mujoco_py
+from gym import spaces
 from pathfinding.core.diagonal_movement import DiagonalMovement
 from pathfinding.core.grid import Grid
 from pathfinding.finder.a_star import AStarFinder
+
+from src.envs.engines import *
+from src.opt.simplex_noise import SimplexNoise
+from src.utils import e2q
+
 
 class BuggyMaize():
     def __init__(self, config):
         self.config = config
 
-        self.block_size = 1. # 1 meter block size
+        self.block_size = 1.0 # 1 meter block size
         self.n_blocks = 5
         self.grid_resolution = 0.05
         self.grid_X_len = int(self.block_size * (self.n_blocks + 2) / self.grid_resolution)
         self.grid_Y_len = int(self.block_size * (self.n_blocks * 2 + 1) / self.grid_resolution)
-        self.grid_block_len = int(self.grid_X_len / self.grid_resolution)
+        self.grid_block_len = int(self.block_size / self.grid_resolution)
+        self.barrier_halflength_coeff = 0.5
+        self.barrier_halfwidth_coeff = 0.05
 
         self.blocks, self.all_barriers, self.dense_grid, self.start, self.finish = self.generate_random_maize()
         self.shortest_path_pts = self.generate_shortest_path(self.dense_grid, self.start, self.finish)
+        self.plot_grid(self.dense_grid)
 
     def generate_random_maize(self):
         # Make list of blocks which represent the maize
-        cur_x, cur_y = 1, 0
+        cur_x, cur_y = self.block_size, 0
         blocks = [[0, 0], [cur_x, cur_y]]
         for i in range(self.n_blocks):
             while True:
                 shift_in_x = random.randint(0, 1)
-                cur_x_candidate = cur_x + shift_in_x * random.randint(-1, 1)
-                cur_y_candidate = cur_y + (1 - shift_in_x) * random.randint(-1, 1)
+                cur_x_candidate = cur_x + shift_in_x * random.randint(-1, 1) * self.block_size
+                cur_y_candidate = cur_y + (1 - shift_in_x) * random.randint(-1, 1) * self.block_size
                 if [cur_x_candidate, cur_y_candidate] not in blocks and cur_x_candidate > 0:
                     break
             cur_x = cur_x_candidate
@@ -71,8 +71,8 @@ class BuggyMaize():
 
         # Make dense grid representation
         dense_grid = np.ones((self.grid_X_len, self.grid_Y_len))
-        grid_barrier_half_length = int(0.5 * self.grid_block_len)
-        grid_barrier_half_width = int(0.5 * self.grid_block_len)
+        grid_barrier_half_length = int(self.barrier_halflength_coeff * self.grid_block_len)
+        grid_barrier_half_width = int(self.barrier_halfwidth_coeff * self.grid_block_len)
         for bar in all_barriers:
             bar_x, bar_y, vert = bar
 
@@ -97,7 +97,7 @@ class BuggyMaize():
         n = int(0.5 * self.grid_Y_len - y * self.grid_block_len)
 
         m = np.clip(m, 0, self.grid_X_len)
-        n = np.clip(n, 0, int(self.grid_Y_len * 0.5))
+        n = np.clip(n, 0, self.grid_Y_len)
 
         return m, n
 
@@ -107,17 +107,14 @@ class BuggyMaize():
         return x, y
 
     def plot_grid(self, grid):
-        # Flip the grid in both axes to match xy frame
-        grid_flipped = np.clip(grid, (0, 1))
-
         # Plot
-        plt.imshow(grid_flipped)
+        plt.imshow(grid)
         plt.show()
 
     def generate_shortest_path(self, grid, start, finish):
         grid = Grid(matrix=grid)
-        start = grid.node(*start)
-        end = grid.node(*finish)
+        start = grid.node(start[1],start[0])
+        end = grid.node(finish[1], finish[0])
         finder = AStarFinder(diagonal_movement=DiagonalMovement.always)
         path, runs = finder.find_path(start, end, grid)
         print('operations:', runs, 'path length:', len(path))
