@@ -7,7 +7,7 @@
 # Try RNN and transformer as TEP
 # Analyze possibilities of learning a trajectory delta regressor for faster trajectories (do we need to train by gradient? or can we do otherwise)
 
-# Friday:
+# Monday:
 - Continue with Buggy project:
     - Debug and test maize env
     - Finish MPPI and test

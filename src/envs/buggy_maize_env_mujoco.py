@@ -11,6 +11,8 @@ from src.utils import e2q
 import timeit
 import random
 
+import matplotlib.pyplot as plt
+
 from pathfinding.core.diagonal_movement import DiagonalMovement
 from pathfinding.core.grid import Grid
 from pathfinding.finder.a_star import AStarFinder
@@ -19,11 +21,14 @@ class BuggyMaize():
     def __init__(self, config):
         self.config = config
 
-        self.block_size = 1 # 1 meter block size
+        self.block_size = 1. # 1 meter block size
         self.n_blocks = 5
         self.grid_resolution = 0.05
+        self.grid_X_len = int(self.block_size * (self.n_blocks + 2) / self.grid_resolution)
+        self.grid_Y_len = int(self.block_size * (self.n_blocks * 2 + 1) / self.grid_resolution)
+        self.grid_block_len = int(self.grid_X_len / self.grid_resolution)
 
-        self.blocks, self.all_barriers, self.dense_grid, self.grid_offset, self.start, self.finish = self.generate_random_maize()
+        self.blocks, self.all_barriers, self.dense_grid, self.start, self.finish = self.generate_random_maize()
         self.shortest_path_pts = self.generate_shortest_path(self.dense_grid, self.start, self.finish)
 
     def generate_random_maize(self):
@@ -65,42 +70,49 @@ class BuggyMaize():
                     if p_bl_y < bl_y and bar_e in all_barriers: all_barriers.remove(bar_e)
 
         # Make dense grid representation
-        n_squares_per_meter = int(1. / self.grid_resolution)
-        grid_M, grid_N = int((self.n_blocks + 2) * n_squares_per_meter),\
-                         int(2 * self.n_blocks * n_squares_per_meter)
-
-        dense_grid = np.ones((grid_M, grid_N))
-        grid_offset_x, grid_offset_y = grid_M - int(self.block_size * n_squares_per_meter * 0.5), grid_N - int(self.n_blocks * n_squares_per_meter)
-        grid_barrier_half_length = int(0.5 * self.block_size * n_squares_per_meter)
-        grid_barrier_half_width = int(0.5 * self.block_size * 5)
+        dense_grid = np.ones((self.grid_X_len, self.grid_Y_len))
+        grid_barrier_half_length = int(0.5 * self.grid_block_len)
+        grid_barrier_half_width = int(0.5 * self.grid_block_len)
         for bar in all_barriers:
             bar_x, bar_y, vert = bar
 
-            x_side = grid_barrier_half_width
-            y_side = grid_barrier_half_length
+            m_side = grid_barrier_half_width
+            n_side = grid_barrier_half_length
             if vert:
-                x_side = grid_barrier_half_length
-                y_side = grid_barrier_half_width
+                m_side = grid_barrier_half_length
+                n_side = grid_barrier_half_width
+
+            bar_m, bar_n = self.xy_to_grid(bar_x, bar_y)
 
             # Add barrier to grid
-            dense_grid[
-            grid_offset_x + int(bar_x * n_squares_per_meter + grid_offset_x - x_side): int(bar_x * n_squares_per_meter + grid_offset_x + x_side),
-            int(bar_y * n_squares_per_meter + grid_offset_y - y_side): int(bar_y * n_squares_per_meter + grid_offset_y + y_side)] = 0
+            dense_grid[bar_m - m_side: bar_m + m_side, bar_n - n_side: bar_n + n_side] = 0
 
-        # TODO: Fix conversions, everything else is probably fine
+        start = self.xy_to_grid(0, 0)
+        finish = self.xy_to_grid(*blocks[-1])
 
-        start = grid_offset_x + blocks[0][1] * n_squares_per_meter, grid_offset_y + blocks[0][0] * n_squares_per_meter
-        finish = grid_offset_x + blocks[-1][1] * n_squares_per_meter, grid_offset_y + blocks[-1][0] * n_squares_per_meter
+        return blocks, all_barriers, dense_grid, start, finish
 
-        return blocks, all_barriers, dense_grid, (grid_offset_x, grid_offset_y), start, finish
+    def xy_to_grid(self, x, y):
+        m = int(self.grid_X_len - x * self.grid_block_len - 0.5 * self.grid_block_len)
+        n = int(0.5 * self.grid_Y_len - y * self.grid_block_len)
 
-    def xy_to_grid(self, xy):
-        # TODO: Make conversion properly
-        grid_x = self.grid_offset[0] + xy[0]
-        pass
+        m = np.clip(m, 0, self.grid_X_len)
+        n = np.clip(n, 0, int(self.grid_Y_len * 0.5))
 
-    def grid_to_xy(self):
-        pass
+        return m, n
+
+    def grid_to_xy(self, m, n):
+        x = self.grid_X_len / self.grid_block_len - 0.5 - m / self.grid_block_len
+        y = 0.5 * self.grid_Y_len / self.grid_block_len - n / self.grid_block_len
+        return x, y
+
+    def plot_grid(self, grid):
+        # Flip the grid in both axes to match xy frame
+        grid_flipped = np.clip(grid, (0, 1))
+
+        # Plot
+        plt.imshow(grid_flipped)
+        plt.show()
 
     def generate_shortest_path(self, grid, start, finish):
         grid = Grid(matrix=grid)
@@ -148,9 +160,13 @@ class BuggyMaizeEnv(gym.Env):
 
     def set_barrier_positions(self, barriers_list):
         for p in barriers_list:
-            # TODO: Set this correctly
-            self.sim.data.set_mocap_pos("barrier1", p)
-            self.sim.data.set_mocap_quat("barrier1", p)
+            x, y, vert = p
+            pos = (x,y,0)
+            quat = 0.707,0,0,0.707
+            if vert:
+                quat = 1, 0, 0, 0
+            self.sim.data.set_mocap_pos("barrier1", pos)
+            self.sim.data.set_mocap_quat("barrier1", quat)
 
     def get_obs_dict(self):
         return self.engine.get_obs_dict()
