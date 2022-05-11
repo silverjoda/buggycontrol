@@ -6,7 +6,7 @@ from src.utils import *
 import os
 
 class ControlBuggyMPPI:
-    def __init__(self, mppi_config, buggy_config):
+    def __init__(self, mppi_config, buggy_config=None):
         self.mppi_config = mppi_config
         self.buggy_config = buggy_config
         self.buggy_env_mujoco = BuggyEnv(self.buggy_config)

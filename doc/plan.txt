@@ -9,7 +9,8 @@
 
 # Monday:
 - Continue with Buggy project:
-    - Make dagger like gradient update algo (change the previous implementation)
+    - Make spline resampling representation of shortest path trajectory
+    - Make a trajectory evaluation which rewards progress in maize (not following a predefined trajectory)
     - Make complete traj testing script for maize (includes mppi etc)
 
 # Robotic transformations and frames:
@@ -36,7 +37,20 @@ Training buggy model on real data:
     - Repeat for all bagfiles
     - run train_buggy_model.py with appropriate configuration
 
+# === Testing ===
+# Generate Random maize env (with shortest path, etc)
 
+# Evaluate agent on shortest path
+
+# Perform TEP gradient updates on shortest path
+
+# Evaluate agent on new path
+
+# Evaluate Mppi agent
+
+# ??
+
+# Profit
 
 
 
