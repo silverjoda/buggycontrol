@@ -9,7 +9,8 @@
 
 # Monday:
 - Continue with Buggy project:
-    -
+    - Make dagger like gradient update algo (change the previous implementation)
+    - Make complete traj testing script for maize (includes mppi etc)
 
 # Robotic transformations and frames:
 Motivation: Spot example in rviz (coordinate frames form a tree, show tf tree, switch between various fixed frames: world, base_link, sensor, etc)

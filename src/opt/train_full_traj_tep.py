@@ -85,7 +85,7 @@ class TEPDatasetMaker:
     def evaluate_rollout(self, obs, traj=None, distances=None, render=False, deterministic=True):
         if traj is not None:
             traj_xy = self.sar_to_xy(traj, distances)
-            self.env.engine.wp_list = traj_xy
+            self.env.engine.wp_list = [t.detach().numpy() for t in traj_xy]
 
         obs = self.venv.normalize_obs(obs[0])
         episode_rew = 0
@@ -233,6 +233,79 @@ class TEPDatasetMaker:
                 if t_idx % 1 == 0:
                     print(f"Dataset updating: {t_idx}")
 
+        print("Done training, saving model")
+        if not os.path.exists("agents"):
+            os.makedirs("agents")
+        T.save(tep.state_dict(), "agents/full_traj_tep_1step.p")
+
+    def train_tep_1step_grad_aggregated(self):
+        # Load pretrained tep
+        tep = TEPMLP(obs_dim=50, act_dim=1)
+        tep.load_state_dict(T.load("agents/full_traj_tep.p"), strict=False)
+
+        # Core dataset
+        N_traj = 1000
+        X = np.load(self.x_file_path, allow_pickle=True)[:N_traj]
+        Y = np.load(self.y_file_path)[:N_traj]
+
+        # Change to successive angle representation
+        X = T.tensor(self.get_successive_angle_representation(X), dtype=T.float32) # 1000, 50
+        Y = T.tensor(Y, dtype=T.float32).unsqueeze(1) # 1000, 1
+
+        # Make dataset into list of tensors
+        X_list = [x for x in X]
+        Y_list = [y for y in Y]
+
+        # Prepare policy and training
+        tep_optim = T.optim.Adam(params=tep.parameters(),
+                                    lr=self.config['policy_lr'],
+                                    weight_decay=self.config['w_decay'])
+        lossfun = T.nn.MSELoss()
+
+        # Epoch consists of training tep and performing grad update on subset of original dataset
+        for ep in range(self.config["n_epochs"]):
+            n_data = len(X_list)
+
+            # ===== TRAIN TEP ======
+            for i in range(0, self.config["tep_iters"]):
+                # Get random minibatch
+                rnd_indeces = np.random.choice(np.arange(n_data), self.config["batchsize"], replace=False)
+                x = T.stack([X_list[ri] for ri in rnd_indeces])
+                y = T.stack([Y_list[ri] for ri in rnd_indeces])
+
+                # Train tep on new dataset
+                y_ = tep(x)
+                tep_loss = lossfun(y_, y)
+
+                total_loss = tep_loss
+                total_loss.backward()
+
+                tep_optim.step()
+                tep_optim.zero_grad()
+
+                if i % 10 == 0:
+                    print("Epoch: {}, Iter {}, policy_loss: {}".format(ep, i, tep_loss.data))
+
+            print("Epoch: {}, finished training tep".format(ep))
+
+            # ===== UPDATE TRAJ ======
+            # Update random trajectories from initial dataset and add to dataset
+            rnd_indeces = np.random.choice(np.arange(n_data), self.config["n_traj_update"], replace=False)
+            x_list = T.stack([X_list[ri] for ri in rnd_indeces])
+            for x_traj in x_list:
+                x_ud_traj = T.clone(x_traj).detach()
+                x_ud_traj.requires_grad = True
+                x_ud_traj = self.perform_grad_update_full_traj(x_ud_traj, tep, use_hessian=False)
+                X_list.append(x_ud_traj)
+
+                # Annotate the new X_ud
+                obs = self.env.reset()
+                rew = self.evaluate_rollout(obs, x_ud_traj.detach())
+                Y_list.append(T.tensor([rew]))
+
+            print("Epoch: {}, finished updating dataset".format(ep))
+
+        # Finished training, saving
         print("Done training, saving model")
         if not os.path.exists("agents"):
             os.makedirs("agents")
@@ -393,7 +466,8 @@ class TEPDatasetMaker:
 if __name__ == "__main__":
     tm = TEPDatasetMaker()
     #tm.make_dataset(render=False)
-    tm.train_tep()
+    #tm.train_tep()
     #tm.train_tep_1step_grad()
+    tm.train_tep_1step_grad_aggregated()
     #tm.test_tep()
     #tm.test_tep_full()
