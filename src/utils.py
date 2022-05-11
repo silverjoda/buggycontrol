@@ -2,6 +2,7 @@ import math as m
 import os
 import sys
 
+import numpy as np
 import yaml
 
 
@@ -63,3 +64,6 @@ def theta_to_quat(theta):
     qz = m.sin(theta / 2)
     qw = m.cos(theta / 2)
     return [qw, qx, qy, qz]
+
+def dist_between_wps(wp_1, wp_2):
+    return np.sqrt(np.square(wp_1[0] - wp_2[0]) + np.square(wp_1[1] - wp_2[1]))

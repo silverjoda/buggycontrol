@@ -11,21 +11,24 @@ from pathfinding.finder.a_star import AStarFinder
 
 from src.envs.engines import *
 from src.opt.simplex_noise import SimplexNoise
-from src.utils import e2q
+from src.utils import e2q, dist_between_wps
 
 
 class BuggyMaize():
     def __init__(self, config):
         self.config = config
 
-        self.block_size = 1.0 # 1 meter block size
+        self.block_size = 1.5 # Block size in meters
         self.n_blocks = 5
-        self.grid_resolution = 0.05
+        self.grid_resolution = 0.05 # Number of points per meter
         self.grid_X_len = int(self.block_size * (self.n_blocks + 2) / self.grid_resolution)
         self.grid_Y_len = int(self.block_size * (self.n_blocks * 2 + 1) / self.grid_resolution)
         self.grid_block_len = int(self.block_size / self.grid_resolution)
-        self.barrier_halflength_coeff = 0.5
-        self.barrier_halfwidth_coeff = 0.05
+        self.grid_meter_len = int(1 / self.grid_resolution)
+
+        deadzone = 0.3
+        self.barrier_halflength_coeff = 0.5 + deadzone
+        self.barrier_halfwidth_coeff = 0.05 + deadzone * 0.1
 
         self.reset()
 
@@ -91,8 +94,8 @@ class BuggyMaize():
         return blocks, all_barriers, dense_grid, start, finish
 
     def xy_to_grid(self, x, y):
-        m = int(self.grid_X_len - x * self.grid_block_len - 0.5 * self.grid_block_len)
-        n = int(0.5 * self.grid_Y_len - y * self.grid_block_len)
+        m = int(self.grid_X_len - x * self.grid_meter_len - 0.5 * self.grid_meter_len)
+        n = int(0.5 * self.grid_Y_len - y * self.grid_meter_len)
 
         m = np.clip(m, 0, self.grid_X_len)
         n = np.clip(n, 0, self.grid_Y_len)
@@ -100,8 +103,8 @@ class BuggyMaize():
         return m, n
 
     def grid_to_xy(self, m, n):
-        x = self.grid_X_len / self.grid_block_len - 0.5 - m / self.grid_block_len
-        y = 0.5 * self.grid_Y_len / self.grid_block_len - n / self.grid_block_len
+        x = self.grid_X_len / self.grid_meter_len - 0.5 - m / self.grid_meter_len
+        y = 0.5 * self.grid_Y_len / self.grid_meter_len - n / self.grid_meter_len
         return x, y
 
     def plot_grid(self, grid, shortest_path_pts):
@@ -138,7 +141,7 @@ class BuggyMaize():
     def reset(self):
         self.blocks, self.all_barriers, self.dense_grid, self.start, self.finish = self.generate_random_maize()
         self.shortest_path_pts = self.generate_shortest_path(self.dense_grid, self.start, self.finish)
-        # self.plot_grid(self.dense_grid, self.shortest_path_pts)
+        #self.plot_grid(self.dense_grid, self.shortest_path_pts)
 
 class BuggyMaizeEnv(gym.Env):
     metadata = {
@@ -296,13 +299,47 @@ class BuggyMaizeEnv(gym.Env):
 
                     self.render()
 
-
             print("Cumulative rew: {}".format(cum_rew))
 
     def evaluate_rollout(self, rollout):
-        for r in rollout:
-            pass
-        # TODO: HERE
+        # Get current wp list in buggy frame and position of buggy
+        obs_dict = self.engine.get_obs_dict()
+        wp_list = obs_dict["wp_list"]
+
+        cur_wp_idx = 0
+        wp_visited = False
+        cum_rew = 0
+        for pos in rollout:
+            # Distance between current waypoint
+            cur_wp_dist = dist_between_wps(pos, wp_list[cur_wp_idx])
+
+            ## Abort if trajectory goes to shit
+            #if cur_wp_dist > 0.5:
+            #    break
+
+            # Check if visited waypoint, if so, move index
+            if cur_wp_dist < self.config["wp_reach_dist"]:
+                cur_wp_idx += 1
+                wp_visited = True
+
+            # Calculate visitation + deviation reward
+            pos = np.array(obs_dict["pos"], dtype=np.float32)
+            cur_wp = np.array(wp_list[cur_wp_idx], dtype=np.float32)
+            if cur_wp_idx > 0:
+                prev_wp = np.array(wp_list[cur_wp_idx - 1], dtype=np.float32)
+            else:
+                prev_wp = np.array(cur_wp, dtype=np.float32)
+
+            path_deviation = np.abs((cur_wp[0] - prev_wp[0]) * (prev_wp[1] - pos[1]) - (prev_wp[0] - pos[0]) * (
+                        cur_wp[1] - prev_wp[1])) / np.sqrt(
+                np.square(cur_wp[0] - prev_wp[0]) + np.square(cur_wp[1] - prev_wp[1]))
+            dist_between_cur_wp = np.sqrt(np.square((cur_wp[0] - pos[0])) + np.square((cur_wp[1] - pos[1])))
+
+            r = wp_visited * (1 / (1 + 0.5 * path_deviation)) - dist_between_cur_wp * 0.01
+            cum_rew += r
+
+        return -cum_rew
+
 
 if __name__ == "__main__":
     config = load_config(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_maize_env_mujoco.yaml"))

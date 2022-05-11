@@ -9,8 +9,7 @@
 
 # Monday:
 - Continue with Buggy project:
-    - Make maize env block size scalable
-    - Finish MPPI reward calculation and test
+    - Test mppi
     - Write evaluation script for learned model on mujoco and real data (on withheld trajectories)
     - Debug and test buggy mujoco/model fusion training using discriminator
     - Do RMA-style training

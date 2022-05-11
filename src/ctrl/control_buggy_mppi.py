@@ -2,6 +2,7 @@ import yaml
 
 from src.policies import *
 from src.envs.buggy_env_mujoco import BuggyEnv
+from src.utils import *
 import os
 
 class ControlBuggyMPPI:
@@ -13,7 +14,7 @@ class ControlBuggyMPPI:
         self.dt = self.mppi_config["dt"]
 
     def load_dynamics_model(self):
-        dynamics_model = MLP(self.mppi_config["model_obs_dim"], self.mppi_config["model_act_dim"], hid_dim=256)
+        dynamics_model = MLP(self.mppi_config["model_obs_dim"], self.mppi_config["model_act_dim"], hid_dim=128)
         model_path = os.path.join(os.path.dirname(__file__), "../opt/agents/buggy_lte.p")
         dynamics_model.load_state_dict(T.load(model_path), strict=False)
         return dynamics_model

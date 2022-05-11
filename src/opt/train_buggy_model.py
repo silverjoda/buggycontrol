@@ -391,13 +391,91 @@ class ModelTrainer:
         plt.hist(T.softmax(y_real, dim=1)[:, 1].detach().numpy())
         plt.show()
 
+    def evaluate_trained_model(self):
+        # Load trained model
+        dynamics_model = MLP(5, 3, hid_dim=128)
+        model_path = os.path.join(os.path.dirname(__file__), "../opt/agents/buggy_lte.p")
+        dynamics_model.load_state_dict(T.load(model_path), strict=False)
+
+        # Define evaluation trajectory set
+        X_val, Y_val = T.tensor(self.real_dataset.X_val), T.tensor(self.real_dataset.Y_val)
+        vel_val = X_val[:, :, :3]
+
+        n_traj, traj_len, _ = X_val.shape
+
+        # == For each trajectory in evaluation set, make rollouts of various length and compare using MSE ==
+
+        # Make velocities rollout of model given actions
+        pred_vel = dynamics_model(X_val)
+
+        # Turn predicted velocities and gt velocities into positional trajectories
+        t_delta = 0.01
+        gt_pos_val = T.zeros_like(vel_val)
+        pred_pos_val = T.zeros_like(vel_val)
+        for i in range(n_traj):
+            for t in range(traj_len - 1):
+                gt_pos_val[i, t + 1, :] = gt_pos_val[i, t, :] + vel_val[i, t, :] * t_delta
+                pred_pos_val[i, t + 1, :] = pred_pos_val[i, t, :] + pred_vel[i, t, :] * t_delta
+
+        # Calculate mse
+        vel_mse_50 = []
+        vel_mse_100 = []
+        vel_mse_200 = []
+
+        pos_mse_50 = []
+        pos_mse_100 = []
+        pos_mse_200 = []
+        for i in range(n_traj):
+            for t in range(traj_len - 1):
+                vel_mse = T.sqrt(vel_val[:, t, :] - pred_vel[:, t, :])
+                pos_mse = T.sqrt(gt_pos_val[:, t, :] - pred_pos_val[:, t, :])
+                if t < 50:
+                    vel_mse_50.append(vel_mse)
+                    pos_mse_50.append(pos_mse)
+                    if t < 100:
+                        vel_mse_100.append(vel_mse)
+                        pos_mse_100.append(pos_mse)
+                        if t < 200:
+                            vel_mse_200.append(vel_mse)
+                            pos_mse_200.append(pos_mse)
+
+        # Print out mse statistics for various model rollout lengths
+        vel_mse_50_mean, vel_mse_50_std = np.mean(vel_mse_50), np.std(vel_mse_50)
+        vel_mse_100_mean, vel_mse_100_std = np.mean(vel_mse_100), np.std(vel_mse_100)
+        vel_mse_200_mean, vel_mse_200_std = np.mean(vel_mse_200), np.std(vel_mse_200)
+
+        pos_mse_50_mean, pos_mse_50_std = np.mean(vel_mse_50), np.std(vel_mse_50)
+        pos_mse_100_mean, pos_mse_100_std = np.mean(vel_mse_100), np.std(vel_mse_100)
+        pos_mse_200_mean, pos_mse_200_std = np.mean(vel_mse_200), np.std(vel_mse_200)
+
+        print(f"Vel mse 50 mean: {vel_mse_50_mean}, std: {vel_mse_50_std}")
+        print(f"Vel mse 100 mean: {vel_mse_100_mean}, std: {vel_mse_100_std}")
+        print(f"Vel mse 200 mean: {vel_mse_200_mean}, std: {vel_mse_200_std}")
+
+        print(f"Pos mse 50 mean: {pos_mse_50_mean}, std: {pos_mse_50_std}")
+        print(f"Pos mse 100 mean: {pos_mse_100_mean}, std: {pos_mse_100_std}")
+        print(f"Pos mse 200 mean: {pos_mse_200_mean}, std: {pos_mse_200_std}")
+
+        # Plot several random positional trajectories and velocities
+        N_plot = 5
+        rnd_indeces = np.random.choice(np.arange(n_traj), N_plot, replace=False)
+
+        fig, axs = plt.subplots(2, N_plot)
+        for i in range(N_plot):
+            axs[0, i].plot(gt_pos_val[rnd_indeces[i], :, 0], gt_pos_val[rnd_indeces[i], :, 1], 'tab:blue')
+            axs[0, i].plot(gt_pos_val[rnd_indeces[i], :, 0], pred_pos_val[rnd_indeces[i], :, 1], 'tab:red')
+
+            axs[0, i].plot(np.arange(traj_len), vel_val[rnd_indeces[i], :, 1], 'tab:blue')
+            axs[0, i].plot(np.arange(traj_len), vel_val[rnd_indeces[i], :, 1], 'tab:red')
+
+        fig.tight_layout()
+        exit(0)
+
     def plot_umap(self):
-        from sklearn.model_selection import train_test_split
         from sklearn.preprocessing import StandardScaler
         import matplotlib.pyplot as plt
         import seaborn as sns
         import pandas as pd
-        import time
         import umap
         reducer = umap.UMAP()
 
@@ -430,14 +508,17 @@ if __name__=="__main__":
     real_dataset = ModelDataset(use_real_data=True)
     mujoco_dataset = ModelDataset(use_real_data=False)
     model_trainer = ModelTrainer(config, mujoco_dataset, real_dataset)
+    #model_trainer.plot_umap()
+    #exit()
 
     # Train
     if config["train"]:
         pretrained_model_path = f"agents/buggy_lte.p"
 
-        #model_trainer.train_data_discriminator()
+        #model_trainer.train()
         #model_trainer.train_linmod()
         #model_trainer.train_lin()
         #model_trainer.train_linmod_hybrid()
         #model_trainer.train(mujoco_dataset, "buggy_lte", pretrained_model_path=None)
-        model_trainer.train_data_discriminator()
+        #model_trainer.train_data_discriminator()
+        model_trainer.evaluate_trained_model()

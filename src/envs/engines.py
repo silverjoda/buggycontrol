@@ -8,7 +8,8 @@ import numpy as np
 from src.envs.xml_gen import *
 from src.opt.simplex_noise import SimplexNoise
 from src.policies import LTE, MLP
-from src.utils import load_config, theta_to_quat, q2e, e2q
+from src.utils import load_config, theta_to_quat, q2e, e2q, dist_between_wps
+
 
 class Engine:
     def __init__(self, config):
@@ -68,7 +69,7 @@ class Engine:
         done = False
         wp_visited = False
         # Check if wp is reached
-        if self.dist_between_wps(pos, self.wp_list[self.cur_wp_idx]) < self.config["wp_reach_dist"]:
+        if dist_between_wps(pos, self.wp_list[self.cur_wp_idx]) < self.config["wp_reach_dist"]:
             # Update wp visually in mujoco
             if self.config["render"]:
                 self.update_wp_visuals()
@@ -159,7 +160,7 @@ class Engine:
         wp_list = []
         cum_wp_dist = 0
         for i in range(1, len(traj_pts)):
-            cum_wp_dist += self.dist_between_wps(traj_pts[i], traj_pts[i-1])
+            cum_wp_dist += dist_between_wps(traj_pts[i], traj_pts[i-1])
             if cum_wp_dist > self.config["wp_sample_dist"]:
                 wp_list.append(traj_pts[i])
                 cum_wp_dist = 0
@@ -180,9 +181,6 @@ class Engine:
         plt.scatter(traj_pts_x, traj_pts_y)
         plt.show()
         exit()
-
-    def dist_between_wps(self, wp_1, wp_2):
-        return np.sqrt(np.square(wp_1[0] - wp_2[0]) + np.square(wp_1[1] - wp_2[1]))
 
     def demo(self):
         self.reset()

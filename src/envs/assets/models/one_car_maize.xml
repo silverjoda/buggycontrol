@@ -61,64 +61,64 @@
     <geom contype="0" conaffinity="0" condim="3" size=".05" type="sphere" mass="1" rgba="1 0 0 1"/>
     </body>
     <body name="barrier0" pos="10 0 0" mocap="true">
-    <geom contype="1" conaffinity="0" condim="3" size=".05 0.5 .2" type="box" mass="1" rgba="0 0 1 1"/>
+    <geom contype="1" conaffinity="0" condim="3" size=".075 0.75 .2" type="box" mass="1" rgba="0 0 1 1"/>
     </body>
     <body name="barrier1" pos="10 0 0" mocap="true">
-    <geom contype="1" conaffinity="0" condim="3" size=".05 0.5 .2" type="box" mass="1" rgba="0 0 1 1"/>
+    <geom contype="1" conaffinity="0" condim="3" size=".075 0.75 .2" type="box" mass="1" rgba="0 0 1 1"/>
     </body>
     <body name="barrier2" pos="10 0 0" mocap="true">
-    <geom contype="1" conaffinity="0" condim="3" size=".05 0.5 .2" type="box" mass="1" rgba="0 0 1 1"/>
+    <geom contype="1" conaffinity="0" condim="3" size=".075 0.75 .2" type="box" mass="1" rgba="0 0 1 1"/>
     </body>
     <body name="barrier3" pos="10 0 0" mocap="true">
-    <geom contype="1" conaffinity="0" condim="3" size=".05 0.5 .2" type="box" mass="1" rgba="0 0 1 1"/>
+    <geom contype="1" conaffinity="0" condim="3" size=".075 0.75 .2" type="box" mass="1" rgba="0 0 1 1"/>
     </body>
     <body name="barrier4" pos="10 0 0" mocap="true">
-    <geom contype="1" conaffinity="0" condim="3" size=".05 0.5 .2" type="box" mass="1" rgba="0 0 1 1"/>
+    <geom contype="1" conaffinity="0" condim="3" size=".075 0.75 .2" type="box" mass="1" rgba="0 0 1 1"/>
     </body>
     <body name="barrier5" pos="10 0 0" mocap="true">
-    <geom contype="1" conaffinity="0" condim="3" size=".05 0.5 .2" type="box" mass="1" rgba="0 0 1 1"/>
+    <geom contype="1" conaffinity="0" condim="3" size=".075 0.75 .2" type="box" mass="1" rgba="0 0 1 1"/>
     </body>
     <body name="barrier6" pos="10 0 0" mocap="true">
-    <geom contype="1" conaffinity="0" condim="3" size=".05 0.5 .2" type="box" mass="1" rgba="0 0 1 1"/>
+    <geom contype="1" conaffinity="0" condim="3" size=".075 0.75 .2" type="box" mass="1" rgba="0 0 1 1"/>
     </body>
     <body name="barrier7" pos="10 0 0" mocap="true">
-    <geom contype="1" conaffinity="0" condim="3" size=".05 0.5 .2" type="box" mass="1" rgba="0 0 1 1"/>
+    <geom contype="1" conaffinity="0" condim="3" size=".075 0.75 .2" type="box" mass="1" rgba="0 0 1 1"/>
     </body>
     <body name="barrier8" pos="10 0 0" mocap="true">
-    <geom contype="1" conaffinity="0" condim="3" size=".05 0.5 .2" type="box" mass="1" rgba="0 0 1 1"/>
+    <geom contype="1" conaffinity="0" condim="3" size=".075 0.75 .2" type="box" mass="1" rgba="0 0 1 1"/>
     </body>
     <body name="barrier9" pos="10 0 0" mocap="true">
-    <geom contype="1" conaffinity="0" condim="3" size=".05 0.5 .2" type="box" mass="1" rgba="0 0 1 1"/>
+    <geom contype="1" conaffinity="0" condim="3" size=".075 0.75 .2" type="box" mass="1" rgba="0 0 1 1"/>
     </body>
     <body name="barrier10" pos="10 0 0" mocap="true">
-    <geom contype="1" conaffinity="0" condim="3" size=".05 0.5 .2" type="box" mass="1" rgba="0 0 1 1"/>
+    <geom contype="1" conaffinity="0" condim="3" size=".075 0.75 .2" type="box" mass="1" rgba="0 0 1 1"/>
     </body>
     <body name="barrier11" pos="10 0 0" mocap="true">
-    <geom contype="1" conaffinity="0" condim="3" size=".05 0.5 .2" type="box" mass="1" rgba="0 0 1 1"/>
+    <geom contype="1" conaffinity="0" condim="3" size=".075 0.75 .2" type="box" mass="1" rgba="0 0 1 1"/>
     </body>
     <body name="barrier12" pos="10 0 0" mocap="true">
-    <geom contype="1" conaffinity="0" condim="3" size=".05 0.5 .2" type="box" mass="1" rgba="0 0 1 1"/>
+    <geom contype="1" conaffinity="0" condim="3" size=".075 0.75 .2" type="box" mass="1" rgba="0 0 1 1"/>
     </body>
     <body name="barrier13" pos="10 0 0" mocap="true">
-    <geom contype="1" conaffinity="0" condim="3" size=".05 0.5 .2" type="box" mass="1" rgba="0 0 1 1"/>
+    <geom contype="1" conaffinity="0" condim="3" size=".075 0.75 .2" type="box" mass="1" rgba="0 0 1 1"/>
     </body>
     <body name="barrier14" pos="10 0 0" mocap="true">
-    <geom contype="1" conaffinity="0" condim="3" size=".05 0.5 .2" type="box" mass="1" rgba="0 0 1 1"/>
+    <geom contype="1" conaffinity="0" condim="3" size=".075 0.75 .2" type="box" mass="1" rgba="0 0 1 1"/>
     </body>
     <body name="barrier15" pos="10 0 0" mocap="true">
-    <geom contype="1" conaffinity="0" condim="3" size=".05 0.5 .2" type="box" mass="1" rgba="0 0 1 1"/>
+    <geom contype="1" conaffinity="0" condim="3" size=".075 0.75 .2" type="box" mass="1" rgba="0 0 1 1"/>
     </body>
     <body name="barrier16" pos="10 0 0" mocap="true">
-    <geom contype="1" conaffinity="0" condim="3" size=".05 0.5 .2" type="box" mass="1" rgba="0 0 1 1"/>
+    <geom contype="1" conaffinity="0" condim="3" size=".075 0.75 .2" type="box" mass="1" rgba="0 0 1 1"/>
     </body>
     <body name="barrier17" pos="10 0 0" mocap="true">
-    <geom contype="1" conaffinity="0" condim="3" size=".05 0.5 .2" type="box" mass="1" rgba="0 0 1 1"/>
+    <geom contype="1" conaffinity="0" condim="3" size=".075 0.75 .2" type="box" mass="1" rgba="0 0 1 1"/>
     </body>
     <body name="barrier18" pos="10 0 0" mocap="true">
-    <geom contype="1" conaffinity="0" condim="3" size=".05 0.5 .2" type="box" mass="1" rgba="0 0 1 1"/>
+    <geom contype="1" conaffinity="0" condim="3" size=".075 0.75 .2" type="box" mass="1" rgba="0 0 1 1"/>
     </body>
     <body name="barrier19" pos="10 0 0" mocap="true">
-    <geom contype="1" conaffinity="0" condim="3" size=".05 0.5 .2" type="box" mass="1" rgba="0 0 1 1"/>
+    <geom contype="1" conaffinity="0" condim="3" size=".075 0.75 .2" type="box" mass="1" rgba="0 0 1 1"/>
     </body>
 
   </worldbody>
