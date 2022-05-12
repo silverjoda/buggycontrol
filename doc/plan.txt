@@ -9,7 +9,6 @@
 
 # Monday:
 - Continue with Buggy project:
-    - Make a trajectory evaluation which rewards progress in maize (not following a predefined trajectory)
     - Make complete traj testing script for maize (includes mppi etc)
 
 # Robotic transformations and frames:
