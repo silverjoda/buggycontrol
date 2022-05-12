@@ -12,7 +12,7 @@ y = np.array([13, 12.6, 12, 13, 12, 13])
 # fit splines to x=f(u) and y=g(u), treating both as periodic. also note that s=0
 # is needed in order to force the spline fit to pass through all the input points.
 # tck, u = interpolate.splprep([x, y], per=True, s=0)
-tck, u = interpolate.splprep([x, y], s=0, k=3)
+tck, u = interpolate.splprep([x, y], s=0, k=5)
 print(tck[0])
 print(tck[1])
 print(tck[2])

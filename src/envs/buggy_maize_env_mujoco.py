@@ -1,18 +1,18 @@
 import random
-import time
 
 import gym
 import matplotlib.pyplot as plt
-import mujoco_py
 from gym import spaces
 from pathfinding.core.diagonal_movement import DiagonalMovement
 from pathfinding.core.grid import Grid
 from pathfinding.finder.a_star import AStarFinder
+from scipy import interpolate
 
 from src.envs.engines import *
 from src.opt.simplex_noise import SimplexNoise
 from src.utils import e2q, dist_between_wps
 
+GLOBAL_DEBUG = True
 
 class BuggyMaize():
     def __init__(self, config):
@@ -20,15 +20,15 @@ class BuggyMaize():
 
         self.block_size = 1.5 # Block size in meters
         self.n_blocks = 5
-        self.grid_resolution = 0.05 # Number of points per meter
+        self.grid_resolution = 0.1 # Number of points per meter
         self.grid_X_len = int(self.block_size * (self.n_blocks + 2) / self.grid_resolution)
         self.grid_Y_len = int(self.block_size * (self.n_blocks * 2 + 1) / self.grid_resolution)
         self.grid_block_len = int(self.block_size / self.grid_resolution)
         self.grid_meter_len = int(1 / self.grid_resolution)
 
-        deadzone = 0.3
+        deadzone = 0.2
         self.barrier_halflength_coeff = 0.5 + deadzone
-        self.barrier_halfwidth_coeff = 0.05 + deadzone * 0.1
+        self.barrier_halfwidth_coeff = 0.1 + deadzone * 0.5
 
         self.reset()
 
@@ -107,13 +107,16 @@ class BuggyMaize():
         y = 0.5 * self.grid_Y_len / self.grid_meter_len - n / self.grid_meter_len
         return x, y
 
-    def plot_grid(self, grid, shortest_path_pts):
+    def plot_grid(self, grid, path_astar, path_spline):
         grid_cpy = np.copy(grid)
-        for pt in shortest_path_pts:
+        for pt in path_astar:
             grid_cpy[pt[0], pt[1]] = 10
+
+        x_spln, y_spln = zip(*path_spline)
 
         # Plot
         plt.imshow(grid_cpy)
+        plt.plot(y_spln, x_spln)
         plt.show()
 
     def generate_shortest_path(self, grid, start, finish):
@@ -121,27 +124,74 @@ class BuggyMaize():
         start = grid.node(start[1],start[0])
         end = grid.node(finish[1], finish[0])
         finder = AStarFinder(diagonal_movement=DiagonalMovement.always)
-        path, runs = finder.find_path(start, end, grid)
-        #print('operations:', runs, 'path length:', len(path))
-        #print(grid.grid_str(path=path, start=start, end=end))
-        path_cpy = []
-        for p in path:
-            path_cpy.append((p[1], p[0]))
-        return path_cpy
+        path_astar, runs = finder.find_path(start, end, grid)
+
+        y, x = zip(*path_astar)
+        path_astar = zip(*[x[::3], y[::3]])
+
+        # Make resample as spline
+        tck, u = interpolate.splprep([x, y], s=15, k=3)
+        xi, yi = interpolate.splev(np.linspace(0, 1, 300), tck)
+
+        path_spline = list(zip(*[xi,yi]))
+
+        return path_astar, path_spline
 
     def get_barriers(self):
         return self.all_barriers
 
+    def position_in_barrier(self, pos_x, pos_y):
+        m, n = self.xy_to_grid(pos_x, pos_y)
+        if self.dense_grid[m, n] < 1:
+            return True
+
+    def dist_from_centerline(self, pos_x, pos_y):
+        m, n = self.xy_to_grid(pos_x, pos_y)
+        return self.dense_grid_field[m, n]
+
     def get_shortest_path_pts_xy(self):
         sptxy = []
-        for pt_x, pt_y in self.shortest_path_pts:
+        for pt_x, pt_y in self.shortest_path_pts_spline:
             sptxy.append(self.grid_to_xy(pt_x, pt_y))
         return sptxy
 
+    def generate_dense_grid_field(self, grid, blocks):
+        grid_field = np.copy(grid)
+        grid_field = -(grid_field - 1)
+
+        for _ in range(7):
+            # Make new copy for iteration
+            grid_new = np.copy(grid_field)
+
+            # Go over all blocks and make value iteration for each gridpoint
+            for x, y in blocks:
+                m_c, n_c = self.xy_to_grid(x, y)
+                m_min = np.maximum(m_c - int(self.grid_block_len / 2) - 7, 0)
+                m_max = np.minimum(m_c + int(self.grid_block_len / 2) + 7, self.grid_X_len - 1)
+                n_min = np.maximum(n_c - int(self.grid_block_len / 2) - 7, 0)
+                n_max = np.minimum(n_c + int(self.grid_block_len / 2) + 7, self.grid_Y_len - 1)
+
+                for i in range(m_min, m_max):
+                    for j in range(n_min, n_max):
+                        if grid_field[i, j] < 1:
+                            aggr_fun = np.max
+                            grid_new[i, j] = aggr_fun([grid_field[i-1, j],
+                                                grid_field[i+1, j],
+                                                grid_field[i, j-1],
+                                                grid_field[i, j+1]]) - 0.2
+
+            grid_field = grid_new
+
+        # Add minimum value to grid to normalize to zero at center point
+        grid_field = np.clip(grid_field, 0, 1)
+        return grid_field
+
     def reset(self):
         self.blocks, self.all_barriers, self.dense_grid, self.start, self.finish = self.generate_random_maize()
-        self.shortest_path_pts = self.generate_shortest_path(self.dense_grid, self.start, self.finish)
-        #self.plot_grid(self.dense_grid, self.shortest_path_pts)
+        self.shortest_path_pts, self.shortest_path_pts_spline = self.generate_shortest_path(self.dense_grid, self.start, self.finish)
+        self.dense_grid_field = self.generate_dense_grid_field(self.dense_grid, self.blocks)
+        if GLOBAL_DEBUG:
+            self.plot_grid(self.dense_grid_field, self.shortest_path_pts, self.shortest_path_pts_spline)
 
 class BuggyMaizeEnv(gym.Env):
     metadata = {
@@ -339,6 +389,31 @@ class BuggyMaizeEnv(gym.Env):
             cum_rew += r
 
         return -cum_rew
+
+    def evaluate_rollout_free(self, rollout):
+        # Get current position and velocity of buggy
+        obs_dict = self.engine.get_obs_dict()
+        vel_x, _ = obs_dict["vel"]
+        pos_x, pos_y = obs_dict["pos"]
+
+        velocity_cost = 0
+        barrier_cost = 0
+        for r in rollout:
+            # Calculate x-velocity cost (maximize speed)
+            velocity_cost += (-vel_x)
+
+            # Calculate if in barrier
+            in_barrier = self.maize.position_in_barrier(pos_x, pos_y)
+
+            barrier_cost += in_barrier * 1000
+
+            if in_barrier: break
+
+        # Calculate center deviation of final state cost
+        center_deviation_cost = self.maize.dist_from_centerline(*rollout[-1])
+        total_cost = center_deviation_cost * 0.1 + velocity_cost + barrier_cost
+
+        return total_cost
 
 
 if __name__ == "__main__":
