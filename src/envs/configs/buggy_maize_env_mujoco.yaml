@@ -3,7 +3,6 @@
 "render" : True
 "n_substeps" : 2
 "randomize_env" : False
-"allow_latent_input" : False
 "state_dim" : 3
 "latent_dim" : 4
 "car_xml" : "one_car_maize"
@@ -13,6 +12,13 @@
 "use_hybrid_engine" : False
 "lte_prob" : 1.0
 "discriminator_thresh" : 0.5
+
+# Params
+"allow_latent_input" : False
+"use_latent_input_estimator" : False
+"train_latent_input_estimator" : False
+"param_batchsize" : 64
+"param_estimator_lr" : 0.001
 
 "n_traj_pts" : 15
 "wp_sample_dist" : 0.17

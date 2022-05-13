@@ -1,9 +1,10 @@
-import yaml
-
-from src.policies import *
-from src.envs.buggy_env_mujoco import BuggyEnv
-from src.utils import *
 import os
+
+from src.envs.buggy_env_mujoco import BuggyEnv
+from src.envs.buggy_maize_env_mujoco import BuggyMaizeEnv
+from src.policies import *
+from src.utils import *
+
 
 class ControlBuggyMPPI:
     def __init__(self, mppi_config, buggy_config=None):
@@ -29,13 +30,13 @@ class ControlBuggyMPPI:
 
             while True:
                 # Predict using MPC
-                u_vec = self.mppi_predict(mujoco_obs, n_samples, n_horizon, u_vec, act_std)
+                u_vec = self.mppi_predict(env, mujoco_obs, "traj", n_samples, n_horizon, u_vec, act_std)
                 mujoco_obs, _, done, _ = env.step(u_vec[0])
 
                 if render: env.render()
                 if done: break
 
-    def mppi_predict(self, mujoco_obs, n_samples, n_horizon, act_mean_seq, act_std):
+    def mppi_predict(self, env, mujoco_obs, mode, n_samples, n_horizon, act_mean_seq, act_std):
         # Sample random action matrix
         act_noises = np.random.randn(n_samples, n_horizon, self.mppi_config["act_dim"]) * act_std
         acts = act_mean_seq + act_noises
@@ -45,7 +46,7 @@ class ControlBuggyMPPI:
         mppi_rollouts = self.make_mppi_rollouts(self.dynamics_model, init_model_state, acts)
 
         # Evaluate rollouts
-        costs = self.evaluate_mppi_rollouts(mppi_rollouts)
+        costs = self.evaluate_mppi_rollouts(env, mppi_rollouts, mode)
 
         # Choose trajectory using MPPI update
         acts_opt = self.calculate_mppi_trajectory(act_mean_seq, act_noises, costs)
@@ -70,10 +71,13 @@ class ControlBuggyMPPI:
 
         return positions
 
-    def evaluate_mppi_rollouts(self, rollouts):
+    def evaluate_mppi_rollouts(self, env, rollouts, mode):
         costs = []
         for rollout in rollouts:
-            cost = self.buggy_env_mujoco.evaluate_rollout(rollout)
+            if mode == "traj":
+                cost = env.evaluate_rollout(rollout)
+            else:
+                cost = env.evaluate_rollout_free(rollout)
             costs.append(cost)
         return np.array(costs)
 
@@ -88,6 +92,7 @@ class ControlBuggyMPPI:
 if __name__ == "__main__":
     with open(os.path.join(os.path.dirname(__file__), "configs/control_buggy_mppi.yaml"), 'r') as f:
         mppi_config = yaml.load(f, Loader=yaml.FullLoader)
-    with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_env_mujoco.yaml"), 'r') as f:
-        buggy_config = yaml.load(f, Loader=yaml.FullLoader)
-    cbm = ControlBuggyMPPI(mppi_config, buggy_config)
+    with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_maize_env_mujoco.yaml"), 'r') as f:
+        buggy_maize_config = yaml.load(f, Loader=yaml.FullLoader)
+    env = BuggyMaizeEnv(buggy_maize_config)
+    cbm = ControlBuggyMPPI(mppi_config)

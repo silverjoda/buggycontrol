@@ -199,7 +199,7 @@ class BuggyMaizeEnv(gym.Env):
         'video.frames_per_second': 100
     }
 
-    def __init__(self, config):
+    def __init__(self, config, seed=1337):
         self.config = config
 
         self.obs_dim = self.config["state_dim"] \
@@ -213,6 +213,7 @@ class BuggyMaizeEnv(gym.Env):
 
         self.sim, self.engine = self.load_random_env()
 
+        self.seed(seed)
         self.maize = BuggyMaize(config)
 
     def load_random_env(self):
@@ -326,7 +327,7 @@ class BuggyMaizeEnv(gym.Env):
     def seed(self, seed=None):
         if seed is not None:
             np.random.seed(seed)
-            self.engine.noise.set_seed(seed)
+            random.seed(seed, seed)
 
     def demo(self):
         while True:
@@ -420,5 +421,5 @@ if __name__ == "__main__":
     config = load_config(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_maize_env_mujoco.yaml"))
 
     #bm = BuggyMaize(config)
-    be = BuggyMaizeEnv(config)
+    be = BuggyMaizeEnv(config, seed=1337)
     be.demo()
