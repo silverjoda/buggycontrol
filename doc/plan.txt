@@ -9,7 +9,7 @@
 
 # Monday:
 - Continue with Buggy project:
-    - Make complete traj testing script for maize (includes mppi etc)
+    - Starting testing everything (Start by training good agents on Maize and model again)
 
 # Robotic transformations and frames:
 Motivation: Spot example in rviz (coordinate frames form a tree, show tf tree, switch between various fixed frames: world, base_link, sensor, etc)
