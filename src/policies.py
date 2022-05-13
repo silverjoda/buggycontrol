@@ -239,9 +239,9 @@ class RNN(nn.Module):
         self.rnn_1 = T.nn.LSTM(self.obs_dim, self.hid_dim, self.hid_dim)
         self.fc3 = T.nn.Linear(self.hid_dim, self.act_dim, bias=True)
 
-    def forward(self, x):
+    def forward(self, x, h=None):
         fc1 = T.tanh(self.fc1(x))
-        rnn_1 = self.rnn_1(fc1, None)
+        rnn_1, _ = self.rnn_1(fc1, h)
         fc2 = self.fc2(rnn_1)
         return fc2
 

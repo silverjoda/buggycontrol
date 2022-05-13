@@ -9,7 +9,7 @@ from src.envs.xml_gen import *
 from src.opt.simplex_noise import SimplexNoise
 from src.policies import LTE, MLP
 from src.utils import load_config, theta_to_quat, q2e, e2q, dist_between_wps
-
+from param_estimator import ParamEstimator
 
 class Engine:
     def __init__(self, config):
@@ -21,6 +21,9 @@ class Engine:
 
         self.car_template_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), f"assets/models/{car_xml}.xml")
         self.car_rnd_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), f"assets/models/{car_xml}_rnd.xml")
+        
+        if self.config["use_latent_input_estimator"]:
+            self.latent_input_estimator = ParamEstimator(self.config)
 
     @abstractmethod
     def step(self, action):
@@ -83,6 +86,10 @@ class Engine:
         if self.cur_wp_idx == (len(self.wp_list) - self.config["n_traj_pts"]):
             done = True
 
+        # Step the param estimator
+        if self.config["use_latent_input_estimator"]:
+            self.estimated_latent_input = self.latent_input_estimator()
+
         return done, wp_visited
 
     def get_state_vec(self, obs_dict):
@@ -113,7 +120,10 @@ class Engine:
 
         complete_obs_vec = state + wps_contiguous
         if allow_latent_input:
-            complete_obs_vec += self.random_params_normalized
+            if self.config["use_latent_input_estimator"]:
+                complete_obs_vec += self.estimated_latent_input
+            else:
+                complete_obs_vec += self.random_params_normalized
 
         return complete_obs_vec, obs_dict
 
@@ -195,6 +205,8 @@ class Engine:
 
                     #print(self.get_state_vec())
 
+                    self.get_obs_dict()
+
                     q_vel_list = self.mujoco_sim.get_state().qvel[0:3]
                     q_mat = np.reshape(self.mujoco_sim.data.body_xmat[self.bodyid], (3, 3))
                     q_vel_buggy = np.matmul(np.linalg.inv(q_mat), q_vel_list[:, np.newaxis])
@@ -246,6 +258,11 @@ class MujocoEngine(Engine):
         self.mujoco_sim.forward()
         self.mujoco_sim.step()
 
+        # Step latent input estimator
+        if self.config["use_latent_input_estimator"]:
+            if self.prev_state_obs is not None:
+                self.latent_input_estimator.step_param_estimator((self.random_params_normalized, self.prev_state_obs, action))
+
         return self.step_trajectory(self.mujoco_sim.data.body_xpos[self.bodyid].copy()[0:2])
 
     def reset(self):
@@ -255,25 +272,19 @@ class MujocoEngine(Engine):
         if hasattr(self, 'viewer'):
             del self.viewer
 
-        self.reset_estimators()
         self.mujoco_sim.reset()
         self.reset_trajectory()
+
+        if self.config["train_latent_input_estimator"]:
+            self.latent_input_estimator.update_param_estimator()
+
+        self.episode_transitions = []
+        self.prev_state_obs = None
 
     def render(self):
         if not hasattr(self, 'viewer'):
             self.viewer = mujoco_py.MjViewer(self.mujoco_sim)
         self.viewer.render()
-
-    def update_estimators(self, act):
-        # turn: -0.4,0.4, throttle: 0,1
-        turn, throttle = act
-        if turn >= 0:
-            pass
-            #self.turn_est = np.clip(self.turn_est + turn, -0.4, np.minimum(0.4))
-
-    def reset_estimators(self):
-        self.turn_est = 0
-        self.thrttle_est = 0
 
     def get_obs_dict(self):
         pos = self.mujoco_sim.data.body_xpos[self.bodyid].copy()
@@ -286,6 +297,9 @@ class MujocoEngine(Engine):
         wps_buggy_frame = self.transform_wp_to_buggy_frame(wps, pos, ori_q)
         turn_angle = 0#np.clip(self.mujoco_sim.get_state().qpos[7] * 2.5, -1, 1) #
         rear_wheel_speed = 0#np.clip(((self.mujoco_sim.get_state().qvel[14] + self.mujoco_sim.get_state().qvel[16]) / 2.) / 200, -1, 1)
+
+        self.prev_state_obs = [vel_buggy[0], vel_buggy[1], ang_vel[2]]
+
         return {"pos" : pos, "ori_q" : ori_q, "ori_mat" : ori_mat, "vel" : vel_buggy, "ang_vel" : ang_vel, "wp_list" : wps_buggy_frame, "turn_angle" : turn_angle, "rear_wheel_speed" : rear_wheel_speed}
 
 class LTEEngine(Engine):

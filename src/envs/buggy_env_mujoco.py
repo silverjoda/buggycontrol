@@ -3,12 +3,10 @@ import torch as T
 from gym import spaces
 
 from src.envs.engines import *
-from src.envs.xml_gen import *
 
 import mujoco_py
 from src.opt.simplex_noise import SimplexNoise
 from src.utils import e2q
-import timeit
 
 class BuggyEnv(gym.Env):
     metadata = {
@@ -39,12 +37,6 @@ class BuggyEnv(gym.Env):
             engine = MujocoEngine(self.config)
         sim = engine.mujoco_sim
         return sim, engine
-
-    def set_barrier_positions(self, barriers_list):
-        p1, p2 = barriers_list
-        # TODO: This will accept a whole list of rectangular (ellipsoidal) barriers for the maize env. Pos + orientation
-        self.sim.data.set_mocap_pos("barrier1", p1 + [0.2])
-        self.sim.data.set_mocap_pos("barrier2", p2 + [0.2])
 
     def get_obs_dict(self):
         return self.engine.get_obs_dict()
@@ -135,7 +127,6 @@ class BuggyEnv(gym.Env):
             self.noise = SimplexNoise(dim=2, smoothness=30, multiplier=1.6)
             self.reset()
 
-            self.set_barrier_positions([[4.0, 0.0], [6.0, 1.0]])
             cum_rew = 0
             while True:
                 zero_act = np.array([-0.3, -0.5])
@@ -151,7 +142,6 @@ class BuggyEnv(gym.Env):
                                                  "phi": self.engine.theta})
 
                     self.render()
-
 
             print("Cumulative rew: {}".format(cum_rew))
 
