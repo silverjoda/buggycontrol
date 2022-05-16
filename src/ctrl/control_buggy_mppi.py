@@ -33,10 +33,6 @@ class ControlBuggyMPPI:
                 mujoco_obs, _, done, _ = env.step(u_vec[0])
 
                 if render: env.render()
-
-                step_ctr += 1
-                print(step_ctr, env.engine.cur_wp_idx)
-
                 if done: break
 
     def mppi_predict(self, env, mujoco_obs, mode, n_samples, n_horizon, act_mean_seq, act_std):
@@ -89,16 +85,16 @@ class ControlBuggyMPPI:
         # costs: n_samples
         weights = np.exp(-costs / (self.mppi_config["mppi_lambda"]))
         acts = act_mean_seq + np.sum(weights[:, np.newaxis, np.newaxis] * act_noises, axis=0) / np.sum(weights)
-
-        return acts
+        acts_clipped = np.clip(acts, -2, 2)
+        return acts_clipped
 
 if __name__ == "__main__":
     with open(os.path.join(os.path.dirname(__file__), "configs/control_buggy_mppi.yaml"), 'r') as f:
         mppi_config = yaml.load(f, Loader=yaml.FullLoader)
     with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_maize_env_mujoco.yaml"), 'r') as f:
         buggy_maize_config = yaml.load(f, Loader=yaml.FullLoader)
-    env = BuggyMaizeEnv(buggy_maize_config)
+    env = BuggyMaizeEnv(buggy_maize_config, seed=np.random.randint(0, 10000))
     cbm = ControlBuggyMPPI(mppi_config)
 
     # Test
-    cbm.test_mppi(env, n_episodes=1, n_samples=15, n_horizon=50, act_std=1, render=True)
+    cbm.test_mppi(env, n_episodes=10, n_samples=100, n_horizon=10, act_std=1, render=True)
