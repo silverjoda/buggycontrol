@@ -302,6 +302,12 @@ class MujocoEngine(Engine):
 
         return {"pos" : pos, "ori_q" : ori_q, "ori_mat" : ori_mat, "vel" : vel_buggy, "ang_vel" : ang_vel, "wp_list" : wps_buggy_frame, "turn_angle" : turn_angle, "rear_wheel_speed" : rear_wheel_speed}
 
+    def get_xytheta(self):
+        pos = self.mujoco_sim.data.body_xpos[self.bodyid].copy()
+        ori_q = self.mujoco_sim.data.body_xquat[self.bodyid].copy()
+        _, _, theta = q2e(*ori_q)
+        return pos[0], pos[1], theta
+
 class LTEEngine(Engine):
     def __init__(self, config):
         super().__init__(config)

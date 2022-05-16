@@ -4,6 +4,7 @@ from src.envs.buggy_env_mujoco import BuggyEnv
 from src.envs.buggy_maize_env_mujoco import BuggyMaizeEnv
 from src.policies import *
 from src.utils import *
+from torch import device
 
 
 class ControlBuggyMPPI:
@@ -11,10 +12,12 @@ class ControlBuggyMPPI:
         self.mppi_config = mppi_config
         self.dynamics_model = self.load_dynamics_model()
         self.dt = self.mppi_config["dt"]
+        self.device = device('cpu')
+        self.dynamics_model.to(self.device)
 
     def load_dynamics_model(self):
         dynamics_model = MLP(self.mppi_config["model_obs_dim"], self.mppi_config["model_act_dim"], hid_dim=128)
-        model_path = os.path.join(os.path.dirname(__file__), "../opt/agents/buggy_lte.p")
+        model_path = os.path.join(os.path.dirname(__file__), "../opt/agents/buggy_lte_mujoco.p")
         dynamics_model.load_state_dict(T.load(model_path), strict=False)
         return dynamics_model
 
@@ -22,27 +25,28 @@ class ControlBuggyMPPI:
         for _ in range(n_episodes):
             # New env and trajectory
             mujoco_obs = env.reset()
+            model_pos = env.get_xytheta()
 
             # Initial action trajectory
             u_vec = np.zeros((n_horizon, 2), dtype=np.float32)
 
-            step_ctr = 0
             while True:
                 # Predict using MPC
-                u_vec = self.mppi_predict(env, mujoco_obs, "traj", n_samples, n_horizon, u_vec, act_std)
+                u_vec = self.mppi_predict(env, mujoco_obs, model_pos, "free", n_samples, n_horizon, u_vec, act_std)
                 mujoco_obs, _, done, _ = env.step(u_vec[0])
+                model_pos = env.get_xytheta()
 
                 if render: env.render()
                 if done: break
 
-    def mppi_predict(self, env, mujoco_obs, mode, n_samples, n_horizon, act_mean_seq, act_std):
+    def mppi_predict(self, env, mujoco_obs, init_model_positions, mode, n_samples, n_horizon, act_mean_seq, act_std):
         # Sample random action matrix
-        act_noises = np.random.randn(n_samples, n_horizon, self.mppi_config["act_dim"]) * act_std
+        act_noises = np.clip(np.random.randn(n_samples, n_horizon, self.mppi_config["act_dim"]) * act_std, -1, 1)
         acts = np.tile(act_mean_seq, (n_samples, 1, 1)) + act_noises
 
         # Sample rollouts from learned dynamics
         init_model_state = mujoco_obs[:3]
-        mppi_rollouts = self.make_mppi_rollouts(self.dynamics_model, init_model_state, acts)
+        mppi_rollouts = self.make_mppi_rollouts(self.dynamics_model, init_model_state, init_model_positions, acts)
 
         # Evaluate rollouts
         costs = self.evaluate_mppi_rollouts(env, mppi_rollouts, mode)
@@ -52,19 +56,19 @@ class ControlBuggyMPPI:
 
         return acts_opt
 
-    def make_mppi_rollouts(self, dynamics_model, init_model_velocities, acts):
+    def make_mppi_rollouts(self, dynamics_model, init_model_velocities, init_model_positions, acts):
         n_samples, n_horizon, acts_dim = acts.shape
         velocities = T.tensor(np.tile(init_model_velocities, (n_samples, 1)), dtype=T.float32)
-        positions = T.zeros((n_samples, n_horizon, 3))
+        positions = T.tensor(np.tile(init_model_positions, (n_samples, n_horizon, 1)), dtype=T.float32)
 
         obs = T.concat((velocities, T.tensor(acts[:, 0], dtype=T.float32)), dim=1)
         for h in range(n_horizon - 1):
-            states = dynamics_model(obs)
+            states = dynamics_model(obs.to(self.device)).to(device('cpu'))
 
             # Update positions array
-            positions[:, h, 0] = positions[:, h, 0] + T.cos(states[:, 0]) * self.dt
-            positions[:, h, 1] = positions[:, h, 1] + T.sin(states[:, 1]) * self.dt
-            positions[:, h, 2] = positions[:, h, 2] + states[:, 2] * self.dt
+            positions[:, h + 1, 0] = positions[:, h, 0] + T.cos(states[:, 0]) * self.dt
+            positions[:, h + 1, 1] = positions[:, h, 1] + T.sin(states[:, 1]) * self.dt
+            positions[:, h + 1, 2] = positions[:, h, 2] + states[:, 2] * self.dt
 
             obs = T.concat((states, T.tensor(acts[:, h + 1], dtype=T.float32)), dim=1)
 
@@ -97,4 +101,4 @@ if __name__ == "__main__":
     cbm = ControlBuggyMPPI(mppi_config)
 
     # Test
-    cbm.test_mppi(env, n_episodes=10, n_samples=100, n_horizon=10, act_std=1, render=True)
+    cbm.test_mppi(env, n_episodes=10, n_samples=10, n_horizon=10, act_std=0.5, render=True)

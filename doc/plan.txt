@@ -9,7 +9,7 @@
 
 # Monday:
 ====== Buggy project =======
-    - Mppi check that scaling to dynamics model is correct, try use mujoco instead of dynamics model for validation?
+    - Rollouts need to include velocities (for free evaluation)
     - Test Mppi on random trajectories and in maize (with traj and free rew)
     - Train several high performance agents with 3 levels of friction on random trajs
     - Make traj optimization script for maize trajectories

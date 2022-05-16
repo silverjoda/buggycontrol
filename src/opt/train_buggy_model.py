@@ -505,7 +505,7 @@ if __name__=="__main__":
     with open(os.path.join(os.path.dirname(__file__), "configs/train_buggy_model.yaml"), 'r') as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
 
-    real_dataset = ModelDataset(use_real_data=True)
+    real_dataset = ModelDataset(use_real_data=False)
     mujoco_dataset = ModelDataset(use_real_data=False)
     model_trainer = ModelTrainer(config, mujoco_dataset, real_dataset)
     #model_trainer.plot_umap()
@@ -513,12 +513,8 @@ if __name__=="__main__":
 
     # Train
     if config["train"]:
-        pretrained_model_path = f"agents/buggy_lte.p"
+        pretrained_model_path = f"agents/buggy_lte_mujoco.p"
 
-        #model_trainer.train()
-        #model_trainer.train_linmod()
-        #model_trainer.train_lin()
-        #model_trainer.train_linmod_hybrid()
-        #model_trainer.train(mujoco_dataset, "buggy_lte", pretrained_model_path=None)
+        model_trainer.train(mujoco_dataset, "buggy_lte_mujoco", pretrained_model_path=None)
         #model_trainer.train_data_discriminator()
-        model_trainer.evaluate_trained_model()
+        #model_trainer.evaluate_trained_model()

@@ -26,9 +26,9 @@ class BuggyMaize():
         self.grid_block_len = int(self.block_size / self.grid_resolution)
         self.grid_meter_len = int(1 / self.grid_resolution)
 
-        deadzone = 0.2
+        deadzone = 0.3
         self.barrier_halflength_coeff = 0.5 + deadzone
-        self.barrier_halfwidth_coeff = 0.1 + deadzone * 0.5
+        self.barrier_halfwidth_coeff = 0.2 + deadzone * 0.5
 
         self.reset()
 
@@ -246,6 +246,9 @@ class BuggyMaizeEnv(gym.Env):
         complete_obs_vec, _ = self.engine.get_complete_obs_vec(allow_latent_input=self.config["allow_latent_input"])
         return complete_obs_vec
 
+    def get_xytheta(self):
+        return self.engine.get_xytheta()
+
     def get_reward(self, obs_dict, wp_visited):
         pos = np.array(obs_dict["pos"], dtype=np.float32)
         cur_wp = np.array(self.engine.wp_list[self.engine.cur_wp_idx], dtype=np.float32)
@@ -358,7 +361,6 @@ class BuggyMaizeEnv(gym.Env):
         wp_list = obs_dict["wp_list"]
 
         cur_wp_idx = 0
-        wp_visited = False
         cum_rew = 0
         for pos in rollout:
             # Distance between current waypoint
@@ -368,6 +370,7 @@ class BuggyMaizeEnv(gym.Env):
             #if cur_wp_dist > 0.5:
             #    break
 
+            wp_visited = False
             # Check if visited waypoint, if so, move index
             if cur_wp_dist < self.config["wp_reach_dist"]:
                 cur_wp_idx += 1
@@ -395,8 +398,7 @@ class BuggyMaizeEnv(gym.Env):
     def evaluate_rollout_free(self, rollout):
         # Get current position and velocity of buggy
         obs_dict = self.engine.get_obs_dict()
-        vel_x, _ = obs_dict["vel"]
-        pos_x, pos_y = obs_dict["pos"]
+        vel_x, _, _ = obs_dict["vel"]
 
         velocity_cost = 0
         barrier_cost = 0
@@ -405,7 +407,7 @@ class BuggyMaizeEnv(gym.Env):
             velocity_cost += (-vel_x)
 
             # Calculate if in barrier
-            in_barrier = self.maize.position_in_barrier(pos_x, pos_y)
+            in_barrier = self.maize.position_in_barrier(r[0], r[1])
 
             barrier_cost += in_barrier * 1000
 
