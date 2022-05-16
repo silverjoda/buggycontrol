@@ -8,8 +8,12 @@
 # Analyze possibilities of learning a trajectory delta regressor for faster trajectories (do we need to train by gradient? or can we do otherwise)
 
 # Monday:
-- Continue with Buggy project:
-    - Starting testing everything (Start by training good agents on Maize and model again)
+====== Buggy project =======
+    - Test Mppi on random trajectories and in maize (with traj and free rew)
+    - Train several high performance agents with 3 levels of friction on random trajs
+    - Make traj optimization script for maize trajectories
+    - Test agent performance with traj optimization on maize.
+    - Compare agent performance on maize with spt and opimized traj, and with MPPI
 
 # Robotic transformations and frames:
 Motivation: Spot example in rviz (coordinate frames form a tree, show tf tree, switch between various fixed frames: world, base_link, sensor, etc)

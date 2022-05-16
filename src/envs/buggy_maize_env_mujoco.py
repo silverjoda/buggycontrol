@@ -12,7 +12,7 @@ from src.envs.engines import *
 from src.opt.simplex_noise import SimplexNoise
 from src.utils import e2q, dist_between_wps
 
-GLOBAL_DEBUG = True
+GLOBAL_DEBUG = False
 
 class BuggyMaize():
     def __init__(self, config):
@@ -381,12 +381,13 @@ class BuggyMaizeEnv(gym.Env):
             else:
                 prev_wp = np.array(cur_wp, dtype=np.float32)
 
-            path_deviation = np.abs((cur_wp[0] - prev_wp[0]) * (prev_wp[1] - pos[1]) - (prev_wp[0] - pos[0]) * (
-                        cur_wp[1] - prev_wp[1])) / np.sqrt(
-                np.square(cur_wp[0] - prev_wp[0]) + np.square(cur_wp[1] - prev_wp[1]))
-            dist_between_cur_wp = np.sqrt(np.square((cur_wp[0] - pos[0])) + np.square((cur_wp[1] - pos[1])))
-
-            r = wp_visited * (1 / (1 + 0.5 * path_deviation)) - dist_between_cur_wp * 0.01
+            # path_deviation = np.abs((cur_wp[0] - prev_wp[0]) * (prev_wp[1] - pos[1]) - (prev_wp[0] - pos[0]) * (
+            #             cur_wp[1] - prev_wp[1])) / np.sqrt(
+            #     np.square(cur_wp[0] - prev_wp[0]) + np.square(cur_wp[1] - prev_wp[1]))
+            # dist_between_cur_wp = np.sqrt(np.square((cur_wp[0] - pos[0])) + np.square((cur_wp[1] - pos[1])))
+            #
+            # r = wp_visited * (1 / (1 + 0.5 * path_deviation)) - dist_between_cur_wp * 0.01
+            r = wp_visited
             cum_rew += r
 
         return -cum_rew

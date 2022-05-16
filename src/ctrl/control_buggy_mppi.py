@@ -7,10 +7,8 @@ from src.utils import *
 
 
 class ControlBuggyMPPI:
-    def __init__(self, mppi_config, buggy_config=None):
+    def __init__(self, mppi_config):
         self.mppi_config = mppi_config
-        self.buggy_config = buggy_config
-        self.buggy_env_mujoco = BuggyEnv(self.buggy_config)
         self.dynamics_model = self.load_dynamics_model()
         self.dt = self.mppi_config["dt"]
 
@@ -26,23 +24,28 @@ class ControlBuggyMPPI:
             mujoco_obs = env.reset()
 
             # Initial action trajectory
-            u_vec = np.zeros(n_horizon, dtype=np.float32)
+            u_vec = np.zeros((n_horizon, 2), dtype=np.float32)
 
+            step_ctr = 0
             while True:
                 # Predict using MPC
                 u_vec = self.mppi_predict(env, mujoco_obs, "traj", n_samples, n_horizon, u_vec, act_std)
                 mujoco_obs, _, done, _ = env.step(u_vec[0])
 
                 if render: env.render()
+
+                step_ctr += 1
+                print(step_ctr, env.engine.cur_wp_idx)
+
                 if done: break
 
     def mppi_predict(self, env, mujoco_obs, mode, n_samples, n_horizon, act_mean_seq, act_std):
         # Sample random action matrix
         act_noises = np.random.randn(n_samples, n_horizon, self.mppi_config["act_dim"]) * act_std
-        acts = act_mean_seq + act_noises
+        acts = np.tile(act_mean_seq, (n_samples, 1, 1)) + act_noises
 
         # Sample rollouts from learned dynamics
-        init_model_state = mujoco_obs[:5]
+        init_model_state = mujoco_obs[:3]
         mppi_rollouts = self.make_mppi_rollouts(self.dynamics_model, init_model_state, acts)
 
         # Evaluate rollouts
@@ -53,23 +56,23 @@ class ControlBuggyMPPI:
 
         return acts_opt
 
-    def make_mppi_rollouts(self, dynamics_model, init_model_state, acts):
+    def make_mppi_rollouts(self, dynamics_model, init_model_velocities, acts):
         n_samples, n_horizon, acts_dim = acts.shape
-        states = np.tile(init_model_state, (n_samples, 1))
-        positions = np.zeros((n_samples, n_horizon, 3))
+        velocities = T.tensor(np.tile(init_model_velocities, (n_samples, 1)), dtype=T.float32)
+        positions = T.zeros((n_samples, n_horizon, 3))
 
-        obs = np.concatenate((states, acts[:, 0]), dim=1)
+        obs = T.concat((velocities, T.tensor(acts[:, 0], dtype=T.float32)), dim=1)
         for h in range(n_horizon - 1):
             states = dynamics_model(obs)
 
             # Update positions array
-            positions[:, h, 0] = positions[:, h, 0] + np.cos(states[:, 2]) * self.dt
-            positions[:, h, 1] = positions[:, h, 1] + np.sin(states[:, 3]) * self.dt
-            positions[:, h, 2] = positions[:, h, 2] + states[:, 3] * self.dt
+            positions[:, h, 0] = positions[:, h, 0] + T.cos(states[:, 0]) * self.dt
+            positions[:, h, 1] = positions[:, h, 1] + T.sin(states[:, 1]) * self.dt
+            positions[:, h, 2] = positions[:, h, 2] + states[:, 2] * self.dt
 
-            obs = np.concatenate((states, acts[:, h + 1]), dim=1)
+            obs = T.concat((states, T.tensor(acts[:, h + 1], dtype=T.float32)), dim=1)
 
-        return positions
+        return positions.detach().numpy()
 
     def evaluate_mppi_rollouts(self, env, rollouts, mode):
         costs = []
@@ -85,7 +88,7 @@ class ControlBuggyMPPI:
         # acts: n_samples, n_horizon, act_dim
         # costs: n_samples
         weights = np.exp(-costs / (self.mppi_config["mppi_lambda"]))
-        acts = act_mean_seq + np.sum(weights * act_noises, axis=1) / np.sum(weights)
+        acts = act_mean_seq + np.sum(weights[:, np.newaxis, np.newaxis] * act_noises, axis=0) / np.sum(weights)
 
         return acts
 
@@ -96,3 +99,6 @@ if __name__ == "__main__":
         buggy_maize_config = yaml.load(f, Loader=yaml.FullLoader)
     env = BuggyMaizeEnv(buggy_maize_config)
     cbm = ControlBuggyMPPI(mppi_config)
+
+    # Test
+    cbm.test_mppi(env, n_episodes=1, n_samples=15, n_horizon=50, act_std=1, render=True)

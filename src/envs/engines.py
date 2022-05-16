@@ -9,7 +9,7 @@ from src.envs.xml_gen import *
 from src.opt.simplex_noise import SimplexNoise
 from src.policies import LTE, MLP
 from src.utils import load_config, theta_to_quat, q2e, e2q, dist_between_wps
-from param_estimator import ParamEstimator
+from src.envs.param_estimator import ParamEstimator
 
 class Engine:
     def __init__(self, config):
