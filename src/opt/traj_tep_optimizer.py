@@ -13,7 +13,7 @@ from stable_baselines3.common.vec_env import VecNormalize, DummyVecEnv, VecMonit
 from src.envs.buggy_env_mujoco import BuggyEnv
 from src.policies import *
 from src.utils import load_config
-
+from copy import deepcopy
 plt.ion()
 
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
@@ -21,12 +21,10 @@ T.set_num_threads(8)
 
 class TrajTepOptimizer:
     def __init__(self):
-        with open(os.path.join(os.path.dirname(__file__), "configs/train_full_traj_tep.yaml"), 'r') as f:
+        with open(os.path.join(os.path.dirname(__file__), "configs/traj_tep_optimizer.yaml"), 'r') as f:
             self.config = yaml.load(f, Loader=yaml.FullLoader)
 
         self.policy_ID = "TRN"
-        self.env_config = load_config(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_env_mujoco.yaml"))
-        self.env, self.venv, self.sb_model = self.load_model_and_env(self.env_config)
         self.n_dataset_pts = self.config["n_dataset_pts"]
         self.max_num_wp = self.config["max_num_wp"]
 
@@ -37,7 +35,11 @@ class TrajTepOptimizer:
         self.x_file_path = os.path.join(dir_path, "X.npy")
         self.y_file_path = os.path.join(dir_path, "Y.npy")
 
-    def load_model_and_env(self, env_config):
+        #self.env, self.venv, self.sb_model = self.load_model_and_env()
+
+    def load_model_and_env(self):
+        env_config = load_config(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_env_mujoco.yaml"))
+
         # Policy + VF
         sb_model = A2C.load(f"agents/{self.policy_ID}_SB_policy")
 
@@ -82,23 +84,23 @@ class TrajTepOptimizer:
 
         return obs_arr, rew_arr
 
-    def evaluate_rollout(self, obs, traj=None, distances=None, render=False, deterministic=True):
+    def evaluate_rollout(self, obs, env, venv, sb_policy, traj=None, distances=None, render=False, deterministic=True):
         if traj is not None:
             traj_xy = self.sar_to_xy(traj, distances)
-            self.env.engine.wp_list = [t.detach().numpy() for t in traj_xy]
+            env.engine.wp_list = [t.detach().numpy() for t in traj_xy]
 
-        obs = self.venv.normalize_obs(obs[0])
+        obs = venv.normalize_obs(obs[0])
         episode_rew = 0
         step_ctr = 0
         for i in range(self.config["max_steps"]):
             step_ctr += 1
-            action, _states = self.sb_model.predict(obs, deterministic=deterministic)
-            obs, reward, _, info = self.env.step(action)
-            obs = self.venv.normalize_obs(obs)
+            action, _states = sb_policy.predict(obs, deterministic=deterministic)
+            obs, reward, _, info = env.step(action)
+            obs = venv.normalize_obs(obs)
             episode_rew += reward
             if render:
-                self.env.render()
-            if self.env.engine.cur_wp_idx > 30:
+                env.render()
+            if env.engine.cur_wp_idx > 30:
                 break
         return step_ctr * 0.01
 
@@ -165,6 +167,8 @@ class TrajTepOptimizer:
         T.save(tep.state_dict(), "agents/full_traj_tep.p")
 
     def train_tep_1step_grad(self):
+        self.env, self.venv, self.sb_model = self.load_model_and_env()
+
         # Load pretrained tep
         tep = TEPMLP(obs_dim=50, act_dim=1)
         tep.load_state_dict(T.load("agents/full_traj_tep.p"), strict=False)
@@ -239,6 +243,8 @@ class TrajTepOptimizer:
         T.save(tep.state_dict(), "agents/full_traj_tep_1step.p")
 
     def train_tep_1step_grad_aggregated(self):
+        env, venv, sb_policy = self.load_model_and_env()
+
         # Load pretrained tep
         tep = TEPMLP(obs_dim=50, act_dim=1)
         tep.load_state_dict(T.load("agents/full_traj_tep.p"), strict=False)
@@ -295,12 +301,12 @@ class TrajTepOptimizer:
             for x_traj in x_list:
                 x_ud_traj = T.clone(x_traj).detach()
                 x_ud_traj.requires_grad = True
-                x_ud_traj = self.perform_grad_update_full_traj(x_ud_traj, tep, use_hessian=False)
+                x_ud_traj = self.optimize_traj(x_ud_traj, tep)
                 X_list.append(x_ud_traj)
 
                 # Annotate the new X_ud
-                obs = self.env.reset()
-                rew = self.evaluate_rollout(obs, x_ud_traj.detach())
+                obs = env.reset()
+                rew = self.evaluate_rollout(obs, env, venv, sb_policy, x_ud_traj.detach())
                 Y_list.append(T.tensor([rew]))
 
             print("Epoch: {}, finished updating dataset".format(ep))
@@ -412,15 +418,17 @@ class TrajTepOptimizer:
 
         self.ax.clear()
 
-    def perform_grad_update_full_traj(self, traj, tep, use_hessian=False):
+    def optimize_traj(self, traj, tep):
         mse_loss = torch.nn.MSELoss()
         traj_xy = self.sar_to_xy(traj.detach())
         traj_opt = T.clone(traj).detach()
         traj_opt.requires_grad = True
+
         #optimizer = T.optim.SGD(params=[traj_opt], lr=0.03, momentum=.0)
         optimizer = T.optim.Adam(params=[traj_opt], lr=0.01)
         #optimizer = T.optim.LBFGS(params=[traj_opt], lr=0.03)
-        for i in range(10):
+
+        for i in range(3):
             # etp loss
             tep_loss = tep(traj_opt)
 
@@ -443,6 +451,14 @@ class TrajTepOptimizer:
 
         return traj_opt
 
+    def optimize_env_traj(self, env, tep):
+        traj = T.tensor(env.engine.wp_list)
+        pred_before = tep(traj)
+        traj_opt = self.optimize_traj(traj, tep)
+        pred_after = tep(traj_opt)
+        env.engine.reset_trajectory(list(traj_opt.detach().numpy()))
+        return pred_after.data - pred_before
+
     def xy_to_sar(self, X):
         X = np.concatenate((np.zeros(2)[np.newaxis, :], np.array(X)))
         X_new = np.arctan2(X[1:, 1] - X[:-1, 1], X[1:, 0] - X[:-1, 0])
@@ -462,12 +478,6 @@ class TrajTepOptimizer:
         traj_T = T.concat((pd_x, pd_y), dim=1)
         return traj_T
 
-    def optimize_traj(self, env):
-        #
-
-
-        pass
-
 if __name__ == "__main__":
     tm = TrajTepOptimizer()
     #tm.make_dataset(render=False)
@@ -476,3 +486,6 @@ if __name__ == "__main__":
     tm.train_tep_1step_grad_aggregated()
     #tm.test_tep()
     #tm.test_tep_full()
+
+
+

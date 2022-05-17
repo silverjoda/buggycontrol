@@ -9,8 +9,10 @@
 
 # Monday:
 ====== Buggy project =======
+    - Put an agent to train on maize env for 5mln iters (traj & free rew)
+    - Update the optimize_traj function to include maize env barriers
+    - Go through the whole process of training TEP and testing and modifying trajectory of env
     - Train several high performance agents with 3 levels of friction on random trajs
-    - Make traj optimization script for maize trajectories # <- Current todo
     - Test agent performance with traj optimization on maize.
     - Compare agent performance on maize with spt and opimized traj, and with MPPI
 
@@ -38,20 +40,19 @@ Training buggy model on real data:
     - Repeat for all bagfiles
     - run train_buggy_model.py with appropriate configuration
 
-# === Testing ===
-# Generate Random maize env (with shortest path, etc)
+TEP training:
+    - Make random trajectory dataset for TEP using traj_tep_optimizer.make_dataset() function
+    - Train TEP using traj_tep_optimizer.train_tep()
+    - Do 1-step gradient training using traj_tep_optimizer.train_tep_1step_grad_aggregated()
 
-# Evaluate agent on shortest path
+TEP testing:
+    - Load TEP
+    - Test TEP
 
-# Perform TEP gradient updates on shortest path
+TEP inference:
+    - Load TEP
+    - Use traj_tep_optimizer.optimize_env_traj(env, tep) to optimize the environment trajectory after reset
 
-# Evaluate agent on new path
-
-# Evaluate Mppi agent
-
-# ??
-
-# Profit
 
 
 
