@@ -9,10 +9,8 @@
 
 # Monday:
 ====== Buggy project =======
-    - Debug and add deviation penalty to trajectory evaluation (mppi)
-    - Test Mppi on random trajectories and in maize (with traj and free rew)
     - Train several high performance agents with 3 levels of friction on random trajs
-    - Make traj optimization script for maize trajectories
+    - Make traj optimization script for maize trajectories # <- Current todo
     - Test agent performance with traj optimization on maize.
     - Compare agent performance on maize with spt and opimized traj, and with MPPI
 

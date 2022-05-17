@@ -19,7 +19,7 @@ class BuggyMaize():
         self.config = config
 
         self.block_size = 1.5 # Block size in meters
-        self.n_blocks = 5
+        self.n_blocks = self.config["n_blocks"]
         self.grid_resolution = 0.1 # Number of points per meter
         self.grid_X_len = int(self.block_size * (self.n_blocks + 2) / self.grid_resolution)
         self.grid_Y_len = int(self.block_size * (self.n_blocks * 2 + 1) / self.grid_resolution)
@@ -33,19 +33,29 @@ class BuggyMaize():
         self.reset()
 
     def generate_random_maize(self):
-        # Make list of blocks which represent the maize
-        cur_x, cur_y = self.block_size, 0
-        blocks = [[0, 0], [cur_x, cur_y]]
-        for i in range(self.n_blocks):
-            while True:
-                shift_in_x = random.randint(0, 1)
-                cur_x_candidate = cur_x + shift_in_x * random.randint(-1, 1) * self.block_size
-                cur_y_candidate = cur_y + (1 - shift_in_x) * random.randint(-1, 1) * self.block_size
-                if [cur_x_candidate, cur_y_candidate] not in blocks and cur_x_candidate > 0:
+        all_possible_shifts = [[1,0],[-1,0],[0,1],[0,-1]]
+        while True:
+            gen_failed = False
+            # Make list of blocks which represent the maize
+            cur_x, cur_y = self.block_size, 0
+            blocks = [[0, 0], [cur_x, cur_y]]
+            for i in range(self.n_blocks):
+                possible_shifts = []
+                for aps_x, aps_y in all_possible_shifts:
+                    cur_x_candidate = cur_x + aps_x * self.block_size
+                    cur_y_candidate = cur_y + aps_y * self.block_size
+                    if [cur_x_candidate, cur_y_candidate] not in blocks and cur_x_candidate > 0:
+                        possible_shifts.append([cur_x_candidate, cur_y_candidate])
+
+                if len(possible_shifts) == 0:
+                    gen_failed = True
                     break
-            cur_x = cur_x_candidate
-            cur_y = cur_y_candidate
-            blocks.append([cur_x, cur_y])
+
+                cur_x, cur_y = deepcopy(random.choice(possible_shifts))
+                blocks.append(deepcopy([cur_x, cur_y]))
+
+            # If we have generated a successful maize, then finish
+            if not gen_failed: break
 
         # Decide barriers from block list
         all_barriers = []
@@ -125,6 +135,9 @@ class BuggyMaize():
         end = grid.node(finish[1], finish[0])
         finder = AStarFinder(diagonal_movement=DiagonalMovement.always)
         path_astar, runs = finder.find_path(start, end, grid)
+
+        # Add another 2 meters of points
+
 
         y, x = zip(*path_astar)
         path_astar = zip(*[x[::3], y[::3]])
@@ -217,6 +230,9 @@ class BuggyMaizeEnv(gym.Env):
         self.seed(seed)
         self.maize = BuggyMaize(config)
 
+        if self.config["rew_type"] == "free":
+            self.config["wp_reach_dist"] = 0.5
+
     def load_random_env(self):
         if self.config["allow_lte"] and np.random.rand() < self.config["lte_prob"]:
             engine = LTEEngine(self.config)
@@ -255,14 +271,29 @@ class BuggyMaizeEnv(gym.Env):
         cur_wp = np.array(self.engine.wp_list[self.engine.cur_wp_idx], dtype=np.float32)
         if self.engine.cur_wp_idx > 0:
             prev_wp = np.array(self.engine.wp_list[self.engine.cur_wp_idx - 1], dtype=np.float32)
+            path_deviation = np.abs((cur_wp[0] - prev_wp[0]) * (prev_wp[1] - pos[1]) - (prev_wp[0] - pos[0]) * (
+                        cur_wp[1] - prev_wp[1])) / np.sqrt(
+                np.square(cur_wp[0] - prev_wp[0]) + np.square(cur_wp[1] - prev_wp[1]))
         else:
-            prev_wp = np.array(cur_wp, dtype=np.float32)
+            path_deviation = 0
 
-        path_deviation = np.abs((cur_wp[0] - prev_wp[0]) * (prev_wp[1] - pos[1]) - (prev_wp[0] - pos[0]) * (cur_wp[1] - prev_wp[1])) / np.sqrt(np.square(cur_wp[0] - prev_wp[0]) + np.square(cur_wp[1] - prev_wp[1]))
         dist_between_cur_wp = np.sqrt(np.square((cur_wp[0] - pos[0])) + np.square((cur_wp[1] - pos[1])))
 
-        r = wp_visited * (1 / (1 + 0.5 * path_deviation)) - dist_between_cur_wp * 0.01
+        if self.config["rew_type"] == "traj":
+            r = wp_visited * (1 / (1 + 0.5 * path_deviation)) - dist_between_cur_wp * 0.01
+        else:
+            # Calculate x-velocity cost (maximize speed)
+            velocity_rew = obs_dict["vel"][0]
+
+            # Calculate if in barrier
+            #in_barrier = self.maize.position_in_barrier(pos[0], pos[1])
+
+            # Calculate center deviation of final state cost
+            center_deviation_cost = self.maize.dist_from_centerline(*pos[:2])
+            r = velocity_rew - center_deviation_cost * 1. - 3
+
         return r, dist_between_cur_wp
+
 
     def set_external_state(self, state_dict):
         old_state = self.sim.get_state()
@@ -422,5 +453,5 @@ if __name__ == "__main__":
     config = load_config(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_maize_env_mujoco.yaml"))
 
     #bm = BuggyMaize(config)
-    be = BuggyMaizeEnv(config, seed=1337)
+    be = BuggyMaizeEnv(config, seed=np.random.randint(0,1000))
     be.demo()

@@ -1,5 +1,5 @@
 <component name="ProjectRunConfigurationManager">
-  <configuration default="false" name="train_full_traj_tep" type="PythonConfigurationType" factoryName="Python" singleton="false" nameIsGenerated="true">
+  <configuration default="false" name="traj_tep_optimizer" type="PythonConfigurationType" factoryName="Python" singleton="false" nameIsGenerated="true">
     <module name="buggycontrol" />
     <option name="INTERPRETER_OPTIONS" value="" />
     <option name="PARENT_ENVS" value="true" />
@@ -11,7 +11,7 @@
     <option name="IS_MODULE_SDK" value="true" />
     <option name="ADD_CONTENT_ROOTS" value="true" />
     <option name="ADD_SOURCE_ROOTS" value="true" />
-    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/src/opt/train_full_traj_tep.py" />
+    <option name="SCRIPT_NAME" value="$PROJECT_DIR$/src/opt/traj_tep_optimizer.py" />
     <option name="PARAMETERS" value="" />
     <option name="SHOW_COMMAND_LINE" value="false" />
     <option name="EMULATE_TERMINAL" value="false" />

@@ -120,6 +120,27 @@
     <body name="barrier19" pos="10 0 0" mocap="true">
     <geom contype="1" conaffinity="0" condim="3" size=".075 0.75 .2" type="box" mass="1" rgba="0 0 1 1"/>
     </body>
+    <body name="barrier20" pos="10 0 0" mocap="true">
+    <geom contype="1" conaffinity="0" condim="3" size=".075 0.75 .2" type="box" mass="1" rgba="0 0 1 1"/>
+    </body>
+    <body name="barrier21" pos="10 0 0" mocap="true">
+    <geom contype="1" conaffinity="0" condim="3" size=".075 0.75 .2" type="box" mass="1" rgba="0 0 1 1"/>
+    </body>
+    <body name="barrier22" pos="10 0 0" mocap="true">
+    <geom contype="1" conaffinity="0" condim="3" size=".075 0.75 .2" type="box" mass="1" rgba="0 0 1 1"/>
+    </body>
+    <body name="barrier23" pos="10 0 0" mocap="true">
+    <geom contype="1" conaffinity="0" condim="3" size=".075 0.75 .2" type="box" mass="1" rgba="0 0 1 1"/>
+    </body>
+    <body name="barrier24" pos="10 0 0" mocap="true">
+    <geom contype="1" conaffinity="0" condim="3" size=".075 0.75 .2" type="box" mass="1" rgba="0 0 1 1"/>
+    </body>
+    <body name="barrier25" pos="10 0 0" mocap="true">
+    <geom contype="1" conaffinity="0" condim="3" size=".075 0.75 .2" type="box" mass="1" rgba="0 0 1 1"/>
+    </body>
+    <body name="barrier26" pos="10 0 0" mocap="true">
+    <geom contype="1" conaffinity="0" condim="3" size=".075 0.75 .2" type="box" mass="1" rgba="0 0 1 1"/>
+    </body>
 
   </worldbody>
 </mujoco> 

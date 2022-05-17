@@ -1,8 +1,9 @@
 # Train config
-"train" : False
-"render" : True
+"train" : True
+"render" : False
 "default_session_ID" : "TRN"
-"iters" : 20000
+"iters" : 2000000
+"env" : "traj" # default/traj
 
 # RL algo
 "algo_name" : "A2C"

@@ -19,7 +19,7 @@ plt.ion()
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 T.set_num_threads(8)
 
-class TEPDatasetMaker:
+class TrajTepOptimizer:
     def __init__(self):
         with open(os.path.join(os.path.dirname(__file__), "configs/train_full_traj_tep.yaml"), 'r') as f:
             self.config = yaml.load(f, Loader=yaml.FullLoader)
@@ -462,9 +462,14 @@ class TEPDatasetMaker:
         traj_T = T.concat((pd_x, pd_y), dim=1)
         return traj_T
 
+    def optimize_traj(self, env):
+        #
+
+
+        pass
 
 if __name__ == "__main__":
-    tm = TEPDatasetMaker()
+    tm = TrajTepOptimizer()
     #tm.make_dataset(render=False)
     #tm.train_tep()
     #tm.train_tep_1step_grad()

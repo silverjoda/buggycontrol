@@ -9,14 +9,17 @@ from stable_baselines3 import A2C
 from stable_baselines3.common.callbacks import CheckpointCallback, CallbackList, EvalCallback, StopTrainingOnRewardThreshold
 from stable_baselines3.common.vec_env import VecNormalize, SubprocVecEnv, DummyVecEnv, VecMonitor
 
-from src.envs import buggy_env_mujoco
+from src.envs import buggy_env_mujoco, buggy_maize_env_mujoco
 from src.utils import merge_dicts
 
 class BuggyTrajFollowerTrainer:
     def __init__(self):
 
         self.config = self.read_configs()
-        self.env_fun = buggy_env_mujoco.BuggyEnv
+        if self.config["env"] == "default":
+            self.env_fun = buggy_env_mujoco.BuggyEnv
+        else:
+            self.env_fun = buggy_maize_env_mujoco.BuggyMaizeEnv
 
         self.env, self.model, self.checkpoint_callback, self.stats_path = self.setup_train()
 
@@ -47,7 +50,10 @@ class BuggyTrajFollowerTrainer:
     def read_configs(self):
         with open(os.path.join(os.path.dirname(__file__), "configs/train_buggy_a2c.yaml"), 'r') as f:
             algo_config = yaml.load(f, Loader=yaml.FullLoader)
-        fpath = os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_env_mujoco.yaml")
+        if algo_config["env"] == "default":
+            fpath = os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_env_mujoco.yaml")
+        else:
+            fpath = os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_maize_env_mujoco.yaml")
 
         with open(fpath, 'r') as f:
             env_config = yaml.load(f, Loader=yaml.FullLoader)
