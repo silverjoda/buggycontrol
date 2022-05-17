@@ -21,7 +21,7 @@ class ControlBuggyMPPI:
         dynamics_model.load_state_dict(T.load(model_path), strict=False)
         return dynamics_model
 
-    def test_mppi(self, env, n_episodes=100, n_samples=100, n_horizon=100, act_std=1, render=False):
+    def test_mppi(self, env, n_episodes=100, n_samples=100, n_horizon=100, act_std=1, mode="traj", render=False):
         for _ in range(n_episodes):
             # New env and trajectory
             mujoco_obs = env.reset()
@@ -32,7 +32,7 @@ class ControlBuggyMPPI:
 
             while True:
                 # Predict using MPC
-                u_vec = self.mppi_predict(env, mujoco_obs, model_pos, "free", n_samples, n_horizon, u_vec, act_std)
+                u_vec = self.mppi_predict(env, mujoco_obs, model_pos, mode, n_samples, n_horizon, u_vec, act_std)
                 mujoco_obs, _, done, _ = env.step(u_vec[0])
                 model_pos = env.get_xytheta()
 
@@ -46,10 +46,10 @@ class ControlBuggyMPPI:
 
         # Sample rollouts from learned dynamics
         init_model_state = mujoco_obs[:3]
-        mppi_rollouts = self.make_mppi_rollouts(self.dynamics_model, init_model_state, init_model_positions, acts)
+        mppi_rollout_positions, mppi_rollout_velocities = self.make_mppi_rollouts(self.dynamics_model, init_model_state, init_model_positions, acts)
 
         # Evaluate rollouts
-        costs = self.evaluate_mppi_rollouts(env, mppi_rollouts, mode)
+        costs = self.evaluate_mppi_rollouts(env, mppi_rollout_positions, mppi_rollout_velocities, mode)
 
         # Choose trajectory using MPPI update
         acts_opt = self.calculate_mppi_trajectory(act_mean_seq, act_noises, costs)
@@ -60,27 +60,29 @@ class ControlBuggyMPPI:
         n_samples, n_horizon, acts_dim = acts.shape
         velocities = T.tensor(np.tile(init_model_velocities, (n_samples, 1)), dtype=T.float32)
         positions = T.tensor(np.tile(init_model_positions, (n_samples, n_horizon, 1)), dtype=T.float32)
+        rollout_velocities = np.zeros(positions.shape)
 
         obs = T.concat((velocities, T.tensor(acts[:, 0], dtype=T.float32)), dim=1)
         for h in range(n_horizon - 1):
-            states = dynamics_model(obs.to(self.device)).to(device('cpu'))
+            pred_velocities = dynamics_model(obs.to(self.device)).to(device('cpu'))
+            rollout_velocities[:, h, :] = pred_velocities.detach().numpy()
 
             # Update positions array
-            positions[:, h + 1, 0] = positions[:, h, 0] + T.cos(states[:, 0]) * self.dt
-            positions[:, h + 1, 1] = positions[:, h, 1] + T.sin(states[:, 1]) * self.dt
-            positions[:, h + 1, 2] = positions[:, h, 2] + states[:, 2] * self.dt
+            positions[:, h + 1, 0] = positions[:, h, 0] + T.cos(pred_velocities[:, 0]) * self.dt
+            positions[:, h + 1, 1] = positions[:, h, 1] + T.sin(pred_velocities[:, 1]) * self.dt
+            positions[:, h + 1, 2] = positions[:, h, 2] + pred_velocities[:, 2] * self.dt
 
-            obs = T.concat((states, T.tensor(acts[:, h + 1], dtype=T.float32)), dim=1)
+            obs = T.concat((pred_velocities, T.tensor(acts[:, h + 1], dtype=T.float32)), dim=1)
 
-        return positions.detach().numpy()
+        return positions.detach().numpy(), rollout_velocities
 
-    def evaluate_mppi_rollouts(self, env, rollouts, mode):
+    def evaluate_mppi_rollouts(self, env, rollout_positions, rollout_velocities, mode):
         costs = []
-        for rollout in rollouts:
+        for rp, rv in zip(rollout_positions, rollout_velocities):
             if mode == "traj":
-                cost = env.evaluate_rollout(rollout)
+                cost = env.evaluate_rollout(rp)
             else:
-                cost = env.evaluate_rollout_free(rollout)
+                cost = env.evaluate_rollout_free(rp, rv)
             costs.append(cost)
         return np.array(costs)
 
@@ -101,4 +103,4 @@ if __name__ == "__main__":
     cbm = ControlBuggyMPPI(mppi_config)
 
     # Test
-    cbm.test_mppi(env, n_episodes=10, n_samples=10, n_horizon=10, act_std=0.5, render=True)
+    cbm.test_mppi(env, n_episodes=10, n_samples=50, n_horizon=10, act_std=0.5, mode="traj", render=True)

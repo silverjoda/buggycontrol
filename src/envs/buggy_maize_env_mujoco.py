@@ -26,7 +26,7 @@ class BuggyMaize():
         self.grid_block_len = int(self.block_size / self.grid_resolution)
         self.grid_meter_len = int(1 / self.grid_resolution)
 
-        deadzone = 0.3
+        deadzone = 0.2
         self.barrier_halflength_coeff = 0.5 + deadzone
         self.barrier_halfwidth_coeff = 0.2 + deadzone * 0.5
 
@@ -97,8 +97,8 @@ class BuggyMaize():
         m = int(self.grid_X_len - x * self.grid_meter_len - 0.5 * self.grid_meter_len)
         n = int(0.5 * self.grid_Y_len - y * self.grid_meter_len)
 
-        m = np.clip(m, 0, self.grid_X_len)
-        n = np.clip(n, 0, self.grid_Y_len)
+        m = np.clip(m, 0, self.grid_X_len - 1)
+        n = np.clip(n, 0, self.grid_Y_len - 1)
 
         return m, n
 
@@ -144,6 +144,7 @@ class BuggyMaize():
         m, n = self.xy_to_grid(pos_x, pos_y)
         if self.dense_grid[m, n] < 1:
             return True
+        return False
 
     def dist_from_centerline(self, pos_x, pos_y):
         m, n = self.xy_to_grid(pos_x, pos_y)
@@ -296,7 +297,7 @@ class BuggyMaizeEnv(gym.Env):
         r -= act_pen
 
         # Calculate termination
-        done = done or dist_to_cur_wp > 0.7 or self.step_ctr > self.config["max_steps"]
+        done = done or self.step_ctr > self.config["max_steps"]
         #done = self.step_ctr > self.config["max_steps"]
         #done = done or self.step_ctr > self.config["max_steps"]
 
@@ -381,41 +382,38 @@ class BuggyMaizeEnv(gym.Env):
             cur_wp = np.array(wp_list[cur_wp_idx], dtype=np.float32)
             if cur_wp_idx > 0:
                 prev_wp = np.array(wp_list[cur_wp_idx - 1], dtype=np.float32)
+                path_dev_nom = np.abs(
+                    (cur_wp[0] - prev_wp[0]) * (prev_wp[1] - pos[1]) - (prev_wp[0] - pos[0]) * (cur_wp[1] - prev_wp[1]))
+                path_deviation_denom = np.sqrt(np.square(cur_wp[0] - prev_wp[0]) + np.square(cur_wp[1] - prev_wp[1]))
+                path_deviation = path_dev_nom / path_deviation_denom
             else:
-                prev_wp = np.array(cur_wp, dtype=np.float32)
+                path_deviation = 0
 
-            # path_deviation = np.abs((cur_wp[0] - prev_wp[0]) * (prev_wp[1] - pos[1]) - (prev_wp[0] - pos[0]) * (
-            #             cur_wp[1] - prev_wp[1])) / np.sqrt(
-            #     np.square(cur_wp[0] - prev_wp[0]) + np.square(cur_wp[1] - prev_wp[1]))
-            # dist_between_cur_wp = np.sqrt(np.square((cur_wp[0] - pos[0])) + np.square((cur_wp[1] - pos[1])))
-            #
-            # r = wp_visited * (1 / (1 + 0.5 * path_deviation)) - dist_between_cur_wp * 0.01
-            r = wp_visited
+            dist_between_cur_wp = np.sqrt(np.square((cur_wp[0] - pos[0])) + np.square((cur_wp[1] - pos[1])))
+
+            r = wp_visited * (1 / (1 + 3. * path_deviation)) - dist_between_cur_wp * 0.01
+            #r = wp_visited
             cum_rew += r
 
         return -cum_rew
 
-    def evaluate_rollout_free(self, rollout):
-        # Get current position and velocity of buggy
-        obs_dict = self.engine.get_obs_dict()
-        vel_x, _, _ = obs_dict["vel"]
-
+    def evaluate_rollout_free(self, mppi_rollout_positions, mppi_rollout_velocities):
         velocity_cost = 0
         barrier_cost = 0
-        for r in rollout:
+        for rp, rv in zip(mppi_rollout_positions, mppi_rollout_velocities):
             # Calculate x-velocity cost (maximize speed)
-            velocity_cost += (-vel_x)
+            velocity_cost += (-rv[0])
 
             # Calculate if in barrier
-            in_barrier = self.maize.position_in_barrier(r[0], r[1])
+            in_barrier = self.maize.position_in_barrier(rp[0], rp[1])
 
-            barrier_cost += in_barrier * 1000
+            barrier_cost += in_barrier * 300
 
             if in_barrier: break
 
         # Calculate center deviation of final state cost
-        center_deviation_cost = self.maize.dist_from_centerline(*rollout[-1])
-        total_cost = center_deviation_cost * 0.1 + velocity_cost + barrier_cost
+        center_deviation_cost = self.maize.dist_from_centerline(*mppi_rollout_positions[-1, :2])
+        total_cost = center_deviation_cost * 10. + velocity_cost + barrier_cost
 
         return total_cost
 

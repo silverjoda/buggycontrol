@@ -9,7 +9,7 @@
 
 # Monday:
 ====== Buggy project =======
-    - Rollouts need to include velocities (for free evaluation)
+    - Debug and add deviation penalty to trajectory evaluation (mppi)
     - Test Mppi on random trajectories and in maize (with traj and free rew)
     - Train several high performance agents with 3 levels of friction on random trajs
     - Make traj optimization script for maize trajectories
