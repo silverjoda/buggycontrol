@@ -9,8 +9,8 @@
 
 # Monday:
 ====== Buggy project =======
-    - Finish writing barrier and end point penalties into traj reward fun
     - Mppi debug to see if it's correctly implemented
+    - Time various Mppi parts to see which parts take how long
     - Mppi speed up by a) Multiprocessing
                        b) Calculate reward every nth step
                        c) Instead of iterative gpu computation, use some sped up sequential computation (maybe by using dataloader?)
