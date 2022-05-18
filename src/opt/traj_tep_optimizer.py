@@ -304,6 +304,8 @@ class TrajTepOptimizer:
                 x_ud_traj = self.optimize_traj(x_ud_traj, tep)
                 X_list.append(x_ud_traj)
 
+                #self.plot_trajs2(x_traj[:50], x_ud_traj)
+
                 # Annotate the new X_ud
                 obs = env.reset()
                 rew = self.evaluate_rollout(obs, env, venv, sb_policy, x_ud_traj.detach())
@@ -418,6 +420,42 @@ class TrajTepOptimizer:
 
         self.ax.clear()
 
+    def plot_trajs2(self, traj_xy, traj_T_sar_ud):
+        if not hasattr(self, 'ax'):
+            self.figure, self.ax = plt.subplots(figsize=(14, 6))
+        #traj_T = self.sar_to_xy(traj_T_sar).detach().numpy()
+        traj_T = self.sar_to_xy(traj_xy).detach().numpy()
+        traj_T_ud = self.sar_to_xy(traj_T_sar_ud).detach().numpy()
+
+        line1, = self.ax.plot(list(zip(*traj_T))[0], list(zip(*traj_T))[1], marker="o", color="r", markersize=3)
+        line2, = self.ax.plot(list(zip(*traj_T_ud))[0], list(zip(*traj_T_ud))[1], marker="o", color="b", markersize=3)
+        #self.ax.scatter([4, 6, 17], [.5, .5, 0], s=200, c=['r', 'r', 'w'])
+        plt.grid()
+        plt.xlim([-6, 6])
+        plt.ylim([-6, 6])
+
+        # ax.quiver(traj_reshaped[:, 0],
+        #           traj_reshaped[:, 1],
+        #           grad_reshaped[:, 0],
+        #           grad_reshaped[:, 1],
+        #           width=0.001,
+        #           color=[1, 0, 0])
+        #
+        # ax.quiver(traj_reshaped[:, 0],
+        #           traj_reshaped[:, 1],
+        #           scaled_grad_reshaped[:, 0],
+        #           scaled_grad_reshaped[:, 1],
+        #           width=0.001,
+        #           color=[0, 0, 1])
+
+        # x, y = list(zip(*[t.detach().numpy() for t in traj_T.reshape((len(traj_T) // 2, 2))]))
+        # line1.set_xdata(x)
+        # line1.set_ydata(y)
+        self.figure.canvas.draw()
+        self.figure.canvas.flush_events()
+
+        self.ax.clear()
+
     def optimize_traj(self, traj, tep):
         mse_loss = torch.nn.MSELoss()
         traj_xy = self.sar_to_xy(traj.detach())
@@ -425,10 +463,10 @@ class TrajTepOptimizer:
         traj_opt.requires_grad = True
 
         #optimizer = T.optim.SGD(params=[traj_opt], lr=0.03, momentum=.0)
-        optimizer = T.optim.Adam(params=[traj_opt], lr=0.01)
+        optimizer = T.optim.Adam(params=[traj_opt], lr=0.03)
         #optimizer = T.optim.LBFGS(params=[traj_opt], lr=0.03)
 
-        for i in range(3):
+        for i in range(7):
             # etp loss
             tep_loss = tep(traj_opt)
 
