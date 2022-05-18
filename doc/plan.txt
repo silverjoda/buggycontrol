@@ -40,18 +40,31 @@ Training buggy model on real data:
     - Repeat for all bagfiles
     - run train_buggy_model.py with appropriate configuration
 
+Training buggy model on mujoco data:
+    - Use mujoco_dataset = train_buggy_model.ModelDataset(use_real_data=False) to make mujoco dataset
+    - Use train_buggy_model.train(mujoco_dataset)
+
 TEP training:
     - Make random trajectory dataset for TEP using traj_tep_optimizer.make_dataset() function
     - Train TEP using traj_tep_optimizer.train_tep()
     - Do 1-step gradient training using traj_tep_optimizer.train_tep_1step_grad_aggregated()
 
 TEP testing:
-    - Load TEP
-    - Test TEP
+    - Test TEP using traj_tep_optimizer.test_tep() function which loads and tests tep
 
 TEP inference:
     - Load TEP
     - Use traj_tep_optimizer.optimize_env_traj(env, tep) to optimize the environment trajectory after reset
+
+General testing procedure:
+    - Train buggy model on mujoco or real data.
+    - Train agent on random trajectory buggy env using train_buggy_a2c.py script (add correct env in config)
+    - Pre-train TEP on random trajectory buggy dataset or using trajectories from maize
+    - Do one-step TEP gradient training on random trajectory buggy dataset or using trajectories from maize
+    - Launch full testing script to evaluate agent, agent with TEP correction, MPPI
+
+
+
 
 
 
