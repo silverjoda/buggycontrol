@@ -18,7 +18,7 @@ class BuggyControlTester:
         vec_env = DummyVecEnv(env_fns=[lambda: BuggyMaizeEnv(self.buggy_config)])
         monitor_env = VecMonitor(vec_env)
         normed_env = VecNormalize(venv=monitor_env, training=False, norm_obs=True, norm_reward=True, clip_reward=10.0)
-        self.buggy_maize_venv = VecNormalize.load("agents/TRN_vecnorm.pkl", normed_env)
+        self.buggy_maize_venv = VecNormalize.load("agents/TRN_DEF_vecnorm.pkl", normed_env)
 
         # Make Mppi algo
         with open(os.path.join(os.path.dirname(__file__), "configs/control_buggy_mppi.yaml"), 'r') as f:

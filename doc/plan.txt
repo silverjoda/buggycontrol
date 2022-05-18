@@ -59,9 +59,10 @@ TEP inference:
 General testing procedure:
     - Train buggy model on mujoco or real data.
     - Train agent on random trajectory buggy env using train_buggy_a2c.py script (add correct env in config)
+    - Train agent on maize trajectory buggy env with traj and free rewards (for later final comparison)
     - Pre-train TEP on random trajectory buggy dataset or using trajectories from maize
     - Do one-step TEP gradient training on random trajectory buggy dataset or using trajectories from maize
-    - Launch full testing script to evaluate agent, agent with TEP correction, MPPI
+    - Launch full testing script to evaluate agent, agent with TEP correction, agent trained on maize with traj and free rew, MPPI with traj and free rew
 
 
 

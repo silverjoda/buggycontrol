@@ -119,12 +119,10 @@ class BuggyTrajFollowerTrainer:
                     policy_kwargs=dict(activation_fn=T.nn.Tanh, net_arch=[self.config["policy_hid_dim"], self.config["policy_hid_dim"]]))
 
         callback_list = CallbackList([checkpoint_callback, eval_callback])
-
         return normed_env, model, callback_list, stats_path
 
     def test_agent(self, deterministic=True, N=100, print_rew=True, render=True):
         total_rew = 0
-
         n_visited = 0
         for _ in range(N):
             obs = self.env.reset()

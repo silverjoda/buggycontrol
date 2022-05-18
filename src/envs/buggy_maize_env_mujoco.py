@@ -26,7 +26,7 @@ class BuggyMaize():
         self.grid_block_len = int(self.block_size / self.grid_resolution)
         self.grid_meter_len = int(1 / self.grid_resolution)
 
-        deadzone = 0.2
+        deadzone = self.config["deadzone"]
         self.barrier_halflength_coeff = 0.5 + deadzone
         self.barrier_halfwidth_coeff = 0.2 + deadzone * 0.5
 

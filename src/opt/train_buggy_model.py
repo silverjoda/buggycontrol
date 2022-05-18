@@ -169,7 +169,7 @@ class ModelTrainer:
     def filter_mujoco_dataset(self, dataset, discriminator, threshold):
         pass
 
-    def train(self, dataset, policy_name="buggy_lte", pretrained_model_path=None):
+    def train(self, dataset, model_name="buggy_lte", pretrained_model_path=None):
         self.policy = LTE(obs_dim=5, act_dim=3, hid_dim=128)
 
         if pretrained_model_path is not None:
@@ -192,7 +192,7 @@ class ModelTrainer:
                 loss_val = lossfun(Y_val_, Y_val)
                 print("Iter {}/{}, loss: {}, loss_val: {}".format(i, self.config['iters'], loss.data, loss_val.data))
         print("Done training, saving model")
-        T.save(self.policy.state_dict(), f"agents/{policy_name}.p")
+        T.save(self.policy.state_dict(), f"agents/{model_name}.p")
 
     def train_fused(self, mujoco_dataset, real_dataset, policy_name="buggy_lte", pretrained_model_path=None):
         self.policy = LTE(obs_dim=5, act_dim=3, hid_dim=128)
@@ -391,62 +391,67 @@ class ModelTrainer:
         plt.hist(T.softmax(y_real, dim=1)[:, 1].detach().numpy())
         plt.show()
 
-    def evaluate_trained_model(self):
+    def evaluate_trained_model(self, dataset, model_name="buggy_lte"):
         # Load trained model
         dynamics_model = MLP(5, 3, hid_dim=128)
-        model_path = os.path.join(os.path.dirname(__file__), "../opt/agents/buggy_lte.p")
+        model_path = os.path.join(os.path.dirname(__file__), f"agents/{model_name}.p")
         dynamics_model.load_state_dict(T.load(model_path), strict=False)
 
         # Define evaluation trajectory set
-        X_val, Y_val = T.tensor(self.real_dataset.X_val), T.tensor(self.real_dataset.Y_val)
-        vel_val = X_val[:, :, :3]
-
+        X_val, Y_val = T.tensor(dataset.X_val, dtype=T.float32), T.tensor(dataset.Y_val, dtype=T.float32)
         n_traj, traj_len, _ = X_val.shape
 
         # == For each trajectory in evaluation set, make rollouts of various length and compare using MSE ==
 
         # Make velocities rollout of model given actions
-        pred_vel = dynamics_model(X_val)
+        pred_vel = []
+        vel_cur = X_val[:, 0:1, :3]
+        for i in range(traj_len):
+            obs = T.concat((vel_cur, X_val[:, i:i+1, 3:5]), dim=2)
+            vel_cur = dynamics_model(obs)
+            pred_vel.append(vel_cur)
+
+        pred_vel = T.concat(pred_vel, 1).detach().numpy()
+        vel_val = X_val[:, :, :3].detach().numpy()
 
         # Turn predicted velocities and gt velocities into positional trajectories
         t_delta = 0.01
-        gt_pos_val = T.zeros_like(vel_val)
-        pred_pos_val = T.zeros_like(vel_val)
-        for i in range(n_traj):
-            for t in range(traj_len - 1):
-                gt_pos_val[i, t + 1, :] = gt_pos_val[i, t, :] + vel_val[i, t, :] * t_delta
-                pred_pos_val[i, t + 1, :] = pred_pos_val[i, t, :] + pred_vel[i, t, :] * t_delta
+        gt_pos_val = np.zeros_like(vel_val, dtype=np.float32)
+        pred_pos_val = np.zeros_like(vel_val, dtype=np.float32)
+
+        for t in range(traj_len - 1):
+            gt_pos_val[:, t + 1, :] = gt_pos_val[:, t, :] + vel_val[:, t, :] * t_delta
+            pred_pos_val[:, t + 1, :] = pred_pos_val[:, t, :] + pred_vel[:, t, :] * t_delta
 
         # Calculate mse
-        vel_mse_50 = []
-        vel_mse_100 = []
-        vel_mse_200 = []
+        vel_mse_30 = []
+        vel_mse_60 = []
+        vel_mse_150 = []
 
-        pos_mse_50 = []
-        pos_mse_100 = []
-        pos_mse_200 = []
-        for i in range(n_traj):
-            for t in range(traj_len - 1):
-                vel_mse = T.sqrt(vel_val[:, t, :] - pred_vel[:, t, :])
-                pos_mse = T.sqrt(gt_pos_val[:, t, :] - pred_pos_val[:, t, :])
-                if t < 50:
-                    vel_mse_50.append(vel_mse)
-                    pos_mse_50.append(pos_mse)
-                    if t < 100:
-                        vel_mse_100.append(vel_mse)
-                        pos_mse_100.append(pos_mse)
-                        if t < 200:
-                            vel_mse_200.append(vel_mse)
-                            pos_mse_200.append(pos_mse)
+        pos_mse_30 = []
+        pos_mse_60 = []
+        pos_mse_150 = []
+        for t in range(traj_len - 1):
+            vel_mse = np.mean(np.square(vel_val[:, t, :] - pred_vel[:, t, :]))
+            pos_mse = np.mean(np.square(gt_pos_val[:, t, :] - pred_pos_val[:, t, :]))
+            if t < 150:
+                vel_mse_150.append(vel_mse)
+                pos_mse_150.append(pos_mse)
+                if t < 60:
+                    vel_mse_60.append(vel_mse)
+                    pos_mse_60.append(pos_mse)
+                    if t < 30:
+                        vel_mse_30.append(vel_mse)
+                        pos_mse_30.append(pos_mse)
 
         # Print out mse statistics for various model rollout lengths
-        vel_mse_50_mean, vel_mse_50_std = np.mean(vel_mse_50), np.std(vel_mse_50)
-        vel_mse_100_mean, vel_mse_100_std = np.mean(vel_mse_100), np.std(vel_mse_100)
-        vel_mse_200_mean, vel_mse_200_std = np.mean(vel_mse_200), np.std(vel_mse_200)
+        vel_mse_50_mean, vel_mse_50_std = np.mean(vel_mse_30), np.std(vel_mse_30)
+        vel_mse_100_mean, vel_mse_100_std = np.mean(vel_mse_60), np.std(vel_mse_60)
+        vel_mse_200_mean, vel_mse_200_std = np.mean(vel_mse_150), np.std(vel_mse_150)
 
-        pos_mse_50_mean, pos_mse_50_std = np.mean(vel_mse_50), np.std(vel_mse_50)
-        pos_mse_100_mean, pos_mse_100_std = np.mean(vel_mse_100), np.std(vel_mse_100)
-        pos_mse_200_mean, pos_mse_200_std = np.mean(vel_mse_200), np.std(vel_mse_200)
+        pos_mse_50_mean, pos_mse_50_std = np.mean(vel_mse_30), np.std(vel_mse_30)
+        pos_mse_100_mean, pos_mse_100_std = np.mean(vel_mse_60), np.std(vel_mse_60)
+        pos_mse_200_mean, pos_mse_200_std = np.mean(vel_mse_150), np.std(vel_mse_150)
 
         print(f"Vel mse 50 mean: {vel_mse_50_mean}, std: {vel_mse_50_std}")
         print(f"Vel mse 100 mean: {vel_mse_100_mean}, std: {vel_mse_100_std}")
@@ -460,15 +465,22 @@ class ModelTrainer:
         N_plot = 5
         rnd_indeces = np.random.choice(np.arange(n_traj), N_plot, replace=False)
 
-        fig, axs = plt.subplots(2, N_plot)
+        fig, axs = plt.subplots(3, N_plot)
         for i in range(N_plot):
-            axs[0, i].plot(gt_pos_val[rnd_indeces[i], :, 0], gt_pos_val[rnd_indeces[i], :, 1], 'tab:blue')
-            axs[0, i].plot(gt_pos_val[rnd_indeces[i], :, 0], pred_pos_val[rnd_indeces[i], :, 1], 'tab:red')
+            axs[0, i].set(xlabel=f'x-pos, traj: {i}', ylabel='y-pos')
+            axs[0, i].plot(gt_pos_val[rnd_indeces[i], :, 0], gt_pos_val[rnd_indeces[i], :, 1], 'tab:blue', label='Gt')
+            axs[0, i].plot(pred_pos_val[rnd_indeces[i], :, 0], pred_pos_val[rnd_indeces[i], :, 1], 'tab:red', label='Pred')
 
-            axs[0, i].plot(np.arange(traj_len), vel_val[rnd_indeces[i], :, 1], 'tab:blue')
-            axs[0, i].plot(np.arange(traj_len), vel_val[rnd_indeces[i], :, 1], 'tab:red')
+            axs[1, i].set(xlabel=f'Time, traj: {i}', ylabel='x-vel')
+            axs[1, i].plot(np.arange(traj_len), vel_val[rnd_indeces[i], :, 0], 'tab:blue', label='Gt')
+            axs[1, i].plot(np.arange(traj_len), pred_vel[rnd_indeces[i], :, 0], 'tab:red', label='Pred')
+
+            axs[2, i].set(xlabel=f'Time, traj: {i}', ylabel='y-vel')
+            axs[2, i].plot(np.arange(traj_len), vel_val[rnd_indeces[i], :, 1], 'tab:blue', label='Gt')
+            axs[2, i].plot(np.arange(traj_len), pred_vel[rnd_indeces[i], :, 1], 'tab:red', label='Pred')
 
         fig.tight_layout()
+        plt.show()
         exit(0)
 
     def plot_umap(self):
@@ -505,9 +517,9 @@ if __name__=="__main__":
     with open(os.path.join(os.path.dirname(__file__), "configs/train_buggy_model.yaml"), 'r') as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
 
-    real_dataset = ModelDataset(use_real_data=False)
+    #real_dataset = ModelDataset(use_real_data=False)
     mujoco_dataset = ModelDataset(use_real_data=False)
-    model_trainer = ModelTrainer(config, mujoco_dataset, real_dataset)
+    model_trainer = ModelTrainer(config, mujoco_dataset, mujoco_dataset)
     #model_trainer.plot_umap()
     #exit()
 
@@ -515,6 +527,6 @@ if __name__=="__main__":
     if config["train"]:
         pretrained_model_path = f"agents/buggy_lte_mujoco.p"
 
-        model_trainer.train(mujoco_dataset, "buggy_lte_mujoco", pretrained_model_path=None)
+        #model_trainer.train(mujoco_dataset, "buggy_lte_mujoco", pretrained_model_path=None)
         #model_trainer.train_data_discriminator()
-        #model_trainer.evaluate_trained_model()
+        model_trainer.evaluate_trained_model(mujoco_dataset, model_name="buggy_lte_mujoco")
