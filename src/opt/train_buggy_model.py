@@ -445,21 +445,21 @@ class ModelTrainer:
                         pos_mse_30.append(pos_mse)
 
         # Print out mse statistics for various model rollout lengths
-        vel_mse_50_mean, vel_mse_50_std = np.mean(vel_mse_30), np.std(vel_mse_30)
-        vel_mse_100_mean, vel_mse_100_std = np.mean(vel_mse_60), np.std(vel_mse_60)
-        vel_mse_200_mean, vel_mse_200_std = np.mean(vel_mse_150), np.std(vel_mse_150)
+        vel_mse_30_mean, vel_mse_30_std = np.mean(vel_mse_30), np.std(vel_mse_30)
+        vel_mse_60_mean, vel_mse_60_std = np.mean(vel_mse_60), np.std(vel_mse_60)
+        vel_mse_150_mean, vel_mse_150_std = np.mean(vel_mse_150), np.std(vel_mse_150)
 
-        pos_mse_50_mean, pos_mse_50_std = np.mean(vel_mse_30), np.std(vel_mse_30)
-        pos_mse_100_mean, pos_mse_100_std = np.mean(vel_mse_60), np.std(vel_mse_60)
-        pos_mse_200_mean, pos_mse_200_std = np.mean(vel_mse_150), np.std(vel_mse_150)
+        pos_mse_30_mean, pos_mse_30_std = np.mean(pos_mse_30), np.std(pos_mse_30)
+        pos_mse_60_mean, pos_mse_60_std = np.mean(pos_mse_60), np.std(pos_mse_60)
+        pos_mse_160_mean, pos_mse_160_std = np.mean(pos_mse_150), np.std(pos_mse_150)
 
-        print(f"Vel mse 50 mean: {vel_mse_50_mean}, std: {vel_mse_50_std}")
-        print(f"Vel mse 100 mean: {vel_mse_100_mean}, std: {vel_mse_100_std}")
-        print(f"Vel mse 200 mean: {vel_mse_200_mean}, std: {vel_mse_200_std}")
+        print(f"Vel mse 30 mean: {vel_mse_30_mean}, std: {vel_mse_30_std}")
+        print(f"Vel mse 60 mean: {vel_mse_60_mean}, std: {vel_mse_60_std}")
+        print(f"Vel mse 150 mean: {vel_mse_150_mean}, std: {vel_mse_150_std}")
 
-        print(f"Pos mse 50 mean: {pos_mse_50_mean}, std: {pos_mse_50_std}")
-        print(f"Pos mse 100 mean: {pos_mse_100_mean}, std: {pos_mse_100_std}")
-        print(f"Pos mse 200 mean: {pos_mse_200_mean}, std: {pos_mse_200_std}")
+        print(f"Pos mse 30 mean: {pos_mse_30_mean}, std: {pos_mse_30_std}")
+        print(f"Pos mse 60 mean: {pos_mse_60_mean}, std: {pos_mse_60_std}")
+        print(f"Pos mse 150 mean: {pos_mse_160_mean}, std: {pos_mse_160_std}")
 
         # Plot several random positional trajectories and velocities
         N_plot = 5
