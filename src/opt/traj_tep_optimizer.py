@@ -12,7 +12,7 @@ from stable_baselines3.common.vec_env import VecNormalize, DummyVecEnv, VecMonit
 
 from src.envs.buggy_env_mujoco import BuggyEnv
 from src.policies import *
-from src.utils import load_config
+from src.utils import load_config, dist_between_wps
 from copy import deepcopy
 plt.ion()
 
@@ -490,6 +490,21 @@ class TrajTepOptimizer:
         return traj_opt
 
     def optimize_traj_with_barriers(self, traj, tep, env):
+        # For barrier loss
+        def flattened_mse(p1, p2):
+            a = T.tensor(-1e2)
+            c = T.tensor(.2)
+            x = p1 - p2
+            loss = (T.abs(a - 2.) / (a)) * (T.pow((T.square(x / c) / T.abs(a - 2)) + 1, 0.5 * a) - 1.)
+            return loss
+
+        # For LBFGS
+        def closure():
+            optimizer.zero_grad()
+            loss = tep(traj_opt)
+            loss.backward()
+            return loss
+
         mse_loss = torch.nn.MSELoss()
         traj_xy = self.sar_to_xy(traj.detach())
         traj_opt = T.clone(traj).detach()
@@ -499,6 +514,9 @@ class TrajTepOptimizer:
         optimizer = T.optim.Adam(params=[traj_opt], lr=0.03)
         #optimizer = T.optim.LBFGS(params=[traj_opt], lr=0.03)
 
+        # Get barriers edge points (4 per barrier)
+        edgepoints = env.maize.get_barrier_edgepoints()
+
         for i in range(7):
             # etp loss
             tep_loss = tep(traj_opt)
@@ -506,21 +524,34 @@ class TrajTepOptimizer:
             # Last point loss
             traj_opt_xy = self.sar_to_xy(traj_opt)
             last_pt_loss = mse_loss(traj_opt_xy[-1], traj_xy[-1])
-            loss = tep_loss + last_pt_loss
-            loss.backward()
 
-            # For LBFGS
-            def closure():
-                optimizer.zero_grad()
-                loss = tep(traj_opt)
-                loss.backward()
-                return loss
+            # Barrier losses
+            barrier_loss_list = []
+            for xy_idx, xy in enumerate(traj_opt_xy):
+                # Find closes edge point
+                closest_edgept, dist = self.find_closest_edgepoint(xy.detach(), edgepoints)
+
+                # If edge point close enough then apply loss (doesn't apply to inital n pts)
+                if dist < 0.4 and xy_idx > 5:
+                    barrier_loss_list.append(-flattened_mse(xy, T.tensor(closest_edgept)) * 0.06)
+            barrier_loss_sum = T.stack(barrier_loss_list).sum()
+
+            loss = tep_loss + last_pt_loss + barrier_loss_sum
+            loss.backward()
 
             optimizer.step()
             #optimizer.step(closure) # For LBFGS
             optimizer.zero_grad()
 
         return traj_opt
+
+    def find_closest_edgepoint(self, pt, edgepoints):
+        distances = []
+        for ep in edgepoints:
+            distances.append(dist_between_wps(pt, ep))
+        closest_ep = edgepoints[np.argmin(distances)]
+        closest_dist = np.min(distances)
+        return closest_ep, closest_dist
 
     def optimize_env_traj(self, env, tep):
         traj = T.tensor(env.engine.wp_list)

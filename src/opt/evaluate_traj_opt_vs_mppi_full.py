@@ -143,5 +143,5 @@ class BuggyControlTester:
 
 if __name__=="__main__":
     bct = BuggyControlTester()
-    #bct.single_control_algo_evaluation(1337)
-    bct.test_system()
+    bct.single_control_algo_evaluation(1337)
+    #bct.test_system()

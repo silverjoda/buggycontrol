@@ -29,6 +29,8 @@ class BuggyMaize():
         deadzone = self.config["deadzone"]
         self.barrier_halflength_coeff = 0.5 + deadzone
         self.barrier_halfwidth_coeff = 0.2 + deadzone * 0.5
+        self.barrier_real_halflength = self.barrier_halflength_coeff * self.block_size
+        self.barrier_real_halfwidth = self.barrier_halfwidth_coeff * self.block_size
 
         self.reset()
 
@@ -152,6 +154,18 @@ class BuggyMaize():
 
     def get_barriers(self):
         return self.all_barriers
+
+    def get_barrier_edgepoints(self):
+        edge_pts = []
+        for x, y, is_vert in self.all_barriers:
+            bhl, bhw = self.barrier_real_halfwidth, self.barrier_real_halflength
+            if is_vert:
+                bhw, bhl = self.barrier_real_halfwidth, self.barrier_real_halflength
+            edge_pts.append([x-bhl, y - bhw])
+            edge_pts.append([x+bhl, y - bhw])
+            edge_pts.append([x-bhl, y + bhw])
+            edge_pts.append([x+bhl, y + bhw])
+        return edge_pts
 
     def position_in_barrier(self, pos_x, pos_y):
         m, n = self.xy_to_grid(pos_x, pos_y)

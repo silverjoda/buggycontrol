@@ -9,12 +9,11 @@
 
 # Monday:
 ====== Buggy project =======
-    - Put an agent to train on maize env for 5mln iters (traj & free rew)
-    - Update the optimize_traj function to include maize env barriers
-    - Go through the whole process of training TEP and testing and modifying trajectory of env
-    - Train several high performance agents with 3 levels of friction on random trajs
-    - Test agent performance with traj optimization on maize.
-    - Compare agent performance on maize with spt and opimized traj, and with MPPI
+    - Finish writing barrier and end point penalties into traj reward fun
+    - Mppi debug to see if it's correctly implemented
+    - Mppi speed up by a) Multiprocessing
+                       b) Calculate reward every nth step
+                       c) Instead of iterative gpu computation, use some sped up sequential computation (maybe by using dataloader?)
 
 # Robotic transformations and frames:
 Motivation: Spot example in rviz (coordinate frames form a tree, show tf tree, switch between various fixed frames: world, base_link, sensor, etc)
@@ -64,6 +63,9 @@ General testing procedure:
     - Do one-step TEP gradient training on random trajectory buggy dataset or using trajectories from maize
     - Launch full testing script to evaluate agent, agent with TEP correction, agent trained on maize with traj and free rew, MPPI with traj and free rew
 
+MPPI:
+    - Calculate reward on every n-th step
+    - Variable range steps model for speed increase?
 
 
 
