@@ -319,18 +319,18 @@ class TrajTepOptimizer:
             os.makedirs("agents")
         T.save(tep.state_dict(), "agents/full_traj_tep_1step.p")
 
-    def test_tep(self):
+    def test_tep(self, env, venv, sb_policy):
         tep = TEPMLP(obs_dim=50, act_dim=1)
         tep.load_state_dict(T.load("agents/full_traj_tep.p"), strict=False)
 
         N_eval = 100
         render = True
         for i in range(N_eval):
-            obs = self.env.reset()
-            time_taken = self.evaluate_rollout(obs, render=render, deterministic=True)
+            obs = env.reset()
+            time_taken = self.evaluate_rollout(obs, env, venv, sb_policy=sb_policy, render=render, deterministic=True)
 
             # Make tep prediction
-            traj = self.env.engine.wp_list
+            traj = env.engine.wp_list
             traj_sar, distances = self.xy_to_sar(traj[:50])
             traj_T_sar = T.tensor(traj_sar, dtype=T.float32)
             tep_pred = tep(traj_T_sar)
@@ -489,11 +489,47 @@ class TrajTepOptimizer:
 
         return traj_opt
 
+    def optimize_traj_with_barriers(self, traj, tep, env):
+        mse_loss = torch.nn.MSELoss()
+        traj_xy = self.sar_to_xy(traj.detach())
+        traj_opt = T.clone(traj).detach()
+        traj_opt.requires_grad = True
+
+        #optimizer = T.optim.SGD(params=[traj_opt], lr=0.03, momentum=.0)
+        optimizer = T.optim.Adam(params=[traj_opt], lr=0.03)
+        #optimizer = T.optim.LBFGS(params=[traj_opt], lr=0.03)
+
+        for i in range(7):
+            # etp loss
+            tep_loss = tep(traj_opt)
+
+            # Last point loss
+            traj_opt_xy = self.sar_to_xy(traj_opt)
+            last_pt_loss = mse_loss(traj_opt_xy[-1], traj_xy[-1])
+            loss = tep_loss + last_pt_loss
+            loss.backward()
+
+            # For LBFGS
+            def closure():
+                optimizer.zero_grad()
+                loss = tep(traj_opt)
+                loss.backward()
+                return loss
+
+            optimizer.step()
+            #optimizer.step(closure) # For LBFGS
+            optimizer.zero_grad()
+
+        return traj_opt
+
     def optimize_env_traj(self, env, tep):
         traj = T.tensor(env.engine.wp_list)
         pred_before = tep(traj)
         traj_opt = self.optimize_traj(traj, tep)
         pred_after = tep(traj_opt)
+
+        raise NotImplementedError
+        # TODO: THIS IS MOST LIKELY WRONG
         env.engine.reset_trajectory(list(traj_opt.detach().numpy()))
         return pred_after.data - pred_before
 
@@ -518,11 +554,12 @@ class TrajTepOptimizer:
 
 if __name__ == "__main__":
     tm = TrajTepOptimizer()
+    env, venv, sb_policy = tm.load_model_and_env()
     #tm.make_dataset(render=False)
     #tm.train_tep()
     #tm.train_tep_1step_grad()
-    tm.train_tep_1step_grad_aggregated()
-    #tm.test_tep()
+    #tm.train_tep_1step_grad_aggregated()
+    tm.test_tep(env, venv, sb_policy)
     #tm.test_tep_full()
 
 

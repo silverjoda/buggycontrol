@@ -21,23 +21,35 @@ class ControlBuggyMPPI:
         dynamics_model.load_state_dict(T.load(model_path), strict=False)
         return dynamics_model
 
-    def test_mppi(self, env, n_episodes=100, n_samples=100, n_horizon=100, act_std=1, mode="traj", render=False):
-        for _ in range(n_episodes):
-            # New env and trajectory
-            mujoco_obs = env.reset()
+    def test_mppi(self, env, seed=1337, test_traj=None, n_samples=100, n_horizon=100, act_std=1, mode="traj", render=False):
+        # New env and trajectory
+        env.seed(seed)
+        mujoco_obs = env.reset()
+
+        if test_traj is not None:
+            env.engine.wp_list = test_traj
+            env.engine.update_wp_visuals()
+
+        model_pos = env.get_xytheta()
+
+        # Initial action trajectory
+        u_vec = np.zeros((n_horizon, 2), dtype=np.float32)
+
+        cum_rew = 0
+        step_ctr = 0
+        while True:
+            # Predict using MPC
+            u_vec = self.mppi_predict(env, mujoco_obs, model_pos, mode, n_samples, n_horizon, u_vec, act_std)
+            mujoco_obs, r, done, _ = env.step(u_vec[0])
             model_pos = env.get_xytheta()
 
-            # Initial action trajectory
-            u_vec = np.zeros((n_horizon, 2), dtype=np.float32)
+            cum_rew += r
+            step_ctr += 1
 
-            while True:
-                # Predict using MPC
-                u_vec = self.mppi_predict(env, mujoco_obs, model_pos, mode, n_samples, n_horizon, u_vec, act_std)
-                mujoco_obs, _, done, _ = env.step(u_vec[0])
-                model_pos = env.get_xytheta()
+            if render: env.render()
+            if done: break
 
-                if render: env.render()
-                if done: break
+        return cum_rew, step_ctr * 0.01
 
     def mppi_predict(self, env, mujoco_obs, init_model_positions, mode, n_samples, n_horizon, act_mean_seq, act_std):
         # Sample random action matrix
@@ -103,4 +115,4 @@ if __name__ == "__main__":
     cbm = ControlBuggyMPPI(mppi_config)
 
     # Test
-    cbm.test_mppi(env, n_episodes=10, n_samples=50, n_horizon=10, act_std=0.5, mode="traj", render=True)
+    cbm.test_mppi(env, seed=1337, test_traj=None, n_samples=50, n_horizon=10, act_std=0.5, mode="traj", render=True)

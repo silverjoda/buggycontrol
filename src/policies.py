@@ -265,7 +265,7 @@ class TEPMLP(nn.Module):
         T.nn.init.xavier_uniform_(self.fc3.weight)
         self.fc3.bias.data.fill_(0.01)
 
-        self.nonlin = F.tanh
+        self.nonlin = T.tanh
 
     def forward(self, x):
         fc1 = self.nonlin(self.fc1(x))
@@ -273,8 +273,6 @@ class TEPMLP(nn.Module):
         out = self.fc3(fc2)
         return out
 
-    def optimize_traj(self, traj):
-        pass
 
 class TEPMLPDEEP(nn.Module):
     def __init__(self, obs_dim, act_dim, hid_dim=256, n_hidden=1):
