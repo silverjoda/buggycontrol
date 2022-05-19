@@ -13,7 +13,6 @@
     - Time various Mppi parts to see which parts take how long
     - Mppi speed up by a) Multiprocessing
                        b) Calculate reward every nth step
-                       c) Instead of iterative gpu computation, use some sped up sequential computation (maybe by using dataloader?)
 
 # Robotic transformations and frames:
 Motivation: Spot example in rviz (coordinate frames form a tree, show tf tree, switch between various fixed frames: world, base_link, sensor, etc)

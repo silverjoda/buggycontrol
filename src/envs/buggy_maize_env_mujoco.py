@@ -114,6 +114,15 @@ class BuggyMaize():
 
         return m, n
 
+    def xy_to_grid_parallel(self, positions):
+        m = (self.grid_X_len - positions[:, 0] * self.grid_meter_len - 0.5 * self.grid_meter_len).astype(np.int32)
+        n = (0.5 * self.grid_Y_len - positions[:, 1] * self.grid_meter_len).astype(np.int32)
+
+        m = np.clip(m, 0, self.grid_X_len - 1)
+        n = np.clip(n, 0, self.grid_Y_len - 1)
+
+        return m, n
+
     def grid_to_xy(self, m, n):
         x = self.grid_X_len / self.grid_meter_len - 0.5 - m / self.grid_meter_len
         y = 0.5 * self.grid_Y_len / self.grid_meter_len - n / self.grid_meter_len
@@ -172,6 +181,11 @@ class BuggyMaize():
         if self.dense_grid[m, n] < 1:
             return True
         return False
+
+    def position_in_barrier_parallel(self, positions):
+        grid_m, grid_n = self.xy_to_grid_parallel(positions)
+        pib = self.dense_grid[grid_m, grid_n] < 1
+        return pib
 
     def dist_from_centerline(self, pos_x, pos_y):
         m, n = self.xy_to_grid(pos_x, pos_y)
@@ -423,7 +437,6 @@ class BuggyMaizeEnv(gym.Env):
                 wp_visited = True
 
             # Calculate visitation + deviation reward
-            pos = np.array(obs_dict["pos"], dtype=np.float32)
             cur_wp = np.array(wp_list[cur_wp_idx], dtype=np.float32)
             if cur_wp_idx > 0:
                 prev_wp = np.array(wp_list[cur_wp_idx - 1], dtype=np.float32)
