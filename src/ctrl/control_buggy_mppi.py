@@ -107,7 +107,7 @@ class ControlBuggyMPPI:
         return np.array(costs)
 
     def evaluate_mppi_rollouts_mp(self, env, rollout_positions, rollout_velocities, mode):
-        t1 = time.time()
+        #t1 = time.time()
 
         step_skip = 5
         maizes = [env.maize] * (len(rollout_positions) // step_skip)
@@ -123,7 +123,7 @@ class ControlBuggyMPPI:
         costs_arr = np.array(costs) / 1000.
         costs_arr_full = np.repeat(costs_arr, step_skip)
 
-        print(time.time() - t1)
+        #print(time.time() - t1)
         return costs_arr_full
 
     def calculate_mppi_trajectory(self, act_mean_seq, act_noises, costs):
@@ -217,4 +217,4 @@ if __name__ == "__main__":
     cbm = ControlBuggyMPPI(mppi_config)
 
     # Test
-    cbm.test_mppi(env, seed=1337, test_traj=None, n_samples=300, n_horizon=200, act_std=0.5, mode="traj", render=True)
+    cbm.test_mppi(env, seed=1337, test_traj=None, n_samples=500, n_horizon=100, act_std=0.5, mode="free", render=True)
