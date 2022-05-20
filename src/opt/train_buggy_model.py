@@ -527,6 +527,6 @@ if __name__=="__main__":
     if config["train"]:
         pretrained_model_path = f"agents/buggy_lte_mujoco.p"
 
-        #model_trainer.train(mujoco_dataset, "buggy_lte_mujoco", pretrained_model_path=None)
+        model_trainer.train(mujoco_dataset, "buggy_lte_mujoco", pretrained_model_path=None)
         #model_trainer.train_data_discriminator()
-        model_trainer.evaluate_trained_model(mujoco_dataset, model_name="buggy_lte_mujoco")
+        #model_trainer.evaluate_trained_model(mujoco_dataset, model_name="buggy_lte_mujoco")

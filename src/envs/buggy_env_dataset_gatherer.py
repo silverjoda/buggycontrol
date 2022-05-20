@@ -25,7 +25,7 @@ class BuggyMujocoDatasetGatherer:
             self.env_config = yaml.load(f, Loader=yaml.FullLoader)
         self.env = buggy_env_mujoco.BuggyEnv(self.env_config)
 
-        self.noise = SimplexNoise(dim=2, smoothness=30, multiplier=1.0)
+        self.noise = SimplexNoise(dim=2, smoothness=100, multiplier=1.0)
 
         dir_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data/buggy_mujoco_dataset")
         if not os.path.exists(dir_path):
@@ -47,7 +47,7 @@ class BuggyMujocoDatasetGatherer:
             act_list = []
 
             zero_throttle = False
-            if np.random.rand() < 0.07:
+            if np.random.rand() < 0.02:
                 zero_throttle = True
 
             for j in range(self.config["traj_len"]):
@@ -57,8 +57,8 @@ class BuggyMujocoDatasetGatherer:
                 rnd_act = self.noise()
 
                 # Condition act (turn, throttle)
-                rnd_act[0] = np.clip(rnd_act[0], -1, 1)
-                rnd_act[1] = np.clip(rnd_act[1] * 2, -1, 1)
+                rnd_act[0] = np.clip(rnd_act[0] * 1.2, -1, 1)
+                rnd_act[1] = np.clip(rnd_act[1] * 1.6, -1, 1)
 
                 if zero_throttle: rnd_act[1] = -1
 
@@ -94,7 +94,6 @@ class BuggyMujocoDatasetGatherer:
         np.save(self.x_file_path, X_arr)
         np.save(self.y_file_path, Y_arr)
         np.save(self.p_file_path, P_arr)
-
 
 if __name__ == "__main__":
     dg = BuggyMujocoDatasetGatherer()

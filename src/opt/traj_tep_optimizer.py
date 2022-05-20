@@ -586,11 +586,10 @@ class TrajTepOptimizer:
 if __name__ == "__main__":
     tm = TrajTepOptimizer()
     env, venv, sb_policy = tm.load_model_and_env()
-    #tm.make_dataset(render=False)
+    tm.make_dataset(render=False)
     #tm.train_tep()
-    #tm.train_tep_1step_grad()
     #tm.train_tep_1step_grad_aggregated()
-    tm.test_tep(env, venv, sb_policy)
+    #tm.test_tep(env, venv, sb_policy)
     #tm.test_tep_full()
 
 

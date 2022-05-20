@@ -7,7 +7,7 @@ from src.utils import *
 from torch import device
 import time
 from multiprocessing import Pool
-
+GLOBAL_DEBUG = True
 
 class ControlBuggyMPPI:
     def __init__(self, mppi_config):
@@ -39,10 +39,11 @@ class ControlBuggyMPPI:
 
         cum_rew = 0
         step_ctr = 0
+        time_delta = 0.01
         while True:
             # Predict using MPC
             u_vec = self.mppi_predict(env, mujoco_obs, model_pos, mode, n_samples, n_horizon, u_vec, act_std)
-            mujoco_obs, r, done, _ = env.step(u_vec[0])
+            mujoco_obs, r, done, _ = env.step(u_vec[0] * 2)
             model_pos = env.get_xytheta()
 
             cum_rew += r
@@ -51,7 +52,7 @@ class ControlBuggyMPPI:
             if render: env.render()
             if done: break
 
-        return cum_rew, step_ctr * 0.01
+        return cum_rew, step_ctr * time_delta
 
     def mppi_predict(self, env, mujoco_obs, init_model_positions, mode, n_samples, n_horizon, act_mean_seq, act_std):
         # Sample random action matrix
@@ -63,10 +64,15 @@ class ControlBuggyMPPI:
         mppi_rollout_positions, mppi_rollout_velocities = self.make_mppi_rollouts(self.dynamics_model, init_model_state, init_model_positions, acts)
 
         # Evaluate rollouts
-        costs = self.evaluate_mppi_rollouts_mp(env, mppi_rollout_positions, mppi_rollout_velocities, mode)
+        costs = self.evaluate_mppi_rollouts(env, mppi_rollout_positions, mppi_rollout_velocities, mode)
 
         # Choose trajectory using MPPI update
         acts_opt = self.calculate_mppi_trajectory(act_mean_seq, act_noises, costs)
+
+        if GLOBAL_DEBUG:
+            # plot random sample of mppi_rollout_positions (color by costs)
+            # plot mean action trajectory
+            pass
 
         return acts_opt
 
@@ -94,16 +100,17 @@ class ControlBuggyMPPI:
 
     def evaluate_mppi_rollouts(self, env, rollout_positions, rollout_velocities, mode):
         costs = []
-        t1 = time.time()
+        #t1 = time.time()
 
+        step_skip = 5
         for rp, rv in zip(rollout_positions, rollout_velocities):
             if mode == "traj":
-                cost = env.evaluate_rollout(rp)
+                cost = evaluate_rollout((rp[::step_skip, :], env.engine.wp_list))
             else:
                 cost = env.evaluate_rollout_free(rp, rv)
             costs.append(cost)
 
-        print(time.time() - t1)
+        #print(time.time() - t1)
         return np.array(costs)
 
     def evaluate_mppi_rollouts_mp(self, env, rollout_positions, rollout_velocities, mode):
@@ -114,7 +121,7 @@ class ControlBuggyMPPI:
         wp_lists = [env.engine.wp_list] * (len(rollout_positions) // step_skip)
 
         if mode == "traj":
-            with Pool(2) as p:
+            with Pool(1) as p:
                 costs = p.map(evaluate_rollout, zip(rollout_positions[:, ::step_skip, :], wp_lists))
         else:
             with Pool(1) as p:
@@ -131,12 +138,13 @@ class ControlBuggyMPPI:
         # costs: n_samples
         weights = np.exp(-costs / (self.mppi_config["mppi_lambda"]))
         acts = act_mean_seq + np.sum(weights[:, np.newaxis, np.newaxis] * act_noises, axis=0) / np.sum(weights)
-        acts_clipped = np.clip(acts, -2, 2)
+        acts_clipped = np.clip(acts, -1, 1)
+        acts_clipped[:, 1] = -0.3
         return acts_clipped
 
 def evaluate_rollout(args):
         rollout, wp_list = args
-        wp_reach_dist = 0.5
+        wp_reach_dist = 0.3
         cur_wp_idx = 0
         cum_rew = 0
         for pos in rollout:
@@ -166,7 +174,7 @@ def evaluate_rollout(args):
 
             dist_between_cur_wp = np.sqrt(np.square((cur_wp[0] - pos[0])) + np.square((cur_wp[1] - pos[1])))
 
-            r = wp_visited * (1 / (1 + 3. * path_deviation)) - dist_between_cur_wp * 0.01
+            r = wp_visited * (1 / (1 + 3. * path_deviation)) - dist_between_cur_wp * 0.05
             #r = wp_visited
             cum_rew += r
 
@@ -216,5 +224,7 @@ if __name__ == "__main__":
     env = BuggyMaizeEnv(buggy_maize_config, seed=np.random.randint(0, 10000))
     cbm = ControlBuggyMPPI(mppi_config)
 
+    rnd_seed = np.random.randint(0, 10000)
+
     # Test
-    cbm.test_mppi(env, seed=1337, test_traj=None, n_samples=500, n_horizon=100, act_std=0.5, mode="free", render=True)
+    cbm.test_mppi(env, seed=rnd_seed, test_traj=None, n_samples=300, n_horizon=100, act_std=1.0, mode="traj", render=True)
