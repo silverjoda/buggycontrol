@@ -362,6 +362,7 @@ class BuggyMaizeEnv(gym.Env):
         scaled_act = act
         if self.engine.__class__.__name__ != 'LTEEngine':
             scaled_act = [np.clip(act[0] * 0.2, -0.42, 0.42), np.clip(act[1] * 0.5 + 0.5, 0, 1)]
+
         done, wp_visited = self.engine.step(scaled_act)
 
         # Get new observation

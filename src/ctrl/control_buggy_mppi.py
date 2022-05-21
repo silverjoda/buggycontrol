@@ -58,7 +58,7 @@ class ControlBuggyMPPI:
         # Sample random action matrix
         act_noises = np.clip(np.random.randn(n_samples, n_horizon, self.mppi_config["act_dim"]) * act_std, -1, 1)
         #act_noises[:, :, 0] = -0.3
-        act_noises[:, :, 1] = 0 # TEMPORARY, TO MAKE THE THROTTLE CONSTANT
+        #act_noises[:, :, 1] = -0.3 # TEMPORARY, TO MAKE THE THROTTLE CONSTANT
         acts = np.clip(np.tile(act_mean_seq, (n_samples, 1, 1)) + act_noises, -1, 1)
 
         # Sample rollouts from learned dynamics
@@ -85,7 +85,8 @@ class ControlBuggyMPPI:
         obs = T.concat((velocities, T.tensor(acts[:, 0], dtype=T.float32)), dim=1)
 
         for h in range(n_horizon - 1):
-            pred_velocities = dynamics_model(obs.to(self.device)).to(device('cpu'))
+            with T.no_grad():
+                pred_velocities = dynamics_model(obs.to(self.device)).to(device('cpu'))
             rollout_velocities[:, h, :] = pred_velocities.detach().numpy()
 
             # Update positions array
@@ -139,6 +140,7 @@ class ControlBuggyMPPI:
         weights = np.exp(-costs_norm / (self.mppi_config["mppi_lambda"]))
         acts = act_mean_seq + np.sum(weights[:, np.newaxis, np.newaxis] * act_noises, axis=0) / np.sum(weights)
         acts_clipped = np.clip(acts, -1, 1)
+        acts_clipped[:, 1] = -0.25
         return acts_clipped
 
 def evaluate_rollout(args):
@@ -226,4 +228,4 @@ if __name__ == "__main__":
     rnd_seed = np.random.randint(0, 10000)
 
     # Test
-    cbm.test_mppi(env, seed=rnd_seed, test_traj=None, n_samples=300, n_horizon=30, act_std=1.0, mode="traj", render=True)
+    cbm.test_mppi(env, seed=rnd_seed, test_traj=None, n_samples=1000, n_horizon=100, act_std=1.0, mode="traj", render=True)
