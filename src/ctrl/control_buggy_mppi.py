@@ -7,7 +7,7 @@ from src.utils import *
 from torch import device
 import time
 from multiprocessing import Pool
-GLOBAL_DEBUG = True
+GLOBAL_DEBUG = False
 
 class ControlBuggyMPPI:
     def __init__(self, mppi_config):
@@ -57,7 +57,9 @@ class ControlBuggyMPPI:
     def mppi_predict(self, env, mujoco_obs, init_model_positions, mode, n_samples, n_horizon, act_mean_seq, act_std):
         # Sample random action matrix
         act_noises = np.clip(np.random.randn(n_samples, n_horizon, self.mppi_config["act_dim"]) * act_std, -1, 1)
-        acts = np.tile(act_mean_seq, (n_samples, 1, 1)) + act_noises
+        #act_noises[:, :, 0] = -0.3
+        act_noises[:, :, 1] = 0 # TEMPORARY, TO MAKE THE THROTTLE CONSTANT
+        acts = np.clip(np.tile(act_mean_seq, (n_samples, 1, 1)) + act_noises, -1, 1)
 
         # Sample rollouts from learned dynamics
         init_model_state = mujoco_obs[:3]
@@ -75,7 +77,6 @@ class ControlBuggyMPPI:
         return acts_opt
 
     def make_mppi_rollouts(self, dynamics_model, init_model_velocities, init_model_positions, acts):
-
         n_samples, n_horizon, acts_dim = acts.shape
         velocities = T.tensor(np.tile(init_model_velocities, (n_samples, 1)), dtype=T.float32)
         positions = T.tensor(np.tile(init_model_positions, (n_samples, n_horizon, 1)), dtype=T.float32)
@@ -88,8 +89,8 @@ class ControlBuggyMPPI:
             rollout_velocities[:, h, :] = pred_velocities.detach().numpy()
 
             # Update positions array
-            positions[:, h + 1, 0] = positions[:, h, 0] + T.cos(positions[:, h, 2]) * pred_velocities[:, 0] * self.dt
-            positions[:, h + 1, 1] = positions[:, h, 1] + T.sin(positions[:, h, 2]) * pred_velocities[:, 1] * self.dt
+            positions[:, h + 1, 0] = positions[:, h, 0] + T.cos(positions[:, h, 2]) * pred_velocities[:, 0] * self.dt + T.sin(positions[:, h, 2]) * pred_velocities[:, 1] * self.dt
+            positions[:, h + 1, 1] = positions[:, h, 1] + T.sin(positions[:, h, 2]) * pred_velocities[:, 0] * self.dt + T.cos(positions[:, h, 2]) * pred_velocities[:, 1] * self.dt
             positions[:, h + 1, 2] = positions[:, h, 2] + pred_velocities[:, 2] * self.dt
 
             obs = T.concat((pred_velocities, T.tensor(acts[:, h + 1], dtype=T.float32)), dim=1)
@@ -134,10 +135,10 @@ class ControlBuggyMPPI:
     def calculate_mppi_trajectory(self, act_mean_seq, act_noises, costs):
         # acts: n_samples, n_horizon, act_dim
         # costs: n_samples
-        weights = np.exp(-costs / (self.mppi_config["mppi_lambda"]))
+        costs_norm = (costs - np.min(costs)) / (np.max(costs) - np.min(costs))
+        weights = np.exp(-costs_norm / (self.mppi_config["mppi_lambda"]))
         acts = act_mean_seq + np.sum(weights[:, np.newaxis, np.newaxis] * act_noises, axis=0) / np.sum(weights)
         acts_clipped = np.clip(acts, -1, 1)
-        acts_clipped[:, 1] = 0.0
         return acts_clipped
 
 def evaluate_rollout(args):
@@ -225,4 +226,4 @@ if __name__ == "__main__":
     rnd_seed = np.random.randint(0, 10000)
 
     # Test
-    cbm.test_mppi(env, seed=rnd_seed, test_traj=None, n_samples=300, n_horizon=100, act_std=1.0, mode="traj", render=True)
+    cbm.test_mppi(env, seed=rnd_seed, test_traj=None, n_samples=300, n_horizon=30, act_std=1.0, mode="traj", render=True)
