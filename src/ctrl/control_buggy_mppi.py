@@ -57,6 +57,8 @@ class ControlBuggyMPPI:
     def mppi_predict(self, env, mujoco_obs, init_model_positions, mode, n_samples, n_horizon, act_mean_seq, act_std):
         # Sample random action matrix
         act_noises = np.clip(np.random.randn(n_samples, n_horizon, self.mppi_config["act_dim"]) * act_std, -1, 1)
+        # TODO: Make simplex noises
+        # TODO: Make live plot of rollouts
         #act_noises[:, :, 0] = -0.3
         #act_noises[:, :, 1] = -0.3 # TEMPORARY, TO MAKE THE THROTTLE CONSTANT
         acts = np.clip(np.tile(act_mean_seq, (n_samples, 1, 1)) + act_noises, -1, 1)
@@ -228,4 +230,4 @@ if __name__ == "__main__":
     rnd_seed = np.random.randint(0, 10000)
 
     # Test
-    cbm.test_mppi(env, seed=rnd_seed, test_traj=None, n_samples=1000, n_horizon=100, act_std=1.0, mode="traj", render=True)
+    cbm.test_mppi(env, seed=rnd_seed, test_traj=None, n_samples=100, n_horizon=60, act_std=1.0, mode="traj", render=True)
