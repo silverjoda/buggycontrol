@@ -140,15 +140,35 @@ class BuggyMaize():
         plt.plot(y_spln, x_spln)
         plt.show()
 
+    def plot_grid_with_trajs(self, grid, path_spline, positions, costs):
+        grid_cpy = np.copy(grid)
+        x_spln, y_spln = zip(*path_spline)
+
+        # Plot grid and shortest path
+        plt.imshow(grid_cpy)
+        plt.plot(y_spln, x_spln)
+
+        # Select 10 random positions
+        rnd_indeces = np.random.choice(np.arange(len(positions)), 10)
+        rnd_positions = positions[rnd_indeces]
+        rnd_costs = costs[rnd_indeces]
+
+        min_cost, max_cost = min(rnd_costs), max(rnd_costs)
+        cost_range = max_cost - min_cost
+
+        for rp, rc in zip(rnd_positions, rnd_costs):
+            cost_intensity = (rc - min_cost) / cost_range
+            rp_m, rp_n = self.xy_to_grid_parallel(rp)
+            plt.plot(rp_n, rp_m, color=(cost_intensity, 0, 0))
+
+        plt.show()
+
     def generate_shortest_path(self, grid, start, finish):
         grid = Grid(matrix=grid)
         start = grid.node(start[1],start[0])
         end = grid.node(finish[1], finish[0])
         finder = AStarFinder(diagonal_movement=DiagonalMovement.always)
         path_astar, runs = finder.find_path(start, end, grid)
-
-        # Add another 2 meters of points
-
 
         y, x = zip(*path_astar)
         path_astar = zip(*[x[::3], y[::3]])

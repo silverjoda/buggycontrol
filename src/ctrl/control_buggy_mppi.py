@@ -70,9 +70,7 @@ class ControlBuggyMPPI:
         acts_opt = self.calculate_mppi_trajectory(act_mean_seq, act_noises, costs)
 
         if GLOBAL_DEBUG:
-            # plot random sample of mppi_rollout_positions (color by costs)
-            # plot mean action trajectory
-            pass
+            env.maize.plot_grid_with_trajs(env.maize.dense_grid, env.maize.shortest_path_pts_spline, mppi_rollout_positions, costs)
 
         return acts_opt
 
@@ -90,8 +88,8 @@ class ControlBuggyMPPI:
             rollout_velocities[:, h, :] = pred_velocities.detach().numpy()
 
             # Update positions array
-            positions[:, h + 1, 0] = positions[:, h, 0] + T.cos(pred_velocities[:, 0]) * self.dt
-            positions[:, h + 1, 1] = positions[:, h, 1] + T.sin(pred_velocities[:, 1]) * self.dt
+            positions[:, h + 1, 0] = positions[:, h, 0] + T.cos(positions[:, h, 2]) * pred_velocities[:, 0] * self.dt
+            positions[:, h + 1, 1] = positions[:, h, 1] + T.sin(positions[:, h, 2]) * pred_velocities[:, 1] * self.dt
             positions[:, h + 1, 2] = positions[:, h, 2] + pred_velocities[:, 2] * self.dt
 
             obs = T.concat((pred_velocities, T.tensor(acts[:, h + 1], dtype=T.float32)), dim=1)
@@ -139,7 +137,7 @@ class ControlBuggyMPPI:
         weights = np.exp(-costs / (self.mppi_config["mppi_lambda"]))
         acts = act_mean_seq + np.sum(weights[:, np.newaxis, np.newaxis] * act_noises, axis=0) / np.sum(weights)
         acts_clipped = np.clip(acts, -1, 1)
-        acts_clipped[:, 1] = -0.3
+        acts_clipped[:, 1] = 0.0
         return acts_clipped
 
 def evaluate_rollout(args):
