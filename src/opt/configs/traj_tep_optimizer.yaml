@@ -5,7 +5,7 @@
 "w_decay" : 0.001
 "trn_iters" : 3000
 "batchsize" : 256
-"n_epochs" : 3
-"tep_iters" : 100
-"n_traj_update" : 32
+"tep_iters" : 3000
+"n_epochs" : 32
+"n_traj_update" : 64
 

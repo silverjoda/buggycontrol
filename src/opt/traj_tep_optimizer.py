@@ -20,11 +20,11 @@ os.environ["CUDA_VISIBLE_DEVICES"] = ""
 T.set_num_threads(8)
 
 class TrajTepOptimizer:
-    def __init__(self):
+    def __init__(self, policy_ID="TRN"):
         with open(os.path.join(os.path.dirname(__file__), "configs/traj_tep_optimizer.yaml"), 'r') as f:
             self.config = yaml.load(f, Loader=yaml.FullLoader)
 
-        self.policy_ID = "TRN"
+        self.policy_ID = policy_ID
         self.n_dataset_pts = self.config["n_dataset_pts"]
         self.max_num_wp = self.config["max_num_wp"]
 
@@ -60,7 +60,7 @@ class TrajTepOptimizer:
         for i in range(self.n_dataset_pts):
             obs = self.env.reset()
             traj = [item for sublist in self.env.engine.wp_list[:self.max_num_wp] for item in sublist]
-            episode_rew = self.evaluate_rollout(obs, traj=None, render=False, deterministic=True)
+            episode_rew = self.evaluate_rollout(obs, self.env, self.venv, self.sb_model, traj=None, render=False, deterministic=True)
             # #DEBUG TO SEE HOW CONSISTENT EVALUATION IS
             # traj_raw = deepcopy(self.env.engine.wp_list)
             # print("NEW TRAJ")
@@ -124,13 +124,13 @@ class TrajTepOptimizer:
         Y = np.expand_dims(Y, 1)
 
         # Change X to relative coordinates
-        X = self.get_delta_representation(X)
+        #X = self.get_delta_representation(X)
 
         # Change to successive angle representation
-        #X = self.get_successive_angle_representation(X)
+        X = self.get_successive_angle_representation(X)
 
         # Prepare policy and training
-        #tep = TEPMLP(obs_dim=X.shape[1], act_dim=1, n_hidden=1)
+        tep = TEPMLP(obs_dim=X.shape[1], act_dim=1)
         #tep = TEPMLPDEEP(obs_dim=X.shape[1], act_dim=1)
 
         #RNN
@@ -138,7 +138,7 @@ class TrajTepOptimizer:
         #tep = TEPRNN2(n_waypts=X.shape[1], hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
 
         # emb_dim = 36
-        tep = TEPTX(n_waypts=X.shape[1] // 2, embed_dim=36, num_heads=6, kdim=36)
+        #tep = TEPTX(n_waypts=X.shape[1] // 2, embed_dim=36, num_heads=6, kdim=36)
         tep_optim = T.optim.Adam(params=tep.parameters(),
                                     lr=self.config['policy_lr'],
                                     weight_decay=self.config['w_decay'])
@@ -167,6 +167,7 @@ class TrajTepOptimizer:
         T.save(tep.state_dict(), "agents/full_traj_tep.p")
 
     def train_tep_1step_grad(self):
+        raise NotImplementedError
         self.env, self.venv, self.sb_model = self.load_model_and_env()
 
         # Load pretrained tep
@@ -250,7 +251,7 @@ class TrajTepOptimizer:
         tep.load_state_dict(T.load("agents/full_traj_tep.p"), strict=False)
 
         # Core dataset
-        N_traj = 1000
+        N_traj = 2000
         X = np.load(self.x_file_path, allow_pickle=True)[:N_traj]
         Y = np.load(self.y_file_path)[:N_traj]
 
@@ -296,7 +297,7 @@ class TrajTepOptimizer:
 
             # ===== UPDATE TRAJ ======
             # Update random trajectories from initial dataset and add to dataset
-            rnd_indeces = np.random.choice(np.arange(n_data), self.config["n_traj_update"], replace=False)
+            rnd_indeces = np.random.choice(np.arange(N_traj), self.config["n_traj_update"], replace=False)
             x_list = T.stack([X_list[ri] for ri in rnd_indeces])
             for x_traj in x_list:
                 x_ud_traj = T.clone(x_traj).detach()
@@ -341,16 +342,16 @@ class TrajTepOptimizer:
         tep_def = TEPMLP(obs_dim=50, act_dim=1)
         tep_def.load_state_dict(T.load("agents/full_traj_tep.p"), strict=False)
 
-        tep_1step = tep_def
-        #tep_1step = TEPMLP(obs_dim=50, act_dim=1)
-        #tep_1step.load_state_dict(T.load("agents/full_traj_tep_1step.p"), strict=False)
+        tep_1step = TEPMLP(obs_dim=50, act_dim=1)
+        tep_1step.load_state_dict(T.load("agents/full_traj_tep_1step.p"), strict=False)
 
         N_eval = 100
         render = False
         plot = True
         for i in range(N_eval):
             obs = self.env.reset()
-            time_taken = self.evaluate_rollout(obs, render=render, deterministic=True)
+            self.env.engine.wp_list = self.env.engine.wp_list[:50]
+            time_taken = self.evaluate_rollout(obs, self.env, self.venv, self.sb_model, render=render, deterministic=True)
 
             # Make tep prediction
             traj = self.env.engine.wp_list
@@ -360,23 +361,24 @@ class TrajTepOptimizer:
             tep_1step_pred = tep_1step(traj_T_sar)
 
             # Make trajectory update
-            traj_T_sar_ud = self.perform_grad_update_full_traj(traj_T_sar, tep_def, use_hessian=False)
+            traj_T_sar_ud = self.optimize_traj(traj_T_sar, tep_def)
             traj_T_ud = self.sar_to_xy(traj_T_sar_ud, distances)
             self.env.reset()
             self.env.engine.wp_list = list(traj_T_ud.detach().numpy())
 
             # Rollout on corrected traj
-            time_taken_1step = self.evaluate_rollout(obs, render=render, deterministic=True)
+            time_taken_1step = self.evaluate_rollout(obs, self.env, self.venv, self.sb_model, traj=tep_1step_pred, render=render, deterministic=True)
 
             # Make tep prediction on updated traj
-            #traj = self.env.engine.wp_list
-            #traj_sar, distances = self.xy_to_sar(traj[:50])
-            #traj_T_sar = T.tensor(traj_sar, dtype=T.float32)
+            traj = self.env.engine.wp_list
+            traj_sar, distances = self.xy_to_sar(traj[:50])
+            traj_T_sar = T.tensor(traj_sar, dtype=T.float32)
             tep_def_pred_1step = tep_def(traj_T_sar_ud)
             tep_1step_pred_1step = tep_1step(traj_T_sar_ud)
 
             print(f"Time taken: {time_taken}, time predicted: {tep_def_pred}")
-            print(f"Time taken after n step update: {time_taken_1step}, time predicted after n step update: {tep_def_pred_1step}")
+            print(f"Time taken after n step update using def tep: {time_taken_1step}, time predicted after n step update using def tep: {tep_def_pred_1step}")
+            print(f"Time taken after n step update using 1 step tep: {time_taken_1step}, time predicted after n step update: {tep_def_pred_1step}")
             print("------------------------------------------------------------------------------------------------------------")
 
             # Plot before and after trajectories
@@ -584,12 +586,15 @@ class TrajTepOptimizer:
         return traj_T
 
 if __name__ == "__main__":
-    tm = TrajTepOptimizer()
-    env, venv, sb_policy = tm.load_model_and_env()
-    tm.make_dataset(render=False)
+    tm = TrajTepOptimizer(policy_ID="TRN_DEF")
+    env, venv, sb_model = tm.load_model_and_env()
+    tm.env = env
+    tm.venv = venv
+    tm.sb_model = sb_model
+    #tm.make_dataset(render=False)
     #tm.train_tep()
     #tm.train_tep_1step_grad_aggregated()
-    #tm.test_tep(env, venv, sb_policy)
+    tm.test_tep(env, venv, sb_model)
     #tm.test_tep_full()
 
 

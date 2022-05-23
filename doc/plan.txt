@@ -9,10 +9,8 @@
 
 # Monday:
 ====== Buggy project =======
-    - Mppi debug to see if it's correctly implemented
-    - Time various Mppi parts to see which parts take how long
-    - Mppi speed up by a) Multiprocessing
-                       b) Calculate reward every nth step
+    - TODO: Add "progress" cost to free cost. The "progress" variable should be available in the maize itself
+    - TODO: Make full TEP testing
 
 # Robotic transformations and frames:
 Motivation: Spot example in rviz (coordinate frames form a tree, show tf tree, switch between various fixed frames: world, base_link, sensor, etc)

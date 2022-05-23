@@ -101,7 +101,7 @@ class BuggyTrajFollowerTrainer:
         # setup logpath
         logpath = self.get_logpath()
 
-        callback_on_best = StopTrainingOnRewardThreshold(reward_threshold=38, verbose=1)
+        callback_on_best = StopTrainingOnRewardThreshold(reward_threshold=33, verbose=1)
         eval_callback = EvalCallback(normed_env, best_model_save_path='agents_cp/', callback_on_new_best=callback_on_best,
                                      log_path=logpath, eval_freq=10000, n_eval_episodes=30,
                                      deterministic=False, render=False)

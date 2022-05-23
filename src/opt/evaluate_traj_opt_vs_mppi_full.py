@@ -68,7 +68,7 @@ class BuggyControlTester:
         return def_rl_agent_res, updated_traj_rl_agent_res, mppi_traj_follower_res, mppi_free_res
 
     def test_system(self):
-        N_test_iters = 10
+        N_test_iters = 5
         seeds = np.arange(N_test_iters) + 1337
         #seeds = np.random.randint(0, 1000, N_test_iters)
 
@@ -143,5 +143,5 @@ class BuggyControlTester:
 
 if __name__=="__main__":
     bct = BuggyControlTester()
-    bct.single_control_algo_evaluation(1337)
-    #bct.test_system()
+    #bct.single_control_algo_evaluation(1337)
+    bct.test_system()
