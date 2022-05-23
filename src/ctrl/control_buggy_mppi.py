@@ -7,7 +7,8 @@ from src.utils import *
 from torch import device
 import time
 from multiprocessing import Pool
-GLOBAL_DEBUG = False
+from src.opt.simplex_noise import SimplexNoise
+GLOBAL_DEBUG = True
 
 class ControlBuggyMPPI:
     def __init__(self, mppi_config):
@@ -16,6 +17,7 @@ class ControlBuggyMPPI:
         self.dt = self.mppi_config["dt"]
         self.device = device('cpu')
         self.dynamics_model.to(self.device)
+        self.simplex_action_noise = SimplexNoise(dim=2, smoothness=300, multiplier=1.0)
 
     def load_dynamics_model(self):
         dynamics_model = MLP(self.mppi_config["model_obs_dim"], self.mppi_config["model_act_dim"], hid_dim=128)
@@ -32,8 +34,6 @@ class ControlBuggyMPPI:
             env.engine.wp_list = test_traj
             env.engine.update_wp_visuals()
 
-        model_pos = env.get_xytheta()
-
         # Initial action trajectory
         u_vec = np.zeros((n_horizon, 2), dtype=np.float32)
 
@@ -41,10 +41,11 @@ class ControlBuggyMPPI:
         step_ctr = 0
         time_delta = 0.01
         while True:
+            model_pos = env.get_xytheta()
+
             # Predict using MPC
             u_vec = self.mppi_predict(env, mujoco_obs, model_pos, mode, n_samples, n_horizon, u_vec, act_std)
             mujoco_obs, r, done, _ = env.step(u_vec[0] * 2)
-            model_pos = env.get_xytheta()
 
             cum_rew += r
             step_ctr += 1
@@ -57,8 +58,9 @@ class ControlBuggyMPPI:
     def mppi_predict(self, env, mujoco_obs, init_model_positions, mode, n_samples, n_horizon, act_mean_seq, act_std):
         # Sample random action matrix
         act_noises = np.clip(np.random.randn(n_samples, n_horizon, self.mppi_config["act_dim"]) * act_std, -1, 1)
-        # TODO: Make simplex noises
-        # TODO: Make live plot of rollouts
+        act_noises = self.simplex_action_noise.sample_parallel()
+        # TODO: Make simplex action noises
+
         #act_noises[:, :, 0] = -0.3
         #act_noises[:, :, 1] = -0.3 # TEMPORARY, TO MAKE THE THROTTLE CONSTANT
         acts = np.clip(np.tile(act_mean_seq, (n_samples, 1, 1)) + act_noises, -1, 1)
@@ -104,10 +106,10 @@ class ControlBuggyMPPI:
         costs = []
         #t1 = time.time()
 
-        step_skip = 5
+        step_skip = 7
         for rp, rv in zip(rollout_positions, rollout_velocities):
             if mode == "traj":
-                cost = evaluate_rollout((rp[::step_skip, :], env.engine.wp_list))
+                cost = evaluate_rollout((rp[::step_skip, :], env.engine.wp_list, env.engine.cur_wp_idx))
             else:
                 cost = env.evaluate_rollout_free(rp, rv)
             costs.append(cost)
@@ -146,10 +148,11 @@ class ControlBuggyMPPI:
         return acts_clipped
 
 def evaluate_rollout(args):
-        rollout, wp_list = args
-        wp_reach_dist = 0.3
-        cur_wp_idx = 0
-        cum_rew = 0
+        rollout, wp_list, wp_idx = args
+        wp_reach_dist = 0.5
+        cur_wp_idx = wp_idx
+        cum_rew = np.random.rand() * 0.01
+        #print(dist_between_wps(rollout[0], wp_list[cur_wp_idx]))
         for pos in rollout:
             # Distance between current waypoint
             cur_wp_dist = dist_between_wps(pos, wp_list[cur_wp_idx])
@@ -175,9 +178,8 @@ def evaluate_rollout(args):
             else:
                 path_deviation = 0
 
-            dist_between_cur_wp = np.sqrt(np.square((cur_wp[0] - pos[0])) + np.square((cur_wp[1] - pos[1])))
-
-            r = wp_visited * (1 / (1 + 3. * path_deviation)) - dist_between_cur_wp * 0.05
+            #r = wp_visited * (1 / (1 + 5. * path_deviation)) - cur_wp_dist * 0.2
+            r = -path_deviation
             #r = wp_visited
             cum_rew += r
 
@@ -230,4 +232,4 @@ if __name__ == "__main__":
     rnd_seed = np.random.randint(0, 10000)
 
     # Test
-    cbm.test_mppi(env, seed=rnd_seed, test_traj=None, n_samples=100, n_horizon=60, act_std=1.0, mode="traj", render=True)
+    cbm.test_mppi(env, seed=rnd_seed, test_traj=None, n_samples=1000, n_horizon=120, act_std=0.5, mode="traj", render=True)

@@ -12,7 +12,10 @@ from src.envs.engines import *
 from src.opt.simplex_noise import SimplexNoise
 from src.utils import e2q, dist_between_wps
 
-GLOBAL_DEBUG = False
+GLOBAL_DEBUG = True
+if GLOBAL_DEBUG:
+    plt.ion()
+    figure = plt.figure()
 
 class BuggyMaize():
     def __init__(self, config):
@@ -103,6 +106,8 @@ class BuggyMaize():
         start = self.xy_to_grid(0, 0)
         finish = self.xy_to_grid(*blocks[-1])
 
+        dense_grid[-5:, :] = 1
+
         return blocks, all_barriers, dense_grid, start, finish
 
     def xy_to_grid(self, x, y):
@@ -144,7 +149,8 @@ class BuggyMaize():
         grid_cpy = np.copy(grid)
         x_spln, y_spln = zip(*path_spline)
 
-        # Plot grid and shortest path
+        plt.cla()
+        plt.clf()
         plt.imshow(grid_cpy)
         plt.plot(y_spln, x_spln)
 
@@ -161,7 +167,8 @@ class BuggyMaize():
             rp_m, rp_n = self.xy_to_grid_parallel(rp)
             plt.plot(rp_n, rp_m, color=(cost_intensity, 0, 0))
 
-        plt.show()
+        plt.pause(0.001)
+        #plt.show()
 
     def generate_shortest_path(self, grid, start, finish):
         grid = Grid(matrix=grid)

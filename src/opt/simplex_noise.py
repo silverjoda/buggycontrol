@@ -19,6 +19,9 @@ class SimplexNoise:
     def gen_noise_seq(self, n=100):
         return np.array([self.__call__() for _ in range(n)])
 
+    def sample_parallel(self, size):
+        pass
+
     def __call__(self):
         self.idx += 1
         noise = np.array([(opensimplex.noise2(x=self.idx / self.smoothness, y=i))
