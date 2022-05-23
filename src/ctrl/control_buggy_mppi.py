@@ -8,7 +8,7 @@ from torch import device
 import time
 from multiprocessing import Pool
 from src.opt.simplex_noise import SimplexNoise
-GLOBAL_DEBUG = True
+GLOBAL_DEBUG = False
 
 class ControlBuggyMPPI:
     def __init__(self, mppi_config):
@@ -75,6 +75,7 @@ class ControlBuggyMPPI:
         acts_opt = self.calculate_mppi_trajectory(act_mean_seq, act_noises, costs)
 
         if GLOBAL_DEBUG:
+            print("###############")
             env.maize.plot_grid_with_trajs(env.maize.dense_grid, env.maize.shortest_path_pts_spline, mppi_rollout_positions, costs, ctrs)
 
         return acts_opt
