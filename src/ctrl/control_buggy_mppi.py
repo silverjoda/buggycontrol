@@ -58,8 +58,7 @@ class ControlBuggyMPPI:
     def mppi_predict(self, env, mujoco_obs, init_model_positions, mode, n_samples, n_horizon, act_mean_seq, act_std):
         # Sample random action matrix
         act_noises = np.clip(np.random.randn(n_samples, n_horizon, self.mppi_config["act_dim"]) * act_std, -1, 1)
-        act_noises = self.simplex_action_noise.sample_parallel()
-        # TODO: Make simplex action noises
+        #act_noises = self.simplex_action_noise.sample_parallel(n_samples, n_horizon, self.mppi_config["act_dim"])
 
         #act_noises[:, :, 0] = -0.3
         #act_noises[:, :, 1] = -0.3 # TEMPORARY, TO MAKE THE THROTTLE CONSTANT
@@ -70,13 +69,13 @@ class ControlBuggyMPPI:
         mppi_rollout_positions, mppi_rollout_velocities = self.make_mppi_rollouts(self.dynamics_model, init_model_state, init_model_positions, acts)
 
         # Evaluate rollouts
-        costs = self.evaluate_mppi_rollouts(env, mppi_rollout_positions, mppi_rollout_velocities, mode)
+        costs, ctrs = self.evaluate_mppi_rollouts(env, mppi_rollout_positions, mppi_rollout_velocities, mode)
 
         # Choose trajectory using MPPI update
         acts_opt = self.calculate_mppi_trajectory(act_mean_seq, act_noises, costs)
 
         if GLOBAL_DEBUG:
-            env.maize.plot_grid_with_trajs(env.maize.dense_grid, env.maize.shortest_path_pts_spline, mppi_rollout_positions, costs)
+            env.maize.plot_grid_with_trajs(env.maize.dense_grid, env.maize.shortest_path_pts_spline, mppi_rollout_positions, costs, ctrs)
 
         return acts_opt
 
@@ -104,18 +103,20 @@ class ControlBuggyMPPI:
 
     def evaluate_mppi_rollouts(self, env, rollout_positions, rollout_velocities, mode):
         costs = []
+        ctrs = []
         #t1 = time.time()
 
-        step_skip = 7
+        step_skip = 5
         for rp, rv in zip(rollout_positions, rollout_velocities):
             if mode == "traj":
-                cost = evaluate_rollout((rp[::step_skip, :], env.engine.wp_list, env.engine.cur_wp_idx))
+                cost, ctr = evaluate_rollout((rp[::step_skip, :], env.engine.wp_list, env.engine.cur_wp_idx, env.maize))
             else:
-                cost = env.evaluate_rollout_free(rp, rv)
+                cost, ctr = evaluate_rollout_free((rp[::step_skip, :], rv[::step_skip, :], env.maize))
             costs.append(cost)
+            ctrs.append(ctr * step_skip)
 
         #print(time.time() - t1)
-        return np.array(costs)
+        return np.array(costs), np.array(ctrs)
 
     def evaluate_mppi_rollouts_mp(self, env, rollout_positions, rollout_velocities, mode):
         #t1 = time.time()
@@ -148,18 +149,24 @@ class ControlBuggyMPPI:
         return acts_clipped
 
 def evaluate_rollout(args):
-        rollout, wp_list, wp_idx = args
+        rollout, wp_list, wp_idx, maize = args
         wp_reach_dist = 0.5
         cur_wp_idx = wp_idx
-        cum_rew = np.random.rand() * 0.01
+        cum_cost = np.random.rand() * 0.01
         #print(dist_between_wps(rollout[0], wp_list[cur_wp_idx]))
+        ctr = 0
+        barrier_cost = 0
         for pos in rollout:
             # Distance between current waypoint
             cur_wp_dist = dist_between_wps(pos, wp_list[cur_wp_idx])
 
             ## Abort if trajectory goes to shit
-            #if cur_wp_dist > 0.5:
+            #if cur_wp_dist > 0.6:
             #    break
+
+            in_barrier = maize.position_in_barrier(pos[0], pos[1])
+            if in_barrier:
+                barrier_cost = 100
 
             wp_visited = False
             # Check if visited waypoint, if so, move index
@@ -179,16 +186,23 @@ def evaluate_rollout(args):
                 path_deviation = 0
 
             #r = wp_visited * (1 / (1 + 5. * path_deviation)) - cur_wp_dist * 0.2
-            r = -path_deviation
+            cost = -wp_visited + path_deviation + barrier_cost
             #r = wp_visited
-            cum_rew += r
+            cum_cost += cost
 
-        return -cum_rew
+            if in_barrier:
+                break
+
+            ctr += 1
+
+        return cum_cost, ctr
 
 def evaluate_rollout_free(args):
     mppi_rollout_positions, mppi_rollout_velocities, maize = args
     velocity_cost = 0
     barrier_cost = 0
+    center_deviation_cost = 0
+    ctr = 0
     for rp, rv in zip(mppi_rollout_positions, mppi_rollout_velocities):
         # Calculate x-velocity cost (maximize speed)
         velocity_cost += (-rv[0])
@@ -198,13 +212,18 @@ def evaluate_rollout_free(args):
 
         barrier_cost += in_barrier * 300
 
+        dist_from_centerline = maize.dist_from_centerline(*rp[:2])
+        center_deviation_cost += dist_from_centerline
+
+        ctr += 1
+
         if in_barrier: break
 
     # Calculate center deviation of final state cost
-    center_deviation_cost = maize.dist_from_centerline(*mppi_rollout_positions[-1, :2])
+    center_deviation_cost += maize.dist_from_centerline(*mppi_rollout_positions[-1, :2])
     total_cost = center_deviation_cost * 10. + velocity_cost + barrier_cost
 
-    return total_cost
+    return total_cost, ctr
 
 def evaluate_rollout_free_par(args):
     mppi_rollout_positions, mppi_rollout_velocities, maize = args
@@ -232,4 +251,4 @@ if __name__ == "__main__":
     rnd_seed = np.random.randint(0, 10000)
 
     # Test
-    cbm.test_mppi(env, seed=rnd_seed, test_traj=None, n_samples=1000, n_horizon=120, act_std=0.5, mode="traj", render=True)
+    cbm.test_mppi(env, seed=rnd_seed, test_traj=None, n_samples=300, n_horizon=100, act_std=0.7, mode="traj", render=True)

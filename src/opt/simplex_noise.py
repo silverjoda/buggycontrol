@@ -19,8 +19,12 @@ class SimplexNoise:
     def gen_noise_seq(self, n=100):
         return np.array([self.__call__() for _ in range(n)])
 
-    def sample_parallel(self, size):
-        pass
+    def sample_parallel(self, n_samples, horizon, act_dim):
+        self.idx += n_samples * horizon
+        noise = opensimplex.noise2array(x=self.idx + np.arange(n_samples * horizon) / self.smoothness, y=np.array([0, 1]))
+        reshaped_noise = np.reshape(noise, (n_samples, horizon, act_dim))
+        clipped_noise = np.clip(reshaped_noise * self.multiplier, -1, 1).astype(dtype=np.float64)
+        return clipped_noise
 
     def __call__(self):
         self.idx += 1

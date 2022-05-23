@@ -145,7 +145,7 @@ class BuggyMaize():
         plt.plot(y_spln, x_spln)
         plt.show()
 
-    def plot_grid_with_trajs(self, grid, path_spline, positions, costs):
+    def plot_grid_with_trajs(self, grid, path_spline, positions, costs, ctrs):
         grid_cpy = np.copy(grid)
         x_spln, y_spln = zip(*path_spline)
 
@@ -158,13 +158,14 @@ class BuggyMaize():
         rnd_indeces = np.random.choice(np.arange(len(positions)), 10)
         rnd_positions = positions[rnd_indeces]
         rnd_costs = costs[rnd_indeces]
+        rnd_ctrs = ctrs[rnd_indeces]
 
         min_cost, max_cost = min(rnd_costs), max(rnd_costs)
         cost_range = max_cost - min_cost
 
-        for rp, rc in zip(rnd_positions, rnd_costs):
+        for rp, rc, rctr in zip(rnd_positions, rnd_costs, rnd_ctrs):
             cost_intensity = (rc - min_cost) / cost_range
-            rp_m, rp_n = self.xy_to_grid_parallel(rp)
+            rp_m, rp_n = self.xy_to_grid_parallel(rp[:rctr])
             plt.plot(rp_n, rp_m, color=(cost_intensity, 0, 0))
 
         plt.pause(0.001)
