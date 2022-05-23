@@ -269,8 +269,8 @@ class MujocoEngine(Engine):
         if self.config["randomize_env"] or not hasattr(self, "model"):
             self.model, self.mujoco_sim, self.bodyid = self.load_env()
 
-        if hasattr(self, 'viewer'):
-            del self.viewer
+        #if hasattr(self, 'viewer'):
+        #    del self.viewer
 
         self.mujoco_sim.reset()
         self.reset_trajectory()

@@ -12,7 +12,7 @@ from src.envs.engines import *
 from src.opt.simplex_noise import SimplexNoise
 from src.utils import e2q, dist_between_wps
 
-GLOBAL_DEBUG = True
+GLOBAL_DEBUG = False
 if GLOBAL_DEBUG:
     plt.ion()
     figure = plt.figure()
@@ -349,7 +349,6 @@ class BuggyMaizeEnv(gym.Env):
             r = velocity_rew - center_deviation_cost * 1. - 3
 
         return r, dist_between_cur_wp
-
 
     def set_external_state(self, state_dict):
         old_state = self.sim.get_state()

@@ -62,9 +62,6 @@ General testing procedure:
     - Do one-step TEP gradient training on random trajectory buggy dataset or using trajectories from maize
     - Launch full testing script to evaluate agent, agent with TEP correction, agent trained on maize with traj and free rew, MPPI with traj and free rew
 
-MPPI:
-    - Calculate reward on every n-th step
-    - Variable range steps model for speed increase?
 
 
 
