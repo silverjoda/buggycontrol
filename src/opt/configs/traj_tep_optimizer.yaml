@@ -1,4 +1,4 @@
-"n_dataset_pts" : 3000
+"n_dataset_pts" : 2000
 "max_num_wp" : 50
 "max_steps" : 500
 "policy_lr" : 0.003
@@ -6,6 +6,11 @@
 "trn_iters" : 3000
 "batchsize" : 256
 "tep_iters" : 3000
-"n_epochs" : 32
+"n_epochs" : 16
 "n_traj_update" : 64
+"n_eval" : 10
+"deterministic_eval" : True
+"plot_trajs" : False
+"n_step_opt" : 7
+"traj_opt_rate" : 0.03
 

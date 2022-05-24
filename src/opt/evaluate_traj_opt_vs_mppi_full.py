@@ -60,7 +60,6 @@ class BuggyControlTester:
         # Test buggy agent on new path
         updated_traj_rl_agent_res = self.test_rl_agent(self.buggy_maize_env, self.buggy_maize_venv, seed, updated_traj)
 
-
         # Update the shortest path using 1step tep
         traj_T_sar, _ = T.tensor(self.traj_tep_optimizer.xy_to_sar(test_traj[:50]), dtype=T.float32)
         updated_1step_traj_T_sar = self.traj_tep_optimizer.optimize_traj_with_barriers(traj_T_sar, self.tep_1step, self.buggy_maize_env)

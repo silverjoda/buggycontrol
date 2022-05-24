@@ -1,7 +1,7 @@
 # Train config
-"train" : False
-"render" : True
-"default_session_ID" : "TRN_DEF"
+"train" : True
+"render" : False
+"default_session_ID" : "TRN"
 "iters" : 3000000
 "env" : "default" # default/maize
 
