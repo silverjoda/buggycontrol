@@ -667,7 +667,7 @@ if __name__ == "__main__":
     tm.sb_model = sb_model
     #tm.make_dataset(render=False)
     #tm.train_tep()
-    tm.train_tep_1step_grad_aggregated()
+    #tm.train_tep_1step_grad_aggregated()
     #tm.test_tep(env, venv, sb_model)
     tm.test_tep_full()
 
