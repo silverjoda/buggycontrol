@@ -355,6 +355,10 @@ class TrajTepOptimizer:
         tep_err_1step_agg = 0
         tep_agg_err_1step_agg = 0
 
+        avg_time_taken = 0
+        avg_time_1step = 0
+        avg_time_agg_1step = 0
+
         render = False
         plot = self.config["plot_trajs"]
         for i in range(self.config["n_eval"]):
@@ -426,6 +430,11 @@ class TrajTepOptimizer:
             tep_err_1step_agg += np.abs(time_taken_agg_1step - tep_def_pred_agg_1step)
             tep_agg_err_1step_agg += np.abs(time_taken_agg_1step - tep_agg_pred_agg_1step)
 
+            # Avg time taken
+            avg_time_taken += time_taken
+            avg_time_1step += time_taken_1step
+            avg_time_agg_1step += time_taken_agg_1step
+
         # Errors on def traj
         tep_err_def /= self.config["n_eval"]
         tep_agg_err_def /= self.config["n_eval"]
@@ -438,10 +447,15 @@ class TrajTepOptimizer:
         tep_err_1step_agg /= self.config["n_eval"]
         tep_agg_err_1step_agg /= self.config["n_eval"]
 
+        avg_time_taken /= self.config["n_eval"]
+        avg_time_1step /= self.config["n_eval"]
+        avg_time_agg_1step /= self.config["n_eval"]
+
         # Print out results
-        table = [['Def TEP', tep_err_def, tep_err_1step, tep_err_1step_agg],
+        table = [['Avg time taken', avg_time_taken, avg_time_1step, avg_time_agg_1step],
+                 ['Def TEP', tep_err_def, tep_err_1step, tep_err_1step_agg],
                  ['Agg TEP', tep_agg_err_def, tep_agg_err_1step, tep_agg_err_1step_agg]]
-        print(tabulate(table, headers=['TEP variant',  'Def traj', '1 step traj', '1 step agg traj']))
+        print(tabulate(table, headers=['',  'Def traj', '1 step traj', '1 step agg traj']))
 
     def plot_trajs(self, traj_xy, traj_T_sar_ud):
         if not hasattr(self, 'ax'):
