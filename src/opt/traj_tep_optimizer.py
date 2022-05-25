@@ -613,7 +613,7 @@ class TrajTepOptimizer:
 
             # Last point loss
             traj_opt_xy = self.sar_to_xy(traj_opt)
-            last_pt_loss = mse_loss(traj_opt_xy[-1], traj_xy[-1]) * 10
+            last_pt_loss = mse_loss(traj_opt_xy[-1], traj_xy[-1]) * 20
 
             # Barrier losses
             barrier_loss_list = []

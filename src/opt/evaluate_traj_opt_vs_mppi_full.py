@@ -40,14 +40,14 @@ class BuggyControlTester:
         # Load trajectory optimizer
         self.traj_tep_optimizer = TrajTepOptimizer()
 
-    def single_control_algo_evaluation(self, seed):
+    def single_control_algo_evaluation(self, seed, render=False, plot=False):
         # Reset env and record trajectory
         self.buggy_maize_env.seed(seed)
         self.buggy_maize_env.reset()
         test_traj = deepcopy(self.buggy_maize_env.engine.wp_list)
 
         # Test buggy agent on default shortest path
-        def_rl_agent_res = self.test_rl_agent(self.buggy_maize_env, self.buggy_maize_venv, seed, test_traj)
+        def_rl_agent_res = self.test_rl_agent(self.buggy_maize_env, self.buggy_maize_venv, seed, test_traj, render=render)
 
         # Update the shortest path using def tep
         traj_T_sar, _ = T.tensor(self.traj_tep_optimizer.xy_to_sar(test_traj[:50]), dtype=T.float32)
@@ -60,7 +60,7 @@ class BuggyControlTester:
         # TODO: Option to render and plot everything
 
         # Test buggy agent on new path
-        updated_traj_rl_agent_res = self.test_rl_agent(self.buggy_maize_env, self.buggy_maize_venv, seed, updated_traj)
+        updated_traj_rl_agent_res = self.test_rl_agent(self.buggy_maize_env, self.buggy_maize_venv, seed, updated_traj, render=render)
 
         # Update the shortest path using 1step tep
         traj_T_sar, _ = T.tensor(self.traj_tep_optimizer.xy_to_sar(test_traj[:50]), dtype=T.float32)
@@ -71,7 +71,7 @@ class BuggyControlTester:
         updated_1step_traj.extend(test_traj[50:])
 
         # Test buggy agent on new path
-        updated_1step_traj_rl_agent_res = self.test_rl_agent(self.buggy_maize_env, self.buggy_maize_venv, seed, updated_1step_traj)
+        updated_1step_traj_rl_agent_res = self.test_rl_agent(self.buggy_maize_env, self.buggy_maize_venv, seed, updated_1step_traj, render=render)
 
 
         # Test mppi: traj/free
@@ -81,16 +81,19 @@ class BuggyControlTester:
         mppi_free_res = self.mppi_algo.test_mppi(self.buggy_maize_env, seed=seed, test_traj=test_traj, n_samples=10,
                                                            n_horizon=10, act_std=0.5, mode='traj', render=False)
 
+        if plot:
+            self.traj_tep_optimizer.plot_trajs3(test_traj,updated_traj, updated_1step_traj)
+
         return def_rl_agent_res, updated_traj_rl_agent_res, updated_1step_traj_rl_agent_res, mppi_traj_follower_res, mppi_free_res
 
-    def test_system(self):
+    def test_system(self, render=False, plot=False):
         N_test_iters = 5
         seeds = np.arange(N_test_iters) + 1337
         #seeds = np.random.randint(0, 1000, N_test_iters)
 
         def_rl_agent_res_list, updated_traj_rl_agent_res_list, updated_1step_traj_rl_agent_res_list, mppi_traj_follower_res_list, mppi_free_res_list = [], [], [], [], []
         for i in range(N_test_iters):
-            def_rl_agent_res, updated_traj_rl_agent_res, updated_1step_traj_rl_agent_res, mppi_traj_follower_res, mppi_free_res = self.single_control_algo_evaluation(seeds[i])
+            def_rl_agent_res, updated_traj_rl_agent_res, updated_1step_traj_rl_agent_res, mppi_traj_follower_res, mppi_free_res = self.single_control_algo_evaluation(seeds[i], render=render, plot=plot)
             #def_rl_agent_res, updated_traj_rl_agent_res, mppi_traj_follower_res, mppi_free_res = np.random.rand(2),np.random.rand(2),np.random.rand(2),np.random.rand(2)
 
             def_rl_agent_res_list.append(def_rl_agent_res)
@@ -168,4 +171,4 @@ class BuggyControlTester:
 if __name__=="__main__":
     bct = BuggyControlTester()
     #bct.single_control_algo_evaluation(1337)
-    bct.test_system()
+    bct.test_system(render=True, plot=False)
