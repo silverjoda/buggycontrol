@@ -57,6 +57,8 @@ class BuggyControlTester:
         # Tack on the rest of the points from original trajectory which weren't optimized (sort of a hack for now)
         updated_traj.extend(test_traj[50:])
 
+        # TODO: Option to render and plot everything
+
         # Test buggy agent on new path
         updated_traj_rl_agent_res = self.test_rl_agent(self.buggy_maize_env, self.buggy_maize_venv, seed, updated_traj)
 

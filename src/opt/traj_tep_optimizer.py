@@ -231,7 +231,7 @@ class TrajTepOptimizer:
 
                 # Annotate the new X_ud
                 obs = self.env.reset()
-                Y_ud[t_idx] = self.evaluate_rollout(obs, X_ud[t_idx].detach())
+                Y_ud[t_idx] = self.evaluate_rollout(obs, X_ud[t_idx].detach().numpy())
 
                 if t_idx % 1 == 0:
                     print(f"Dataset updating: {t_idx}")
@@ -307,7 +307,7 @@ class TrajTepOptimizer:
 
                 # Annotate the new X_ud
                 obs = env.reset()
-                rew = self.evaluate_rollout(obs, env, venv, sb_policy, x_ud_traj.detach())
+                rew = self.evaluate_rollout(obs, env, venv, sb_policy, self.sar_to_xy(x_ud_traj).detach().numpy())
                 Y_list.append(T.tensor([rew]))
 
             print("Epoch: {}, finished updating dataset".format(ep))
@@ -587,19 +587,19 @@ class TrajTepOptimizer:
         traj_opt.requires_grad = True
 
         #optimizer = T.optim.SGD(params=[traj_opt], lr=0.03, momentum=.0)
-        optimizer = T.optim.Adam(params=[traj_opt], lr=0.03)
+        optimizer = T.optim.Adam(params=[traj_opt], lr=self.config["traj_opt_rate"])
         #optimizer = T.optim.LBFGS(params=[traj_opt], lr=0.03)
 
         # Get barriers edge points (4 per barrier)
         edgepoints = env.maize.get_barrier_edgepoints()
 
-        for i in range(7):
+        for i in range(self.config["n_step_opt"]):
             # etp loss
             tep_loss = tep(traj_opt)
 
             # Last point loss
             traj_opt_xy = self.sar_to_xy(traj_opt)
-            last_pt_loss = mse_loss(traj_opt_xy[-1], traj_xy[-1])
+            last_pt_loss = mse_loss(traj_opt_xy[-1], traj_xy[-1]) * 10
 
             # Barrier losses
             barrier_loss_list = []
@@ -667,7 +667,7 @@ if __name__ == "__main__":
     tm.sb_model = sb_model
     #tm.make_dataset(render=False)
     #tm.train_tep()
-    #tm.train_tep_1step_grad_aggregated()
+    tm.train_tep_1step_grad_aggregated()
     #tm.test_tep(env, venv, sb_model)
     tm.test_tep_full()
 

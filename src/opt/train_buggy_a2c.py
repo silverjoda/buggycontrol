@@ -44,7 +44,7 @@ class BuggyTrajFollowerTrainer:
             self.env = VecNormalize.load(self.stats_path, normed_env)
 
             N_test = 50
-            avg_rew, avg_visited = self.test_agent(deterministic=False, render=True, N=N_test)
+            avg_rew, avg_visited = self.test_agent(deterministic=True, render=True, N=N_test)
             print(f"Avg test rew: {avg_rew}, n_visited: {avg_visited} ")
 
     def read_configs(self):
@@ -101,7 +101,7 @@ class BuggyTrajFollowerTrainer:
         # setup logpath
         logpath = self.get_logpath()
 
-        callback_on_best = StopTrainingOnRewardThreshold(reward_threshold=33, verbose=1)
+        callback_on_best = StopTrainingOnRewardThreshold(reward_threshold=self.config["rew_thresh"], verbose=1)
         eval_callback = EvalCallback(normed_env, best_model_save_path='agents_cp/', callback_on_new_best=callback_on_best,
                                      log_path=logpath, eval_freq=10000, n_eval_episodes=30,
                                      deterministic=False, render=False)
