@@ -171,27 +171,27 @@ class BuggyMaize():
         plt.pause(0.001)
         #plt.show()
 
-    def plot_grid_traj3(self, grid, path_spline, positions, costs, ctrs):
+    def plot_grid_traj3(self, grid, trajs, barrier_edgepoints):
         grid_cpy = np.copy(grid)
-        x_spln, y_spln = zip(*path_spline)
 
-        plt.cla()
-        plt.clf()
+        plt.figure()
         plt.imshow(grid_cpy)
-        plt.plot(y_spln, x_spln)
 
-        # Select 10 random positions
-        rnd_indeces = np.random.choice(np.arange(len(positions)), 10)
-        rnd_positions = positions[rnd_indeces]
-        rnd_costs = costs[rnd_indeces]
-        rnd_ctrs = ctrs[rnd_indeces]
+        traj_def, traj_1step, traj_agg_1step = trajs
 
-        for rp, rc, rctr in zip(rnd_positions, rnd_costs, rnd_ctrs):
-            rp_m, rp_n = self.xy_to_grid_parallel(rp[:rctr])
-            plt.plot(list(zip(*traj_def))[0], list(zip(*traj_def))[1], marker="o", color="r", label='def', markersize=3)
+        rp_m, rp_n = self.xy_to_grid_parallel(np.array(traj_def))
+        plt.plot(rp_n, rp_m, color="r")
 
-        plt.pause(0.001)
-        #plt.show()
+        rp_m, rp_n = self.xy_to_grid_parallel(np.array(traj_1step))
+        plt.plot(rp_n, rp_m, color="g")
+
+        rp_m, rp_n = self.xy_to_grid_parallel(np.array(traj_agg_1step))
+        plt.plot(rp_n, rp_m, color="b")
+
+        ep_m, ep_n = self.xy_to_grid_parallel(np.array(barrier_edgepoints))
+        plt.scatter(ep_n, ep_m, s=1, color="k", marker='x')
+
+        plt.show()
 
     def generate_shortest_path(self, grid, start, finish):
         grid = Grid(matrix=grid)
@@ -216,14 +216,15 @@ class BuggyMaize():
 
     def get_barrier_edgepoints(self):
         edge_pts = []
+        hw_scl = 1.0
         for x, y, is_vert in self.all_barriers:
             bhl, bhw = self.barrier_real_halfwidth, self.barrier_real_halflength
             if is_vert:
                 bhw, bhl = self.barrier_real_halfwidth, self.barrier_real_halflength
-            edge_pts.append([x-bhl, y - bhw])
-            edge_pts.append([x+bhl, y - bhw])
-            edge_pts.append([x-bhl, y + bhw])
-            edge_pts.append([x+bhl, y + bhw])
+            edge_pts.append([x-bhl * hw_scl, y - bhw * hw_scl])
+            edge_pts.append([x+bhl * hw_scl, y - bhw * hw_scl])
+            edge_pts.append([x-bhl * hw_scl, y + bhw * hw_scl])
+            edge_pts.append([x+bhl * hw_scl, y + bhw * hw_scl])
         return edge_pts
 
     def position_in_barrier(self, pos_x, pos_y):

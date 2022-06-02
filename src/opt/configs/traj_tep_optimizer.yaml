@@ -9,8 +9,10 @@
 "n_epochs" : 32
 "n_traj_update" : 128
 "n_eval" : 30
-"deterministic_eval" : True
+"deterministic_eval" : False
 "plot_trajs" : False
 "n_step_opt" : 5
 "traj_opt_rate" : 0.015
+"traj_barrier_coeff" : 0.3
+"traj_last_pt_coeff" : 10
 

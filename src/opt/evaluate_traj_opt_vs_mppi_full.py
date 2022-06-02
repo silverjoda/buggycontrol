@@ -82,16 +82,17 @@ class BuggyControlTester:
         # Test mppi: traj/free
         print("Testing mppi traj follower")
         mppi_traj_follower_res = self.mppi_algo.test_mppi(self.buggy_maize_env, seed=seed, test_traj=test_traj, n_samples=5,
-                                                           n_horizon=5, act_std=0.5, mode='traj', render=False)
+                                                          n_horizon=5, act_std=0.5, mode='traj', render=False)
 
         print("Testing mppi free rew")
         mppi_free_res = self.mppi_algo.test_mppi(self.buggy_maize_env, seed=seed, test_traj=test_traj, n_samples=5,
-                                                           n_horizon=5, act_std=0.5, mode='free', render=False)
-
-        if plot:
-            self.traj_tep_optimizer.plot_trajs3(test_traj,updated_traj, updated_1step_traj)
+                                                 n_horizon=5, act_std=0.5, mode='free', render=False)
 
         trajs = (test_traj, updated_traj, updated_1step_traj)
+
+        if plot:
+            #self.traj_tep_optimizer.plot_trajs3(test_traj,updated_traj, updated_1step_traj)
+            self.buggy_maize_env.maize.plot_grid_traj3(self.buggy_maize_env.maize.dense_grid, trajs, self.buggy_maize_env.maize.get_barrier_edgepoints())
 
         return def_rl_agent_res, updated_traj_rl_agent_res, updated_1step_traj_rl_agent_res, mppi_traj_follower_res, mppi_free_res, trajs
 
@@ -203,4 +204,4 @@ class BuggyControlTester:
 if __name__=="__main__":
     bct = BuggyControlTester()
     #bct.single_control_algo_evaluation(1337)
-    bct.test_system(render=False, plot=False)
+    bct.test_system(render=False, plot=True)

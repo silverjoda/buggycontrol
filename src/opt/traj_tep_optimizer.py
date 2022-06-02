@@ -13,9 +13,6 @@ from src.envs.buggy_env_mujoco import BuggyEnv
 from src.policies import *
 from src.utils import load_config, dist_between_wps
 
-GLOBAL_DEBUG = False
-if GLOBAL_DEBUG:
-    plt.ion()
 
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 T.set_num_threads(1)
@@ -32,6 +29,9 @@ class TrajTepOptimizer:
         dir_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data/buggy_tep_dataset")
         if not os.path.exists(dir_path):
             os.makedirs(dir_path)
+
+        if self.config["plot_trajs"]:
+            plt.ion()
 
         self.x_file_path = os.path.join(dir_path, "X.npy")
         self.y_file_path = os.path.join(dir_path, "Y.npy")
@@ -623,11 +623,11 @@ class TrajTepOptimizer:
 
         for i in range(self.config["n_step_opt"]):
             # etp loss
-            tep_loss = tep(traj_opt)
+            tep_loss = 0#tep(traj_opt)
 
             # Last point loss
             traj_opt_xy = self.sar_to_xy(traj_opt)
-            last_pt_loss = mse_loss(traj_opt_xy[-1], traj_xy[-1]) * 20
+            last_pt_loss = mse_loss(traj_opt_xy[-1], traj_xy[-1]) * self.config["traj_last_pt_coeff"]
 
             # Barrier losses
             barrier_loss_list = []
@@ -636,9 +636,12 @@ class TrajTepOptimizer:
                 closest_edgept, dist = self.find_closest_edgepoint(xy.detach(), edgepoints)
 
                 # If edge point close enough then apply loss (doesn't apply to inital n pts)
-                if dist < 0.4 and xy_idx > 5:
-                    barrier_loss_list.append(-flattened_mse(xy, T.tensor(closest_edgept)) * 0.06)
-            barrier_loss_sum = T.stack(barrier_loss_list).sum()
+                if dist < 0.3 and xy_idx > 5:
+                    barrier_loss_list.append(-flattened_mse(xy, T.tensor(closest_edgept)) * self.config["traj_barrier_coeff"])
+
+            barrier_loss_sum = 0
+            if len(barrier_loss_list) > 0:
+                barrier_loss_sum = T.stack(barrier_loss_list).sum()
 
             loss = tep_loss + last_pt_loss + barrier_loss_sum
             loss.backward()
