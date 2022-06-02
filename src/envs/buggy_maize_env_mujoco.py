@@ -14,7 +14,7 @@ from src.utils import e2q, dist_between_wps
 
 GLOBAL_DEBUG = False
 if GLOBAL_DEBUG:
-    plt.ion()
+    #plt.ion()
     figure = plt.figure()
 
 class BuggyMaize():
@@ -31,7 +31,7 @@ class BuggyMaize():
 
         deadzone = self.config["deadzone"]
         self.barrier_halflength_coeff = 0.5 + deadzone
-        self.barrier_halfwidth_coeff = 0.2 + deadzone * 0.5
+        self.barrier_halfwidth_coeff = 0.2 + deadzone * 0.2
         self.barrier_real_halflength = self.barrier_halflength_coeff * self.block_size
         self.barrier_real_halfwidth = self.barrier_halfwidth_coeff * self.block_size
 
@@ -171,6 +171,28 @@ class BuggyMaize():
         plt.pause(0.001)
         #plt.show()
 
+    def plot_grid_traj3(self, grid, path_spline, positions, costs, ctrs):
+        grid_cpy = np.copy(grid)
+        x_spln, y_spln = zip(*path_spline)
+
+        plt.cla()
+        plt.clf()
+        plt.imshow(grid_cpy)
+        plt.plot(y_spln, x_spln)
+
+        # Select 10 random positions
+        rnd_indeces = np.random.choice(np.arange(len(positions)), 10)
+        rnd_positions = positions[rnd_indeces]
+        rnd_costs = costs[rnd_indeces]
+        rnd_ctrs = ctrs[rnd_indeces]
+
+        for rp, rc, rctr in zip(rnd_positions, rnd_costs, rnd_ctrs):
+            rp_m, rp_n = self.xy_to_grid_parallel(rp[:rctr])
+            plt.plot(list(zip(*traj_def))[0], list(zip(*traj_def))[1], marker="o", color="r", label='def', markersize=3)
+
+        plt.pause(0.001)
+        #plt.show()
+
     def generate_shortest_path(self, grid, start, finish):
         grid = Grid(matrix=grid)
         start = grid.node(start[1],start[0])
@@ -261,7 +283,7 @@ class BuggyMaize():
         self.shortest_path_pts, self.shortest_path_pts_spline = self.generate_shortest_path(self.dense_grid, self.start, self.finish)
         self.dense_grid_field = self.generate_dense_grid_field(self.dense_grid, self.blocks)
         if GLOBAL_DEBUG:
-            self.plot_grid(self.dense_grid_field, self.shortest_path_pts, self.shortest_path_pts_spline)
+            self.plot_grid(self.dense_grid, self.shortest_path_pts, self.shortest_path_pts_spline)
 
 class BuggyMaizeEnv(gym.Env):
     metadata = {

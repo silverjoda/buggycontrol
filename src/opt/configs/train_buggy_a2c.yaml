@@ -2,7 +2,7 @@
 "train" : False
 "render" : True
 "default_session_ID" : "TRN"
-"iters" : 4000000
+"iters" : 3000000
 "env" : "default" # default/maize
 
 # RL algo
@@ -19,6 +19,7 @@
 "full_tensorboard_log" : False
 "policy_hid_dim" : 256
 "log_prefix" : "be1"
-"rew_thresh" : 45
+"rew_thresh" : 41
+"deterministic_eval" : False
 
 

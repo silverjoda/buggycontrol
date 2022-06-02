@@ -13,7 +13,9 @@ from src.envs.buggy_env_mujoco import BuggyEnv
 from src.policies import *
 from src.utils import load_config, dist_between_wps
 
-plt.ion()
+GLOBAL_DEBUG = False
+if GLOBAL_DEBUG:
+    plt.ion()
 
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 T.set_num_threads(1)

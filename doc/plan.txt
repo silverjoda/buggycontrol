@@ -10,7 +10,10 @@
 # Monday:
 ====== Buggy project =======
     - TODO: Add "progress" cost to free cost. The "progress" variable should be available in the maize itself
-    - TODO: Make full TEP testing
+    - TODO: Make traj resampling after optimization
+    - TODO: Make correct sar <-> xy conversion
+    - TODO: Make full opt_vs_mmpi traj plot on grid
+
 
 # Robotic transformations and frames:
 Motivation: Spot example in rviz (coordinate frames form a tree, show tf tree, switch between various fixed frames: world, base_link, sensor, etc)

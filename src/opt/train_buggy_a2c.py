@@ -44,7 +44,7 @@ class BuggyTrajFollowerTrainer:
             self.env = VecNormalize.load(self.stats_path, normed_env)
 
             N_test = 50
-            avg_rew, avg_visited = self.test_agent(deterministic=True, render=True, N=N_test)
+            avg_rew, avg_visited = self.test_agent(deterministic=self.config["deterministic_eval"], render=True, N=N_test)
             print(f"Avg test rew: {avg_rew}, n_visited: {avg_visited} ")
 
     def read_configs(self):
