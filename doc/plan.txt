@@ -15,6 +15,7 @@
     - TODO: Make full opt_vs_mmpi traj plot on grid
     - TODO: Default shortest path traj needs to be strictly outside the boundary pts of barriers (or barrier boundaries have to be shrunk)
     - TODO: Need to add barriers to plot (buggy_maize_env_mujoco plot_grid_traj3)!
+    - TODO: For TEP Add failure prediction maybe.
 
 
 # Robotic transformations and frames:
