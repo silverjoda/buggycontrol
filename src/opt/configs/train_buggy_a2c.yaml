@@ -17,7 +17,7 @@
 "learning_rate" : 0.0002 # 0.0002
 "verbose" : 1
 "full_tensorboard_log" : False
-"policy_hid_dim" : 256
+"policy_hid_dim" : 512
 "log_prefix" : "be1"
 "rew_thresh" : 44
 "deterministic_eval" : False
