@@ -11,12 +11,14 @@
 ====== Buggy project =======
     - TODO: Add "progress" cost to free cost. The "progress" variable should be available in the maize itself (maybe use iteration to find distance from goal and use as progress)
 
-    - TODO: Make traj resampling after optimization (?)
-    - TODO: Make correct sar <-> xy conversion
-    - TODO: Make trajectory resampling which has exactly x cm between each waypoint (or fix reconstruction from sar to xy)
+    - TODO: Analyze buggy env trajectory distances between waypoints. Make trajectory sampling by using interpolation between neighboring waypoints to achieve exactly x cm between waypoints
+    - TODO: Make correct sar <-> xy conversion and test.
+    - TODO: Check that the traj_tep_opimizer full test is working correctly and that the correct trajectories are being evaluated on.
 
     - TODO: Default shortest path traj needs to be strictly outside the boundary pts of barriers (or barrier boundaries have to be shrunk)
     - TODO: Need to add barriers to plot (buggy_maize_env_mujoco plot_grid_traj3)! Correct barrier positions and add optional distance to corner function!
+
+    - TODO: Check that the evaluate_traj_opt_vs_mppi_full full test is working correctly and that the correct trajectories are being evaluated on.
 
     - TODO: For TEP Add failure prediction maybe (or maybe just ignore failed episodes).
     - TODO: Make full opt_vs_mmpi traj plot on grid
