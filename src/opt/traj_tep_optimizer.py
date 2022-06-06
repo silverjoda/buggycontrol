@@ -13,7 +13,6 @@ from src.envs.buggy_env_mujoco import BuggyEnv
 from src.policies import *
 from src.utils import load_config, dist_between_wps
 
-
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 T.set_num_threads(1)
 
@@ -464,7 +463,7 @@ class TrajTepOptimizer:
 
         # Print out results
         table = [['Avg time taken', avg_time_taken, avg_time_1step, avg_time_agg_1step],
-                 [f'Failurs (out of {self.config["n_eval"]})', failure_def, failure_1step, failure_agg_1step],
+                 [f'Failures (out of {self.config["n_eval"]})', failure_def, failure_1step, failure_agg_1step],
                  ['Default TEP', tep_err_def, tep_err_1step, tep_err_1step_agg],
                  ['Aggreg TEP', tep_agg_err_def, tep_agg_err_1step, tep_agg_err_1step_agg]]
         print(tabulate(table, headers=['',  'Def traj', '1 step traj', '1 step agg traj']))
@@ -623,7 +622,7 @@ class TrajTepOptimizer:
 
         for i in range(self.config["n_step_opt"]):
             # etp loss
-            tep_loss = 0#tep(traj_opt)
+            tep_loss = tep(traj_opt)
 
             # Last point loss
             traj_opt_xy = self.sar_to_xy(traj_opt)
@@ -698,7 +697,7 @@ if __name__ == "__main__":
     tm.sb_model = sb_model
     #tm.make_dataset(render=False)
     #tm.train_tep()
-    tm.train_tep_1step_grad_aggregated()
+    #tm.train_tep_1step_grad_aggregated()
     #tm.test_tep(env, venv, sb_model)
     tm.test_tep_full()
 

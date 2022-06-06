@@ -17,6 +17,11 @@ T.set_num_threads(1)
 
 class BuggyControlTester:
     def __init__(self):
+        # Load RL agent(s)
+        with open(os.path.join(os.path.dirname(__file__), "configs/train_buggy_a2c.yaml"), 'r') as f:
+            self.algo_config = yaml.load(f, Loader=yaml.FullLoader)
+        self.buggy_rl_policy = A2C.load("agents/{}_SB_policy".format(self.algo_config["default_session_ID"]))
+
         # Make buggy env
         with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_maize_env_mujoco.yaml"), 'r') as f:
             self.buggy_config = yaml.load(f, Loader=yaml.FullLoader)
@@ -24,17 +29,12 @@ class BuggyControlTester:
         vec_env = DummyVecEnv(env_fns=[lambda: BuggyMaizeEnv(self.buggy_config)])
         monitor_env = VecMonitor(vec_env)
         normed_env = VecNormalize(venv=monitor_env, training=False, norm_obs=True, norm_reward=True, clip_reward=10.0)
-        self.buggy_maize_venv = VecNormalize.load("agents/TRN_DEF_vecnorm.pkl", normed_env)
+        self.buggy_maize_venv = VecNormalize.load("agents/{}_vecnorm.pkl".format(self.algo_config["default_session_ID"]), normed_env)
 
         # Make Mppi algo
         with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "ctrl/configs/control_buggy_mppi.yaml"), 'r') as f:
             self.mppi_config = yaml.load(f, Loader=yaml.FullLoader)
         self.mppi_algo = ControlBuggyMPPI(self.mppi_config)
-
-        # Load RL agent(s)
-        with open(os.path.join(os.path.dirname(__file__), "configs/train_buggy_a2c.yaml"), 'r') as f:
-            self.algo_config = yaml.load(f, Loader=yaml.FullLoader)
-        self.buggy_rl_policy = A2C.load("agents/{}_SB_policy".format(self.algo_config["default_session_ID"]))
 
         # Load tep(s)
         self.tep = TEPMLP(obs_dim=50, act_dim=1)
@@ -204,4 +204,4 @@ class BuggyControlTester:
 if __name__=="__main__":
     bct = BuggyControlTester()
     #bct.single_control_algo_evaluation(1337)
-    bct.test_system(render=True, plot=False)
+    bct.test_system(render=False, plot=True)
