@@ -12,7 +12,7 @@ from src.envs.engines import *
 from src.opt.simplex_noise import SimplexNoise
 from src.utils import e2q, dist_between_wps
 
-GLOBAL_DEBUG = False
+GLOBAL_DEBUG = True
 if GLOBAL_DEBUG:
     #plt.ion()
     figure = plt.figure()
@@ -106,7 +106,10 @@ class BuggyMaize():
         start = self.xy_to_grid(0, 0)
         finish = self.xy_to_grid(*blocks[-1])
 
-        dense_grid[-5:, :] = 1
+        # Cut out barriers around starting point
+        margin = 4
+        dense_grid[np.maximum(start[0] - margin, 0) : np.minimum(start[0] + margin, self.grid_X_len - 1),
+        np.maximum(start[1] - margin, 0): np.minimum(start[1] + margin, self.grid_Y_len - 1)] = 1
 
         return blocks, all_barriers, dense_grid, start, finish
 
@@ -195,7 +198,7 @@ class BuggyMaize():
 
     def generate_shortest_path(self, grid, start, finish):
         grid = Grid(matrix=grid)
-        start = grid.node(start[1],start[0])
+        start = grid.node(start[1], start[0])
         end = grid.node(finish[1], finish[0])
         finder = AStarFinder(diagonal_movement=DiagonalMovement.always)
         path_astar, runs = finder.find_path(start, end, grid)
@@ -232,6 +235,10 @@ class BuggyMaize():
         if self.dense_grid[m, n] < 1:
             return True
         return False
+
+    def get_progress_cost(self, pos_x, pos_y):
+        m, n = self.xy_to_grid(pos_x, pos_y)
+        return self.dense_grid_progress[m, n]
 
     def position_in_barrier_parallel(self, positions):
         grid_m, grid_n = self.xy_to_grid_parallel(positions)
@@ -279,12 +286,51 @@ class BuggyMaize():
         grid_field = np.clip(grid_field, 0, 1)
         return grid_field
 
+    def generate_dense_grid_progress(self, grid, blocks, start, finish):
+        # 0 are obstacles, 1 is default
+        grid_field = np.copy(grid)
+
+        # Default: 0, Obstacles: 1000
+        grid_field = -(grid_field - 1) * 1000
+
+        halflen = int(self.grid_block_len / 2)
+
+        for _ in range(150):
+            # Make new copy for iteration
+            grid_new = np.copy(grid_field)
+
+            # Go over all blocks and make value iteration for each gridpoint
+            for x, y in blocks:
+                m_c, n_c = self.xy_to_grid(x, y)
+                m_min = np.maximum(m_c - halflen - 7, 0)
+                m_max = np.minimum(m_c + halflen + 7, self.grid_X_len - 1)
+                n_min = np.maximum(n_c - halflen - 7, 0)
+                n_max = np.minimum(n_c + halflen + 7, self.grid_Y_len - 1)
+
+                for i in range(m_min, m_max):
+                    for j in range(n_min, n_max):
+                        # Here we are iterating over the actual grid points
+                        grid_new[finish[0], finish[1]] = 0
+
+                        if grid_field[i, j] < 1000:
+                            grid_new[i, j] = np.min([grid_field[i-1, j],
+                                                grid_field[i+1, j],
+                                                grid_field[i, j-1],
+                                                grid_field[i, j+1]]) + 1
+
+            grid_field = grid_new
+
+        grid_field = np.clip(grid_field, 0, 1000)
+        return grid_field
+
     def reset(self):
         self.blocks, self.all_barriers, self.dense_grid, self.start, self.finish = self.generate_random_maize()
         self.shortest_path_pts, self.shortest_path_pts_spline = self.generate_shortest_path(self.dense_grid, self.start, self.finish)
         self.dense_grid_field = self.generate_dense_grid_field(self.dense_grid, self.blocks)
+        self.dense_grid_progress = self.generate_dense_grid_progress(self.dense_grid, self.blocks, self.start, self.finish)
         if GLOBAL_DEBUG:
-            self.plot_grid(self.dense_grid, self.shortest_path_pts, self.shortest_path_pts_spline)
+            self.plot_grid(self.dense_grid_progress, self.shortest_path_pts, self.shortest_path_pts_spline)
+
 
 class BuggyMaizeEnv(gym.Env):
     metadata = {

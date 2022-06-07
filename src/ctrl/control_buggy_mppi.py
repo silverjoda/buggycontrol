@@ -201,7 +201,7 @@ def evaluate_rollout(args):
 def evaluate_rollout_free(args):
     mppi_rollout_positions, mppi_rollout_velocities, maize = args
     velocity_cost = 0
-    barrier_cost = 0
+    progress_cost = 0
     center_deviation_cost = 0
     ctr = 0
     for rp, rv in zip(mppi_rollout_positions, mppi_rollout_velocities):
@@ -211,10 +211,9 @@ def evaluate_rollout_free(args):
         # Calculate if in barrier
         in_barrier = maize.position_in_barrier(rp[0], rp[1])
 
-        barrier_cost += in_barrier * 300
+        progress_cost += maize.get_progress_cost(rp[0], rp[1])
 
-        dist_from_centerline = maize.dist_from_centerline(*rp[:2])
-        center_deviation_cost += dist_from_centerline
+        center_deviation_cost += maize.dist_from_centerline(*rp[:2])
 
         ctr += 1
 
@@ -222,7 +221,7 @@ def evaluate_rollout_free(args):
 
     # Calculate center deviation of final state cost
     center_deviation_cost += maize.dist_from_centerline(*mppi_rollout_positions[-1, :2])
-    total_cost = center_deviation_cost * 10. + velocity_cost + barrier_cost
+    total_cost = center_deviation_cost * 10. + velocity_cost + progress_cost
 
     return total_cost, ctr
 
