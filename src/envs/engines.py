@@ -49,6 +49,11 @@ class Engine:
 
     def reset_trajectory(self, traj_pts_in=None):
         self.wp_list = self.generate_random_traj(traj_pts_in=traj_pts_in)
+        # DEBUG
+        #for i in range(len(self.wp_list) - 1):
+        #    print(dist_between_wps(self.wp_list[i], self.wp_list[i + 1]))
+        #exit()
+        # DEBUG
         self.cur_wp_idx = 0
         self.cur_mujoco_wp_idx = 0
         self.set_wp_visuals()
@@ -167,18 +172,47 @@ class Engine:
             traj_pts = traj_pts_in
 
         # Sample equidistant points
-        wp_list = []
-        cum_wp_dist = 0
-        for i in range(1, len(traj_pts)):
-            cum_wp_dist += dist_between_wps(traj_pts[i], traj_pts[i-1])
-            if cum_wp_dist > self.config["wp_sample_dist"]:
-                wp_list.append(traj_pts[i])
-                cum_wp_dist = 0
+        wp_list = self.resample_traj_euc(traj_pts)
 
         # Debug plot
         if plot:
             self.plot_traj(traj_pts, wp_list)
 
+        return wp_list
+
+    def resample_traj(self, traj_pts):
+        def interp(wp1, wp2, wp_dist, cum_dist, sample_dist):
+            dist_to_next_wp = cum_dist - sample_dist
+            alpha = dist_to_next_wp / wp_dist
+            return wp1[0] * (alpha) + wp2[0] * (1 - alpha), wp1[1] * (alpha) + wp2[1] * (1 - alpha)
+        wp_list = [traj_pts[0]]
+        last_wp = traj_pts[0]
+        cum_wp_dist = 0
+        for i in range(1, len(traj_pts)):
+            wp_dist = dist_between_wps(traj_pts[i], last_wp)
+            cum_wp_dist += wp_dist
+            if cum_wp_dist >= self.config["wp_sample_dist"]:
+                new_wp = interp(last_wp, traj_pts[i], wp_dist, cum_wp_dist, self.config["wp_sample_dist"])
+                wp_list.append(new_wp)
+                last_wp = deepcopy(new_wp)
+                cum_wp_dist = 0
+            else:
+                last_wp = traj_pts[i]
+        return wp_list
+
+    def resample_traj_euc(self, traj_pts):
+        def interp(wp1, wp2, wp_dist, cum_dist, sample_dist):
+            dist_to_next_wp = cum_dist - sample_dist
+            alpha = dist_to_next_wp / wp_dist
+            return wp1[0] * (alpha) + wp2[0] * (1 - alpha), wp1[1] * (alpha) + wp2[1] * (1 - alpha)
+        wp_list = [traj_pts[0]]
+        last_wp = traj_pts[0]
+        for i in range(1, len(traj_pts)):
+            wp_dist = dist_between_wps(traj_pts[i], last_wp)
+            if wp_dist >= self.config["wp_sample_dist"]:
+                new_wp = interp(traj_pts[i-1], traj_pts[i], dist_between_wps(traj_pts[i], traj_pts[i-1]), wp_dist, self.config["wp_sample_dist"])
+                wp_list.append(new_wp)
+                last_wp = deepcopy(new_wp)
         return wp_list
 
     def plot_traj(self, traj_pts, wp_list):
@@ -188,7 +222,8 @@ class Engine:
         wp_x = [x for x,_ in wp_list]
         wp_y = [y for _, y in wp_list]
         import matplotlib.pyplot as plt
-        plt.scatter(traj_pts_x, traj_pts_y)
+        plt.scatter(traj_pts_x, traj_pts_y, marker='o')
+        plt.scatter(wp_x, wp_y, marker='x')
         plt.show()
         exit()
 

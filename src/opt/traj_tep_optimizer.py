@@ -53,40 +53,32 @@ class TrajTepOptimizer:
 
         return env, venv, sb_model
 
-    def make_dataset(self, render=True):
+    def make_dataset(self, render=False):
         print("Starting dataset creation")
         obs_list = []
-        rew_list = []
+        time_taken_list = []
         for i in range(self.n_dataset_pts):
             obs = self.env.reset()
-            traj = [item for sublist in self.env.engine.wp_list[:self.max_num_wp] for item in sublist]
-            episode_rew = self.evaluate_rollout(obs, self.env, self.venv, self.sb_model, traj=None, render=False, deterministic=self.config["deterministic_eval"])
-            # #DEBUG TO SEE HOW CONSISTENT EVALUATION IS
-            # traj_raw = deepcopy(self.env.engine.wp_list)
-            # print("NEW TRAJ")
-            # for j in range(10):
-            #     det = j < 5
-            #     episode_rew = self.evaluate_rollout(obs, traj=None, render=False, deterministic=self.config["deterministic_eval"])
-            #     print(f"Deterministic: {det}", episode_rew)
-            #     obs = self.env.reset()
-            #     self.env.engine.wp_list = traj_raw
-            obs_list.append(traj)
-            rew_list.append(episode_rew)
+            traj_flat = [item for sublist in self.env.engine.wp_list[:self.max_num_wp] for item in sublist]
+            time_taken = self.evaluate_rollout(obs, self.env, self.venv, self.sb_model, traj=None, render=render, deterministic=self.config["deterministic_eval"])
+
+            obs_list.append(traj_flat)
+            time_taken_list.append(time_taken)
 
             if i % 10 == 0:
                 print(f"Iter: {i}/{self.n_dataset_pts}")
 
         obs_arr = np.array(obs_list, dtype=np.float32)
-        rew_arr = np.array(rew_list, dtype=np.float32)
+        time_taken_arr = np.array(time_taken_list, dtype=np.float32)
 
         np.save(self.x_file_path, obs_arr)
-        np.save(self.y_file_path, rew_arr)
+        np.save(self.y_file_path, time_taken_arr)
 
-        return obs_arr, rew_arr
+        return obs_arr, time_taken_arr
 
     def evaluate_rollout(self, obs, env, venv, sb_policy, traj=None, distances=None, render=False, deterministic=True):
         if traj is not None:
-            env.engine.wp_list = list(traj)
+            env.engine.set_trajectory(list(traj))
 
         obs = venv.normalize_obs(obs[0])
         episode_rew = 0
@@ -143,7 +135,7 @@ class TrajTepOptimizer:
                                     weight_decay=self.config['w_decay'])
         lossfun = T.nn.MSELoss()
 
-        for i in range(self.config["trn_iters"]):
+        for i in range(self.config["tep_iters"]):
             rnd_start_idx = np.random.randint(low=0, high=len(X) - self.config["batchsize"] - 1)
             x = X[rnd_start_idx:rnd_start_idx + self.config["batchsize"]]
             y = Y[rnd_start_idx:rnd_start_idx + self.config["batchsize"]]
@@ -159,7 +151,7 @@ class TrajTepOptimizer:
 
             if i % 50 == 0:
                 print(
-                    "Iter {}/{}, policy_loss: {}".format(i, self.config['trn_iters'], tep_loss.data))
+                    "Iter {}/{}, policy_loss: {}".format(i, self.config['tep_iters'], tep_loss.data))
         print("Done training, saving model")
         if not os.path.exists("agents"):
             os.makedirs("agents")
@@ -249,8 +241,10 @@ class TrajTepOptimizer:
         tep = TEPMLP(obs_dim=50, act_dim=1)
         tep.load_state_dict(T.load("agents/full_traj_tep.p"), strict=False)
 
+        # TODO: continue checking here
+
         # Core dataset
-        N_traj = 2000
+        N_traj = 3000
         X = np.load(self.x_file_path, allow_pickle=True)[:N_traj]
         Y = np.load(self.y_file_path)[:N_traj]
 
@@ -695,9 +689,9 @@ if __name__ == "__main__":
     tm.env = env
     tm.venv = venv
     tm.sb_model = sb_model
-    #tm.make_dataset(render=False)
+    #tm.make_dataset(render=True)
     #tm.train_tep()
-    #tm.train_tep_1step_grad_aggregated()
+    tm.train_tep_1step_grad_aggregated()
     #tm.test_tep(env, venv, sb_model)
     tm.test_tep_full()
 

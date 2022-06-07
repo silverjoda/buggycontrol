@@ -9,9 +9,7 @@
 
 # Monday:
 ====== Buggy project =======
-    - TODO: Add "progress" cost to free cost. The "progress" variable should be available in the maize itself (maybe use iteration to find distance from goal and use as progress)
-
-    - TODO: Analyze buggy env trajectory distances between waypoints. Make trajectory sampling by using interpolation between neighboring waypoints to achieve exactly x cm between waypoints
+    - TODO: go over each component of traj tep optimizer (including sar xy conv) and check correctness
     - TODO: Make correct sar <-> xy conversion and test.
     - TODO: Check that the traj_tep_opimizer full test is working correctly and that the correct trajectories are being evaluated on.
 

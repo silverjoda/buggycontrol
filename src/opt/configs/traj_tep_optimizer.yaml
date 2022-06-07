@@ -2,14 +2,13 @@
 "max_num_wp" : 50
 "max_steps" : 500
 "policy_lr" : 0.004
-"w_decay" : 0.001
-"trn_iters" : 3000
+"w_decay" : 0.0005
 "batchsize" : 256
 "tep_iters" : 8000
 "n_epochs" : 32
 "n_traj_update" : 128
 "n_eval" : 30
-"deterministic_eval" : False
+"deterministic_eval" : True
 "plot_trajs" : False
 "n_step_opt" : 0
 "traj_opt_rate" : 0.015

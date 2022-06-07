@@ -273,7 +273,6 @@ class TEPMLP(nn.Module):
         out = self.fc3(fc2)
         return out
 
-
 class TEPMLPDEEP(nn.Module):
     def __init__(self, obs_dim, act_dim, hid_dim=256, n_hidden=1):
         super(TEPMLPDEEP, self).__init__()
