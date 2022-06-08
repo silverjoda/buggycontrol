@@ -7,7 +7,7 @@
 "tep_iters" : 8000
 "n_epochs" : 32
 "n_traj_update" : 196
-"n_eval" : 30
+"n_eval" : 100
 "deterministic_eval" : False
 "plot_trajs" : False
 "render" : False

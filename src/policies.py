@@ -256,14 +256,7 @@ class TEPMLP(nn.Module):
         self.fc2 = T.nn.Linear(self.hid_dim, self.hid_dim, bias=True)
         self.fc3 = T.nn.Linear(self.hid_dim, self.act_dim, bias=True)
 
-        T.nn.init.xavier_uniform_(self.fc1.weight)
-        self.fc1.bias.data.fill_(0.01)
-
-        T.nn.init.xavier_uniform_(self.fc2.weight)
-        self.fc2.bias.data.fill_(0.01)
-
-        T.nn.init.xavier_uniform_(self.fc3.weight)
-        self.fc3.bias.data.fill_(0.01)
+        self.make_initialization()
 
         self.nonlin = T.tanh
 
@@ -272,6 +265,16 @@ class TEPMLP(nn.Module):
         fc2 = self.nonlin(self.fc2(fc1) + fc1)
         out = self.fc3(fc2)
         return out
+
+    def make_initialization(self):
+        T.nn.init.xavier_uniform_(self.fc1.weight)
+        self.fc1.bias.data.fill_(0.01)
+
+        T.nn.init.xavier_uniform_(self.fc2.weight)
+        self.fc2.bias.data.fill_(0.01)
+
+        T.nn.init.xavier_uniform_(self.fc3.weight)
+        self.fc3.bias.data.fill_(0.01)
 
 class TEPMLPDEEP(nn.Module):
     def __init__(self, obs_dim, act_dim, hid_dim=256, n_hidden=1):

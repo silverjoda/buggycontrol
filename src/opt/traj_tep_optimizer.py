@@ -265,6 +265,10 @@ class TrajTepOptimizer:
             n_data = len(X_list)
 
             # ===== TRAIN TEP ======
+
+            # Reinitialize tep to random weights
+            tep.make_initialization()
+
             for i in range(0, self.config["tep_iters"]):
                 # Get random minibatch
                 rnd_indeces = np.random.choice(np.arange(n_data), self.config["batchsize"], replace=False)
