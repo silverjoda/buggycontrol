@@ -53,14 +53,14 @@ class TrajTepOptimizer:
 
         return env, venv, sb_model
 
-    def make_dataset(self, render=False):
+    def make_dataset(self):
         print("Starting dataset creation")
         obs_list = []
         time_taken_list = []
         for i in range(self.n_dataset_pts):
             obs = self.env.reset()
             traj_flat = [item for sublist in self.env.engine.wp_list[:self.max_num_wp] for item in sublist]
-            time_taken = self.evaluate_rollout(obs, self.env, self.venv, self.sb_model, traj=None, render=render, deterministic=self.config["deterministic_eval"])
+            time_taken = self.evaluate_rollout(obs, self.env, self.venv, self.sb_model, traj=None, render=self.config["render"], deterministic=self.config["deterministic_eval"])
 
             obs_list.append(traj_flat)
             time_taken_list.append(time_taken)
@@ -241,18 +241,16 @@ class TrajTepOptimizer:
         tep = TEPMLP(obs_dim=50, act_dim=1)
         tep.load_state_dict(T.load("agents/full_traj_tep.p"), strict=False)
 
-        # TODO: continue checking here
-
         # Core dataset
-        N_traj = 3000
-        X = np.load(self.x_file_path, allow_pickle=True)[:N_traj]
-        Y = np.load(self.y_file_path)[:N_traj]
+        X = np.load(self.x_file_path, allow_pickle=True)
+        Y = np.load(self.y_file_path)
+        N_traj = len(X)
 
         # Change to successive angle representation
         X = T.tensor(self.get_successive_angle_representation(X), dtype=T.float32) # 1000, 50
         Y = T.tensor(Y, dtype=T.float32).unsqueeze(1) # 1000, 1
 
-        # Make dataset into list of tensors
+        # Turn dataset into list of tensors
         X_list = [x for x in X]
         Y_list = [y for y in Y]
 
@@ -292,18 +290,24 @@ class TrajTepOptimizer:
             # Update random trajectories from initial dataset and add to dataset
             rnd_indeces = np.random.choice(np.arange(N_traj), self.config["n_traj_update"], replace=False)
             x_list = T.stack([X_list[ri] for ri in rnd_indeces])
-            for x_traj in x_list:
+            #y_list = T.stack([Y_list[ri] for ri in rnd_indeces])
+            for idx, x_traj in enumerate(x_list):
                 x_ud_traj = T.clone(x_traj).detach()
                 x_ud_traj.requires_grad = True
                 x_ud_traj = self.optimize_traj(x_ud_traj, tep)
                 X_list.append(x_ud_traj)
 
-                #self.plot_trajs2(x_traj[:50], x_ud_traj)
+                if self.config["plot_trajs"]:
+                    self.plot_trajs2(x_traj[:50], x_ud_traj)
+                    time.sleep(1.6)
 
                 # Annotate the new X_ud
                 obs = env.reset()
-                rew = self.evaluate_rollout(obs, env, venv, sb_policy, self.sar_to_xy(x_ud_traj).detach().numpy())
-                Y_list.append(T.tensor([rew]))
+                time_taken = self.evaluate_rollout(obs, env, venv, sb_policy, self.sar_to_xy(x_ud_traj).detach().numpy())
+                #obs = env.reset()
+                #rew_orig = self.evaluate_rollout(obs, env, venv, sb_policy, self.sar_to_xy(x_traj).detach().numpy())
+                #print(rew_orig, y_list[idx])
+                Y_list.append(T.tensor([time_taken]))
 
             print("Epoch: {}, finished updating dataset".format(ep))
 
@@ -358,11 +362,11 @@ class TrajTepOptimizer:
         failure_1step = 0
         failure_agg_1step = 0
 
-        render = False
+        render = self.config["render"]
         plot = self.config["plot_trajs"]
         for i in range(self.config["n_eval"]):
             obs = self.env.reset()
-            self.env.engine.wp_list = self.env.engine.wp_list[:50]
+            self.env.engine.set_trajectory(self.env.engine.wp_list[:50])
             traj = deepcopy(self.env.engine.wp_list)
             traj_sar, distances = self.xy_to_sar(traj[:50])
             traj_T_sar = T.tensor(traj_sar, dtype=T.float32, requires_grad=True)
@@ -379,9 +383,9 @@ class TrajTepOptimizer:
             # DEF TEP ==================================
             # Make trajectory update
             traj_T_sar_ud = self.optimize_traj(traj_T_sar, tep_def)
-            traj_T_ud = self.sar_to_xy(traj_T_sar_ud, distances)
-            self.env.reset()
-            self.env.engine.wp_list = list(traj_T_ud.detach().numpy())
+            traj_T_ud = self.sar_to_xy(traj_T_sar_ud)
+            obs = self.env.reset()
+            self.env.engine.set_trajectory(traj_T_ud.detach().numpy())
 
             # Rollout on corrected traj
             time_taken_1step = self.evaluate_rollout(obs, self.env, self.venv, self.sb_model, traj=traj_T_ud.detach().numpy(), render=render, deterministic=self.config["deterministic_eval"])
@@ -394,17 +398,17 @@ class TrajTepOptimizer:
             # AGG TEP ==================================
             # Make trajectory update
             traj_T_sar_ud_agg = self.optimize_traj(traj_T_sar, tep_agg)
-            traj_T_ud_agg = self.sar_to_xy(traj_T_sar_ud_agg, distances)
-            self.env.reset()
-            self.env.engine.wp_list = list(traj_T_ud_agg.detach().numpy())
+            traj_T_ud_agg = self.sar_to_xy(traj_T_sar_ud_agg)
+            obs = self.env.reset()
+            self.env.engine.set_trajectory(list(traj_T_ud_agg.detach().numpy()))
 
             # Rollout on corrected traj
             time_taken_agg_1step = self.evaluate_rollout(obs, self.env, self.venv, self.sb_model, traj=traj_T_ud_agg.detach().numpy(),
                                                      render=render, deterministic=self.config["deterministic_eval"])
 
             # Make tep prediction on updated traj
-            tep_def_pred_agg_1step = tep_def(traj_T_sar_ud)[0].data
-            tep_agg_pred_agg_1step = tep_agg(traj_T_sar_ud)[0].data
+            tep_def_pred_agg_1step = tep_def(traj_T_sar_ud_agg)[0].data
+            tep_agg_pred_agg_1step = tep_agg(traj_T_sar_ud_agg)[0].data
             # ==========================================
 
             print(f"Time taken: {time_taken}, time predicted using def tep: {tep_def_pred}, time predicted using agg tep: {tep_agg_pred}")
@@ -412,9 +416,11 @@ class TrajTepOptimizer:
             print(f"Time taken after n step update using agg tep: {time_taken_agg_1step}, time predicted after n step agg update using def tep: {tep_def_pred_agg_1step}, time predicted after n step update using agg tep: {tep_agg_pred_agg_1step}")
             print("------------------------------------------------------------------------------------------------------------")
 
+            #traj_xy_recon = self.sar_to_xy(T.tensor(traj_sar[:50]))
             # Plot before and after trajectories
             if plot:
                 self.plot_trajs3(traj[:50], traj_T_ud.detach().numpy(), traj_T_ud_agg.detach().numpy())
+                #self.plot_trajs3(traj[:50], traj[:50], traj_xy_recon.detach().numpy())
                 time.sleep(2.8)
 
             # Errors on def traj
@@ -505,30 +511,14 @@ class TrajTepOptimizer:
         traj_T = self.sar_to_xy(traj_xy).detach().numpy()
         traj_T_ud = self.sar_to_xy(traj_T_sar_ud).detach().numpy()
 
-        line1, = self.ax.plot(list(zip(*traj_T))[0], list(zip(*traj_T))[1], marker="o", color="r", markersize=3)
-        line2, = self.ax.plot(list(zip(*traj_T_ud))[0], list(zip(*traj_T_ud))[1], marker="o", color="b", markersize=3)
-        #self.ax.scatter([4, 6, 17], [.5, .5, 0], s=200, c=['r', 'r', 'w'])
+        line1, = self.ax.plot(list(zip(*traj_T))[0], list(zip(*traj_T))[1], marker="o", color="r", label='def', markersize=3)
+        line2, = self.ax.plot(list(zip(*traj_T_ud))[0], list(zip(*traj_T_ud))[1], marker="o", color="b", label='1st', markersize=3)
+        self.ax.legend()
+
         plt.grid()
         plt.xlim([-6, 6])
         plt.ylim([-6, 6])
 
-        # ax.quiver(traj_reshaped[:, 0],
-        #           traj_reshaped[:, 1],
-        #           grad_reshaped[:, 0],
-        #           grad_reshaped[:, 1],
-        #           width=0.001,
-        #           color=[1, 0, 0])
-        #
-        # ax.quiver(traj_reshaped[:, 0],
-        #           traj_reshaped[:, 1],
-        #           scaled_grad_reshaped[:, 0],
-        #           scaled_grad_reshaped[:, 1],
-        #           width=0.001,
-        #           color=[0, 0, 1])
-
-        # x, y = list(zip(*[t.detach().numpy() for t in traj_T.reshape((len(traj_T) // 2, 2))]))
-        # line1.set_xdata(x)
-        # line1.set_ydata(y)
         self.figure.canvas.draw()
         self.figure.canvas.flush_events()
 
@@ -653,17 +643,6 @@ class TrajTepOptimizer:
         closest_dist = np.min(distances)
         return closest_ep, closest_dist
 
-    def optimize_env_traj(self, env, tep):
-        traj = T.tensor(env.engine.wp_list)
-        pred_before = tep(traj)
-        traj_opt = self.optimize_traj(traj, tep)
-        pred_after = tep(traj_opt)
-
-        raise NotImplementedError
-        # TODO: THIS IS MOST LIKELY WRONG
-        env.engine.reset_trajectory(list(traj_opt.detach().numpy()))
-        return pred_after.data - pred_before
-
     def xy_to_sar(self, X):
         X = np.concatenate((np.zeros(2)[np.newaxis, :], np.array(X)))
         X_new = np.arctan2(X[1:, 1] - X[:-1, 1], X[1:, 0] - X[:-1, 0])
@@ -674,10 +653,10 @@ class TrajTepOptimizer:
 
     def sar_to_xy(self, X, distances=None):
         if distances is None:
-            distances = T.ones(len(X), dtype=T.float32) * 0.175
+            distances = T.ones(len(X), dtype=T.float32) * 0.17
+            distances[0] = 0
         else:
             distances = T.tensor(distances, dtype=T.float32)
-        #wp_dist = 0.17
         pd_x = T.cumsum(T.cos(X) * distances, dim=0).unsqueeze(1)
         pd_y = T.cumsum(T.sin(X) * distances, dim=0).unsqueeze(1)
         traj_T = T.concat((pd_x, pd_y), dim=1)
@@ -689,8 +668,8 @@ if __name__ == "__main__":
     tm.env = env
     tm.venv = venv
     tm.sb_model = sb_model
-    #tm.make_dataset(render=True)
-    #tm.train_tep()
+    tm.make_dataset()
+    tm.train_tep()
     tm.train_tep_1step_grad_aggregated()
     #tm.test_tep(env, venv, sb_model)
     tm.test_tep_full()

@@ -21,6 +21,8 @@
     - TODO: For TEP Add failure prediction maybe (or maybe just ignore failed episodes).
     - TODO: Make full opt_vs_mmpi traj plot on grid
 
+    - TODO: Train agent with significantly more tyre friction
+
 
 # Robotic transformations and frames:
 Motivation: Spot example in rviz (coordinate frames form a tree, show tf tree, switch between various fixed frames: world, base_link, sensor, etc)
