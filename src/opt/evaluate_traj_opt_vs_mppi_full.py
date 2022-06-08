@@ -163,8 +163,7 @@ class BuggyControlTester:
         env.seed(seed)
         obs = env.reset()
         obs = venv.normalize_obs(obs)
-        env.engine.wp_list = test_traj
-        env.engine.update_wp_visuals()
+        env.engine.set_trajectory(list(test_traj))
 
         episode_rew = 0
         step_ctr = 0
