@@ -12,7 +12,7 @@ from src.envs.engines import *
 from src.opt.simplex_noise import SimplexNoise
 from src.utils import e2q, dist_between_wps
 
-GLOBAL_DEBUG = True
+GLOBAL_DEBUG = False
 if GLOBAL_DEBUG:
     #plt.ion()
     figure = plt.figure()

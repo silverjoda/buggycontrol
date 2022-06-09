@@ -623,8 +623,8 @@ class TrajTepOptimizer:
                 closest_edgept, dist = self.find_closest_edgepoint(xy.detach(), edgepoints)
 
                 # If edge point close enough then apply loss (doesn't apply to inital n pts)
-                if dist < 0.3 and xy_idx > 5:
-                    barrier_loss_list.append(-flattened_mse(xy, T.tensor(closest_edgept)) * self.config["traj_barrier_coeff"])
+                if dist < 0.15 and xy_idx > 2:
+                    barrier_loss_list.append(-flattened_mse(xy, T.tensor(closest_edgept, dtype=T.float32)) * self.config["traj_barrier_coeff"])
 
             barrier_loss_sum = 0
             if len(barrier_loss_list) > 0:
