@@ -97,7 +97,7 @@ class BuggyControlTester:
         return def_rl_agent_res, updated_traj_rl_agent_res, updated_1step_traj_rl_agent_res, mppi_traj_follower_res, mppi_free_res, trajs
 
     def test_system(self, render=False, plot=False):
-        N_test_iters = 10
+        N_test_iters = 100
         seeds = np.arange(N_test_iters) + 1337
         #seeds = np.random.randint(0, 1000, N_test_iters)
 
@@ -191,8 +191,8 @@ class BuggyControlTester:
         rnd_indeces = np.random.choice(np.arange(n_traj), N_plot, replace=False)
 
         fig, axs = plt.subplots(1, N_plot)
-        for i in rnd_indeces:
-            traj_def, traj_1step, traj_agg_1step = traj_list[i]
+        for i in range(N_plot):
+            traj_def, traj_1step, traj_agg_1step = traj_list[rnd_indeces[i]]
             axs[i].plot(list(zip(*traj_def))[0], list(zip(*traj_def))[1], marker="o", color="r", label='def', markersize=3)
             axs[i].plot(list(zip(*traj_1step))[0], list(zip(*traj_1step))[1], marker="o", color="g", label='1st', markersize=3)
             axs[i].plot(list(zip(*traj_agg_1step))[0], list(zip(*traj_agg_1step))[1], marker="o", color="b", label='1st_agg', markersize=3)
