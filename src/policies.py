@@ -332,17 +332,15 @@ class TEPRNN(nn.Module):
         self.hid_dim_2 = hid_dim_2
         self.bidirectional = bidirectional
 
-        self.fc1 = T.nn.Linear(2, 6, bias=True)
-        self.rnn = T.nn.LSTM(input_size=6, hidden_size=self.hid_dim, num_layers=num_layers, bias=True, batch_first=True, bidirectional=bidirectional)
+        self.rnn = T.nn.LSTM(input_size=1, hidden_size=self.hid_dim, num_layers=num_layers, bias=True, batch_first=True, bidirectional=bidirectional)
         self.fc2 = T.nn.Linear(self.hid_dim * (1 + bidirectional), self.hid_dim_2, bias=True)
         self.fc3 = T.nn.Linear(self.hid_dim_2, 1, bias=True)
 
         self.nonlin = F.tanh
 
     def forward(self, x):
-        x_reshaped = T.reshape(x, (len(x), self.n_waypts, 2))
-        fc1 = self.nonlin(self.fc1(x_reshaped))
-        rnn1, _ = self.rnn(fc1)
+        x_reshaped = T.reshape(x, (len(x), self.n_waypts, 1))
+        rnn1, _ = self.rnn(x_reshaped)
         fc2 = self.nonlin(self.fc2(rnn1))
         fc2_sum = T.sum(fc2, 1)
         fc3 = self.fc3(fc2_sum)
@@ -377,7 +375,7 @@ class TEPTX(nn.Module):
         self.embed_dim = embed_dim
         self.kdim = kdim
 
-        self.fc_emb = T.nn.Linear(2, embed_dim, bias=True)
+        self.fc_emb = T.nn.Linear(1, embed_dim, bias=True)
         self.fc_key = T.nn.Linear(embed_dim, kdim)
         self.fc_val = T.nn.Linear(embed_dim, kdim)
 
@@ -407,11 +405,11 @@ class TEPTX(nn.Module):
 
     def forward(self, x):
         # Reshape and turn to embedding
-        x_reshaped = T.reshape(x, (len(x), self.n_waypts, 2))
+        x_reshaped = T.reshape(x, (len(x), self.n_waypts, 1))
         emb = self.nonlin(self.fc_emb(x_reshaped))
 
         # Get positional enc and add to emb
-        pos_emb = self.get_pos_emb(batch_size=x.shape[0], seq_len=x.shape[1] // 2, d=self.embed_dim)
+        pos_emb = self.get_pos_emb(batch_size=x.shape[0], seq_len=x.shape[1], d=self.embed_dim)
         emb = emb + pos_emb
 
         # Multi head attention layer 1

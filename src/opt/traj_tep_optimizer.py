@@ -121,15 +121,24 @@ class TrajTepOptimizer:
         X = self.get_successive_angle_representation(X)
 
         # Prepare policy and training
-        tep = TEPMLP(obs_dim=X.shape[1], act_dim=1)
-        #tep = TEPMLPDEEP(obs_dim=X.shape[1], act_dim=1)
+        if self.config["tep_class"] == "MLP":
+            tep = TEPMLP(obs_dim=X.shape[1], act_dim=1)
+            save_name = "agents/mlp_full_traj_tep.p"
+        elif self.config["tep_class"] == "MLPDEEP":
+            tep = TEPMLPDEEP(obs_dim=X.shape[1], act_dim=1)
+            save_name = "agents/mlpdeep_full_traj_tep.p"
+        elif self.config["tep_class"] == "RNN":
+            tep = TEPRNN(n_waypts=X.shape[1], hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
+            save_name = "agents/rnn_full_traj_tep.p"
+        elif self.config["tep_class"] == "RNN2":
+            tep = TEPRNN2(n_waypts=X.shape[1], hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
+            save_name = "agents/rnn2_full_traj_tep.p"
+        elif self.config["tep_class"] == "TX":
+            tep = TEPTX(n_waypts=X.shape[1], embed_dim=36, num_heads=6, kdim=36)
+            save_name = "agents/tx_full_traj_tep.p"
+        else:
+            raise NotImplementedError
 
-        #RNN
-        #tep = TEPRNN(n_waypts=X.shape[1] // 2, hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
-        #tep = TEPRNN2(n_waypts=X.shape[1], hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
-
-        # emb_dim = 36
-        #tep = TEPTX(n_waypts=X.shape[1] // 2, embed_dim=36, num_heads=6, kdim=36)
         tep_optim = T.optim.Adam(params=tep.parameters(),
                                     lr=self.config['policy_lr'],
                                     weight_decay=self.config['w_decay'])
@@ -155,7 +164,7 @@ class TrajTepOptimizer:
         print("Done training, saving model")
         if not os.path.exists("agents"):
             os.makedirs("agents")
-        T.save(tep.state_dict(), "agents/full_traj_tep.p")
+        T.save(tep.state_dict(), save_name)
 
     def train_tep_1step_grad(self):
         raise NotImplementedError
@@ -237,14 +246,30 @@ class TrajTepOptimizer:
     def train_tep_1step_grad_aggregated(self):
         env, venv, sb_policy = self.load_model_and_env()
 
-        # Load pretrained tep
-        tep = TEPMLP(obs_dim=50, act_dim=1)
-        tep.load_state_dict(T.load("agents/full_traj_tep.p"), strict=False)
-
         # Core dataset
         X = np.load(self.x_file_path, allow_pickle=True)
         Y = np.load(self.y_file_path)
         N_traj = len(X)
+
+        if self.config["tep_class"] == "MLP":
+            tep = TEPMLP(obs_dim=X.shape[1], act_dim=1)
+            save_name = "mlp_full_traj_tep"
+        elif self.config["tep_class"] == "MLPDEEP":
+            tep = TEPMLPDEEP(obs_dim=X.shape[1], act_dim=1)
+            save_name = "mlpdeep_full_traj_tep"
+        elif self.config["tep_class"] == "RNN":
+            tep = TEPRNN(n_waypts=X.shape[1], hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
+            save_name = "rnn_full_traj_tep"
+        elif self.config["tep_class"] == "RNN2":
+            tep = TEPRNN2(n_waypts=X.shape[1], hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
+            save_name = "rnn2_full_traj_tep"
+        elif self.config["tep_class"] == "TX":
+            tep = TEPTX(n_waypts=X.shape[1], embed_dim=36, num_heads=6, kdim=36)
+            save_name = "tx_full_traj_tep"
+        else:
+            raise NotImplementedError
+
+        tep.load_state_dict(T.load(f"agents/{save_name}.p"), strict=False)
 
         # Change to successive angle representation
         X = T.tensor(self.get_successive_angle_representation(X), dtype=T.float32) # 1000, 50
@@ -319,11 +344,27 @@ class TrajTepOptimizer:
         print("Done training, saving model")
         if not os.path.exists("agents"):
             os.makedirs("agents")
-        T.save(tep.state_dict(), "agents/full_traj_tep_1step.p")
+        T.save(tep.state_dict(), f"agents/{save_name}_1step.p")
 
     def test_tep(self, env, venv, sb_policy):
-        tep = TEPMLP(obs_dim=50, act_dim=1)
-        tep.load_state_dict(T.load("agents/full_traj_tep.p"), strict=False)
+        obs_dim = 50
+        if self.config["tep_class"] == "MLP":
+            tep = TEPMLP(obs_dim=obs_dim, act_dim=1)
+            tep.load_state_dict(T.load("agents/mlp_full_traj_tep.p"), strict=False)
+        elif self.config["tep_class"] == "MLPDEEP":
+            tep = TEPMLPDEEP(obs_dim=obs_dim, act_dim=1)
+            tep.load_state_dict(T.load("agents/mlpdeep_full_traj_tep.p"), strict=False)
+        elif self.config["tep_class"] == "RNN":
+            tep = TEPRNN(n_waypts=obs_dim, hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
+            tep.load_state_dict(T.load("agents/rnn_full_traj_tep.p"), strict=False)
+        elif self.config["tep_class"] == "RNN2":
+            tep = TEPRNN2(n_waypts=obs_dim, hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
+            tep.load_state_dict(T.load("agents/rnn2_full_traj_tep.p"), strict=False)
+        elif self.config["tep_class"] == "TX":
+            tep = TEPTX(n_waypts=obs_dim, embed_dim=36, num_heads=6, kdim=36)
+            tep.load_state_dict(T.load("agents/tx_full_traj_tep.p"), strict=False)
+        else:
+            raise NotImplementedError
 
         N_eval = 100
         render = True
@@ -673,10 +714,10 @@ if __name__ == "__main__":
     tm.venv = venv
     tm.sb_model = sb_model
     #tm.make_dataset()
-    #tm.train_tep()
+    tm.train_tep()
     #tm.train_tep_1step_grad_aggregated()
     #tm.test_tep(env, venv, sb_model)
-    tm.test_tep_full()
+    #tm.test_tep_full()
 
 
 
