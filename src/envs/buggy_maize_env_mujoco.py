@@ -12,7 +12,7 @@ from src.envs.engines import *
 from src.opt.simplex_noise import SimplexNoise
 from src.utils import e2q, dist_between_wps
 
-GLOBAL_DEBUG = False
+GLOBAL_DEBUG = True
 if GLOBAL_DEBUG:
     #plt.ion()
     figure = plt.figure()
@@ -31,7 +31,7 @@ class BuggyMaize():
 
         deadzone = self.config["deadzone"]
         self.barrier_halflength_coeff = 0.5 + deadzone
-        self.barrier_halfwidth_coeff = 0.2 + deadzone * 0.2
+        self.barrier_halfwidth_coeff = 0.2 + deadzone * 0.4
         self.barrier_real_halflength = self.barrier_halflength_coeff * self.block_size
         self.barrier_real_halfwidth = self.barrier_halfwidth_coeff * self.block_size
 
@@ -113,18 +113,26 @@ class BuggyMaize():
 
         return blocks, all_barriers, dense_grid, start, finish
 
-    def xy_to_grid(self, x, y):
-        m = int(self.grid_X_len - x * self.grid_meter_len - 0.5 * self.grid_meter_len)
-        n = int(0.5 * self.grid_Y_len - y * self.grid_meter_len)
+    def xy_to_grid(self, x, y, quantize=True):
+        m = self.grid_X_len - x * self.grid_meter_len - 0.5 * self.grid_meter_len
+        n = 0.5 * self.grid_Y_len - y * self.grid_meter_len
+
+        if quantize:
+            m = np.round(int(m))
+            n = np.round(int(n))
 
         m = np.clip(m, 0, self.grid_X_len - 1)
         n = np.clip(n, 0, self.grid_Y_len - 1)
 
         return m, n
 
-    def xy_to_grid_parallel(self, positions):
-        m = (self.grid_X_len - positions[:, 0] * self.grid_meter_len - 0.5 * self.grid_meter_len).astype(np.int32)
-        n = (0.5 * self.grid_Y_len - positions[:, 1] * self.grid_meter_len).astype(np.int32)
+    def xy_to_grid_parallel(self, positions, quantized=True):
+        m = (self.grid_X_len - positions[:, 0] * self.grid_meter_len - 0.5 * self.grid_meter_len)
+        n = (0.5 * self.grid_Y_len - positions[:, 1] * self.grid_meter_len)
+
+        if quantized:
+            m = np.round(m).astype(np.int32)
+            n = np.round(n).astype(np.int32)
 
         m = np.clip(m, 0, self.grid_X_len - 1)
         n = np.clip(n, 0, self.grid_Y_len - 1)
@@ -146,6 +154,12 @@ class BuggyMaize():
         # Plot
         plt.imshow(grid_cpy)
         plt.plot(y_spln, x_spln)
+
+        # Plot barrier edgepoints
+        barrier_edgepoints = self.get_barrier_edgepoints()
+        ep_m, ep_n = self.xy_to_grid_parallel(np.array(barrier_edgepoints), quantized=False)
+        plt.scatter(ep_n, ep_m, s=1, color="k", marker='x')
+
         plt.show()
 
     def plot_grid_with_trajs(self, grid, path_spline, positions, costs, ctrs):
@@ -182,16 +196,16 @@ class BuggyMaize():
 
         traj_def, traj_1step, traj_agg_1step = trajs
 
-        rp_m, rp_n = self.xy_to_grid_parallel(np.array(traj_def))
+        rp_m, rp_n = self.xy_to_grid_parallel(np.array(traj_def), quantized=False)
         plt.plot(rp_n, rp_m, color="r")
 
-        rp_m, rp_n = self.xy_to_grid_parallel(np.array(traj_1step))
+        rp_m, rp_n = self.xy_to_grid_parallel(np.array(traj_1step), quantized=False)
         plt.plot(rp_n, rp_m, color="g")
 
-        rp_m, rp_n = self.xy_to_grid_parallel(np.array(traj_agg_1step))
+        rp_m, rp_n = self.xy_to_grid_parallel(np.array(traj_agg_1step), quantized=False)
         plt.plot(rp_n, rp_m, color="b")
 
-        ep_m, ep_n = self.xy_to_grid_parallel(np.array(barrier_edgepoints))
+        ep_m, ep_n = self.xy_to_grid_parallel(np.array(barrier_edgepoints), quantized=False)
         plt.scatter(ep_n, ep_m, s=1, color="k", marker='x')
 
         plt.show()
@@ -204,10 +218,10 @@ class BuggyMaize():
         path_astar, runs = finder.find_path(start, end, grid)
 
         y, x = zip(*path_astar)
-        path_astar = zip(*[x[::3], y[::3]])
+        path_astar = zip(*[x[::2], y[::2]])
 
         # Make resample as spline
-        tck, u = interpolate.splprep([x, y], s=15, k=3)
+        tck, u = interpolate.splprep([x, y], s=7, k=3)
         xi, yi = interpolate.splev(np.linspace(0, 1, 300), tck)
 
         path_spline = list(zip(*[xi,yi]))
@@ -217,10 +231,11 @@ class BuggyMaize():
     def get_barriers(self):
         return self.all_barriers
 
-    def get_barrier_edgepoints(self):
+    def get_barrier_edgepoints_tmp(self):
         edge_pts = []
-        hw_scl = 1.0
-        for x, y, is_vert in self.all_barriers:
+        hw_scl = 0.6
+
+        for x, y, is_vert in self.get_barriers():
             bhl, bhw = self.barrier_real_halfwidth, self.barrier_real_halflength
             if is_vert:
                 bhw, bhl = self.barrier_real_halfwidth, self.barrier_real_halflength
@@ -228,6 +243,33 @@ class BuggyMaize():
             edge_pts.append([x+bhl * hw_scl, y - bhw * hw_scl])
             edge_pts.append([x-bhl * hw_scl, y + bhw * hw_scl])
             edge_pts.append([x+bhl * hw_scl, y + bhw * hw_scl])
+        return edge_pts
+
+    def get_barrier_edgepoints(self):
+        grid_barrier_half_length = int(self.barrier_halflength_coeff * self.grid_block_len)
+        grid_barrier_half_width = int(self.barrier_halfwidth_coeff * self.grid_block_len)
+        edge_pts = []
+        hw_scl = 0.1
+        for bar in self.get_barriers():
+            bar_x, bar_y, vert = bar
+
+            m_side = grid_barrier_half_width
+            n_side = grid_barrier_half_length
+            if vert:
+                m_side = grid_barrier_half_length
+                n_side = grid_barrier_half_width
+
+            bar_m, bar_n = self.xy_to_grid(bar_x, bar_y)
+            bar_x, bar_y = self.grid_to_xy(bar_m, bar_n)
+            m_side_xy = m_side * self.grid_resolution
+            n_side_xy = n_side * self.grid_resolution
+
+            offset = -0.05
+            edge_pts.append([bar_x - m_side_xy + hw_scl - offset, bar_y - n_side_xy + hw_scl - offset])
+            edge_pts.append([bar_x + m_side_xy - hw_scl - offset, bar_y - n_side_xy + hw_scl - offset])
+            edge_pts.append([bar_x - m_side_xy + hw_scl - offset , bar_y + n_side_xy - hw_scl - offset])
+            edge_pts.append([bar_x + m_side_xy - hw_scl - offset, bar_y + n_side_xy - hw_scl - offset])
+
         return edge_pts
 
     def position_in_barrier(self, pos_x, pos_y):
@@ -329,7 +371,7 @@ class BuggyMaize():
         self.dense_grid_field = self.generate_dense_grid_field(self.dense_grid, self.blocks)
         self.dense_grid_progress = self.generate_dense_grid_progress(self.dense_grid, self.blocks, self.start, self.finish)
         if GLOBAL_DEBUG:
-            self.plot_grid(self.dense_grid_progress, self.shortest_path_pts, self.shortest_path_pts_spline)
+            self.plot_grid(self.dense_grid, self.shortest_path_pts, self.shortest_path_pts_spline)
 
 
 class BuggyMaizeEnv(gym.Env):

@@ -9,11 +9,6 @@
 
 # Monday:
 ====== Buggy project =======
-    - TODO: After each iteration in 1 step training, reinitialize network to random weights
-    - TODO: go over each component of traj tep optimizer (including sar xy conv) and check correctness
-    - TODO: Make correct sar <-> xy conversion and test.
-    - TODO: Check that the traj_tep_opimizer full test is working correctly and that the correct trajectories are being evaluated on.
-
     - TODO: Default shortest path traj needs to be strictly outside the boundary pts of barriers (or barrier boundaries have to be shrunk)
     - TODO: Need to add barriers to plot (buggy_maize_env_mujoco plot_grid_traj3)! Correct barrier positions and add optional distance to corner function!
 
