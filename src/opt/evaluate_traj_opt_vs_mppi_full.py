@@ -37,10 +37,37 @@ class BuggyControlTester:
         self.mppi_algo = ControlBuggyMPPI(self.mppi_config)
 
         # Load tep(s)
-        self.tep = TEPMLP(obs_dim=50, act_dim=1)
-        self.tep_1step = TEPMLP(obs_dim=50, act_dim=1)
-        self.tep.load_state_dict(T.load("agents/full_traj_tep.p"), strict=False)
-        self.tep_1step.load_state_dict(T.load("agents/full_traj_tep_1step.p"), strict=False)
+        with open(os.path.join(os.path.dirname(__file__), "configs/traj_tep_optimizer.yaml"), 'r') as f:
+            self.tep_config = yaml.load(f, Loader=yaml.FullLoader)
+
+        obs_dim = 50
+        if self.tep_config["tep_class"] == "MLP":
+            self.tep = TEPMLP(obs_dim=obs_dim, act_dim=1)
+            self.tep.load_state_dict(T.load("agents/mlp_full_traj_tep.p"), strict=False)
+            self.tep_1step = TEPMLP(obs_dim=obs_dim, act_dim=1)
+            self.tep_1step.load_state_dict(T.load("agents/mlp_full_traj_tep_1step.p"), strict=False)
+        elif self.tep_config["tep_class"] == "MLPDEEP":
+            self.tep = TEPMLPDEEP(obs_dim=obs_dim, act_dim=1)
+            self.tep.load_state_dict(T.load("agents/mlpdeep_full_traj_tep.p"), strict=False)
+            self.tep_1step = TEPMLPDEEP(obs_dim=obs_dim, act_dim=1)
+            self.tep_1step.load_state_dict(T.load("agents/mlpdeep_full_traj_tep_1step.p"), strict=False)
+        elif self.tep_config["tep_class"] == "RNN":
+            self.tep = TEPRNN(n_waypts=obs_dim, hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
+            self.tep.load_state_dict(T.load("agents/rnn_full_traj_tep.p"), strict=False)
+            self.tep_1step = TEPRNN(n_waypts=obs_dim, hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
+            self.tep_1step.load_state_dict(T.load("agents/rnn_full_traj_tep_1step.p"), strict=False)
+        elif self.tep_config["tep_class"] == "RNN2":
+            self.tep = TEPRNN2(n_waypts=obs_dim, hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
+            self.tep.load_state_dict(T.load("agents/rnn2_full_traj_tep.p"), strict=False)
+            self.tep_1step = TEPRNN2(n_waypts=obs_dim, hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
+            self.tep_1step.load_state_dict(T.load("agents/rnn2_full_traj_tep_1step.p"), strict=False)
+        elif self.tep_config["tep_class"] == "TX":
+            self.tep = TEPTX(n_waypts=obs_dim, embed_dim=36, num_heads=6, kdim=36)
+            self.tep.load_state_dict(T.load("agents/tx_full_traj_tep.p"), strict=False)
+            self.tep_1step = TEPTX(n_waypts=obs_dim, embed_dim=36, num_heads=6, kdim=36)
+            self.tep_1step.load_state_dict(T.load("agents/tx_full_traj_tep_1step.p"), strict=False)
+        else:
+            raise NotImplementedError
 
         # Load trajectory optimizer
         self.traj_tep_optimizer = TrajTepOptimizer()
@@ -203,4 +230,4 @@ class BuggyControlTester:
 if __name__=="__main__":
     bct = BuggyControlTester()
     #bct.single_control_algo_evaluation(1337)
-    bct.test_system(N_test=100, render=False, plot=False)
+    bct.test_system(N_test=30, render=False, plot=False)

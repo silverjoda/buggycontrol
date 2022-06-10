@@ -651,7 +651,7 @@ class TrajTepOptimizer:
 
         for i in range(self.config["n_step_opt"]):
             # etp loss
-            tep_loss = tep(traj_opt)
+            tep_loss = tep(traj_opt.reshape([1, 50]))
 
             # Last point loss
             traj_opt_xy = self.sar_to_xy(traj_opt)
