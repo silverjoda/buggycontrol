@@ -230,4 +230,4 @@ class BuggyControlTester:
 if __name__=="__main__":
     bct = BuggyControlTester()
     #bct.single_control_algo_evaluation(1337)
-    bct.test_system(N_test=30, render=False, plot=False)
+    bct.test_system(N_test=100, render=False, plot=False)
