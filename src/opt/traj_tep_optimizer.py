@@ -367,25 +367,47 @@ class TrajTepOptimizer:
             raise NotImplementedError
 
         N_eval = 100
-        render = True
         for i in range(N_eval):
             obs = env.reset()
-            time_taken = self.evaluate_rollout(obs, env, venv, sb_policy=sb_policy, render=render, deterministic=self.config["deterministic_eval"])
+            time_taken = self.evaluate_rollout(obs, env, venv, sb_policy=sb_policy, render=self.config["render"], deterministic=self.config["deterministic_eval"])
 
             # Make tep prediction
             traj = env.engine.wp_list
             traj_sar, distances = self.xy_to_sar(traj[:50])
-            traj_T_sar = T.tensor(traj_sar, dtype=T.float32)
+            traj_T_sar = T.tensor(traj_sar, dtype=T.float32).unsqueeze(0)
             tep_pred = tep(traj_T_sar)
 
             print(f"Time taken: {time_taken}, time taken predicted: {tep_pred}")
 
     def test_tep_full(self):
-        tep_def = TEPMLP(obs_dim=50, act_dim=1)
-        tep_def.load_state_dict(T.load("agents/full_traj_tep.p"), strict=False)
-
-        tep_agg = TEPMLP(obs_dim=50, act_dim=1)
-        tep_agg.load_state_dict(T.load("agents/full_traj_tep_1step.p"), strict=False)
+        obs_dim = 50
+        if self.config["tep_class"] == "MLP":
+            tep_def = TEPMLP(obs_dim=obs_dim, act_dim=1)
+            tep_def.load_state_dict(T.load("agents/mlp_full_traj_tep.p"), strict=False)
+            tep_agg = TEPMLP(obs_dim=obs_dim, act_dim=1)
+            tep_agg.load_state_dict(T.load("agents/mlp_full_traj_tep_1step.p"), strict=False)
+        elif self.config["tep_class"] == "MLPDEEP":
+            tep_def = TEPMLPDEEP(obs_dim=obs_dim, act_dim=1)
+            tep_def.load_state_dict(T.load("agents/mlpdeep_full_traj_tep.p"), strict=False)
+            tep_agg = TEPMLPDEEP(obs_dim=obs_dim, act_dim=1)
+            tep_agg.load_state_dict(T.load("agents/mlpdeep_full_traj_tep_1step.p"), strict=False)
+        elif self.config["tep_class"] == "RNN":
+            tep_def = TEPRNN(n_waypts=obs_dim, hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
+            tep_def.load_state_dict(T.load("agents/rnn_full_traj_tep.p"), strict=False)
+            tep_agg = TEPRNN(n_waypts=obs_dim, hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
+            tep_agg.load_state_dict(T.load("agents/rnn_full_traj_tep_1step.p"), strict=False)
+        elif self.config["tep_class"] == "RNN2":
+            tep_def = TEPRNN2(n_waypts=obs_dim, hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
+            tep_def.load_state_dict(T.load("agents/rnn2_full_traj_tep.p"), strict=False)
+            tep_agg = TEPRNN2(n_waypts=obs_dim, hid_dim=64, hid_dim_2=32, num_layers=1, bidirectional=False)
+            tep_agg.load_state_dict(T.load("agents/rnn2_full_traj_tep_1step.p"), strict=False)
+        elif self.config["tep_class"] == "TX":
+            tep_def = TEPTX(n_waypts=obs_dim, embed_dim=36, num_heads=6, kdim=36)
+            tep_def.load_state_dict(T.load("agents/tx_full_traj_tep.p"), strict=False)
+            tep_agg = TEPTX(n_waypts=obs_dim, embed_dim=36, num_heads=6, kdim=36)
+            tep_agg.load_state_dict(T.load("agents/tx_full_traj_tep_1step.p"), strict=False)
+        else:
+            raise NotImplementedError
 
         # Errors on def traj
         tep_err_def = 0

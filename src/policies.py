@@ -404,6 +404,10 @@ class TEPTX(nn.Module):
         return p_emb_T
 
     def forward(self, x):
+        shape_len = len(x.shape)
+        if shape_len == 1:
+            x = x.unsqueeze(0)
+
         # Reshape and turn to embedding
         x_reshaped = T.reshape(x, (len(x), self.n_waypts, 1))
         emb = self.nonlin(self.fc_emb(x_reshaped))

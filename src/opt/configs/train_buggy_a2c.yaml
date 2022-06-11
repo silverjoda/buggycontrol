@@ -20,6 +20,6 @@
 "policy_hid_dim" : 512
 "log_prefix" : "be1"
 "rew_thresh" : 44
-"deterministic_eval" : False
+"deterministic_eval" : True
 
 
