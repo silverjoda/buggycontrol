@@ -1,4 +1,4 @@
-"n_dataset_pts" : 4000
+"n_dataset_pts" : 2000
 "max_num_wp" : 50
 "max_steps" : 500
 "policy_lr" : 0.005
@@ -7,7 +7,7 @@
 "tep_iters" : 7000
 "n_epochs" : 32
 "n_traj_update" : 196
-"n_eval" : 100
+"n_eval" : 30
 "deterministic_eval" : True
 "plot_trajs" : False
 "render" : False
@@ -15,5 +15,6 @@
 "traj_opt_rate" : 0.015
 "traj_barrier_coeff" : 0.3
 "traj_last_pt_coeff" : 10
-"tep_class" : "TX" # MLP, MLPDEEP, RNN, RNN2, TX
+"tep_class" : "MLP" # MLP, MLPDEEP, RNN, RNN2, TX
+"env" : "MAIZE" # DEF, MAIZE
 

@@ -10,6 +10,7 @@ from stable_baselines3.common.vec_env import VecNormalize, DummyVecEnv, VecMonit
 from tabulate import tabulate
 
 from src.envs.buggy_env_mujoco import BuggyEnv
+from src.envs.buggy_maize_env_mujoco import BuggyMaizeEnv
 from src.policies import *
 from src.utils import load_config, dist_between_wps
 
@@ -38,13 +39,20 @@ class TrajTepOptimizer:
         #self.env, self.venv, self.sb_model = self.load_model_and_env()
 
     def load_model_and_env(self):
-        env_config = load_config(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_env_mujoco.yaml"))
+        if self.config["env"] == "DEF":
+            env_config = load_config(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_env_mujoco.yaml"))
+        else:
+            env_config = load_config(os.path.join(os.path.dirname(os.path.dirname(__file__)), "envs/configs/buggy_maize_env_mujoco.yaml"))
 
         # Policy + VF
         sb_model = A2C.load(f"agents/{self.policy_ID}_SB_policy")
 
         # Wrapped env
-        env = BuggyEnv(env_config)
+        if self.config["env"] == "DEF":
+            env = BuggyEnv(env_config)
+        else:
+            env = BuggyMaizeEnv(env_config)
+
         vec_env = DummyVecEnv(env_fns=[lambda: env] * 1)
         monitor_env = VecMonitor(vec_env)
         normed_env = VecNormalize(venv=monitor_env, training=False, norm_obs=True, norm_reward=True, clip_reward=10.0)
@@ -736,7 +744,7 @@ if __name__ == "__main__":
     tm.venv = venv
     tm.sb_model = sb_model
     #tm.make_dataset()
-    tm.train_tep()
+    #tm.train_tep()
     #tm.train_tep_1step_grad_aggregated()
     #tm.test_tep(env, venv, sb_model)
     #tm.test_tep_full()
