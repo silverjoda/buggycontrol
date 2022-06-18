@@ -122,13 +122,16 @@ class BuggyControlTester:
         updated_1step_traj_rl_agent_res = self.test_rl_agent(self.buggy_maize_env, self.buggy_maize_venv, seed, updated_1step_traj, render=render, deterministic=self.algo_config["deterministic_eval"])
 
         # Test mppi: traj/free
-        print("Testing mppi traj follower")
-        mppi_traj_follower_res = self.mppi_algo.test_mppi(self.buggy_maize_env, seed=seed, test_traj=test_traj, n_samples=5,
-                                                          n_horizon=5, act_std=0.5, mode='traj', render=False)
+        # print("Testing mppi traj follower")
+        # mppi_traj_follower_res = self.mppi_algo.test_mppi(self.buggy_maize_env, seed=seed, test_traj=test_traj, n_samples=5,
+        #                                                   n_horizon=5, act_std=0.5, mode='traj', render=False)
+        #
+        # print("Testing mppi free rew")
+        # mppi_free_res = self.mppi_algo.test_mppi(self.buggy_maize_env, seed=seed, test_traj=test_traj, n_samples=5,
+        #                                          n_horizon=5, act_std=0.5, mode='free', render=False)
 
-        print("Testing mppi free rew")
-        mppi_free_res = self.mppi_algo.test_mppi(self.buggy_maize_env, seed=seed, test_traj=test_traj, n_samples=5,
-                                                 n_horizon=5, act_std=0.5, mode='free', render=False)
+        mppi_traj_follower_res = [0, 0]
+        mppi_free_res = [0, 0]
 
         trajs = (test_traj, updated_traj, updated_1step_traj)
 
@@ -253,4 +256,4 @@ class BuggyControlTester:
 if __name__=="__main__":
     bct = BuggyControlTester()
     #bct.single_control_algo_evaluation(1337)
-    bct.test_system(N_test=50, render=False, plot=False)
+    bct.test_system(N_test=100, render=False, plot=False)
