@@ -82,6 +82,21 @@ class BuggyControlTester:
         print("Testing agent on default traj")
         def_rl_agent_res = self.test_rl_agent(self.buggy_maize_env, self.buggy_maize_venv, seed, test_traj, render=render, deterministic=self.algo_config["deterministic_eval"])
 
+        # Update the shortest path without using TEP
+        traj_T_sar, _ = T.tensor(self.traj_tep_optimizer.xy_to_sar(test_traj[:50]), dtype=T.float32)
+        updated_traj_T_sar = self.traj_tep_optimizer.optimize_traj_with_barriers(traj_T_sar, self.tep,
+                                                                                 self.buggy_maize_env, use_tep=False)
+        updated_traj = list(self.traj_tep_optimizer.sar_to_xy(updated_traj_T_sar).detach().numpy())
+
+        # Tack on the rest of the points from original trajectory which weren't optimized (sort of a hack for now)
+        updated_traj.extend(test_traj[50:])
+
+        # Test buggy agent on new path
+        print("Testing agent on traj without tep")
+        updated_no_tep_traj_rl_agent_res = self.test_rl_agent(self.buggy_maize_env, self.buggy_maize_venv, seed, updated_traj,
+                                                       render=render,
+                                                       deterministic=self.algo_config["deterministic_eval"])
+
         # Update the shortest path using def tep
         traj_T_sar, _ = T.tensor(self.traj_tep_optimizer.xy_to_sar(test_traj[:50]), dtype=T.float32)
         updated_traj_T_sar = self.traj_tep_optimizer.optimize_traj_with_barriers(traj_T_sar, self.tep, self.buggy_maize_env)
@@ -121,22 +136,23 @@ class BuggyControlTester:
             #self.traj_tep_optimizer.plot_trajs3(test_traj,updated_traj, updated_1step_traj)
             self.buggy_maize_env.maize.plot_grid_traj3(self.buggy_maize_env.maize.dense_grid, trajs, self.buggy_maize_env.maize.get_barrier_edgepoints())
 
-        return def_rl_agent_res, updated_traj_rl_agent_res, updated_1step_traj_rl_agent_res, mppi_traj_follower_res, mppi_free_res, trajs
+        return def_rl_agent_res, updated_no_tep_traj_rl_agent_res, updated_traj_rl_agent_res, updated_1step_traj_rl_agent_res, mppi_traj_follower_res, mppi_free_res, trajs
 
     def test_system(self, N_test=100, render=False, plot=False):
         N_test_iters = N_test
-        seeds = np.arange(N_test_iters) + 1337
+        seeds = np.arange(N_test_iters) + 1338
         #seeds = np.random.randint(0, 1000, N_test_iters)
 
         traj_list = []
 
-        def_rl_agent_res_list, updated_traj_rl_agent_res_list, updated_1step_traj_rl_agent_res_list, mppi_traj_follower_res_list, mppi_free_res_list = [], [], [], [], []
+        def_rl_agent_res_list, updated_no_tep_traj_rl_agent_res_list, updated_traj_rl_agent_res_list, updated_1step_traj_rl_agent_res_list, mppi_traj_follower_res_list, mppi_free_res_list = [], [], [], [], [], []
         for i in range(N_test_iters):
             print(f"Test iter: {i+1}/{N_test_iters}")
-            def_rl_agent_res, updated_traj_rl_agent_res, updated_1step_traj_rl_agent_res, mppi_traj_follower_res, mppi_free_res, trajs = self.single_control_algo_evaluation(seeds[i], render=render, plot=plot)
+            def_rl_agent_res, updated_no_tep_traj_rl_agent_res, updated_traj_rl_agent_res, updated_1step_traj_rl_agent_res, mppi_traj_follower_res, mppi_free_res, trajs = self.single_control_algo_evaluation(seeds[i], render=render, plot=plot)
             #def_rl_agent_res, updated_traj_rl_agent_res, mppi_traj_follower_res, mppi_free_res = np.random.rand(2),np.random.rand(2),np.random.rand(2),np.random.rand(2)
 
             def_rl_agent_res_list.append(def_rl_agent_res)
+            updated_no_tep_traj_rl_agent_res_list.append(updated_no_tep_traj_rl_agent_res)
             updated_traj_rl_agent_res_list.append(updated_traj_rl_agent_res)
             updated_1step_traj_rl_agent_res_list.append(updated_1step_traj_rl_agent_res)
             mppi_traj_follower_res_list.append(mppi_traj_follower_res)
@@ -147,6 +163,9 @@ class BuggyControlTester:
         # Calculate average rew and time taken
         def_rl_agent_rew_avg = 0
         def_rl_agent_time_taken_avg = 0
+
+        updated_no_tep_traj_rl_agent_rew_avg = 0
+        updated_no_tep_traj_rl_agent_time_taken_avg = 0
 
         updated_traj_rl_agent_rew_avg = 0
         updated_traj_rl_agent_time_taken_avg = 0
@@ -164,6 +183,9 @@ class BuggyControlTester:
             def_rl_agent_rew_avg += def_rl_agent_res_list[i][0]
             def_rl_agent_time_taken_avg += def_rl_agent_res_list[i][1]
 
+            updated_no_tep_traj_rl_agent_rew_avg += updated_no_tep_traj_rl_agent_res_list[i][0]
+            updated_no_tep_traj_rl_agent_time_taken_avg += updated_no_tep_traj_rl_agent_res_list[i][1]
+
             updated_traj_rl_agent_rew_avg += updated_traj_rl_agent_res_list[i][0]
             updated_traj_rl_agent_time_taken_avg += updated_traj_rl_agent_res_list[i][1]
 
@@ -178,6 +200,7 @@ class BuggyControlTester:
 
         # Print out results
         table = [['Def_rl_agent', def_rl_agent_rew_avg, def_rl_agent_time_taken_avg],
+                 ['Updated_no_tep_traj_rl_agent', updated_no_tep_traj_rl_agent_rew_avg, updated_no_tep_traj_rl_agent_time_taken_avg],
                  ['Updated_traj_rl_agent', updated_traj_rl_agent_rew_avg, updated_traj_rl_agent_time_taken_avg],
                  ['Updated_1step_traj_rl_agent', updated_1step_traj_rl_agent_rew_avg, updated_1step_traj_rl_agent_time_taken_avg],
                  ['Mppi_traj_follower', mppi_traj_follower_rew_avg, mppi_traj_follower_time_taken_avg],
@@ -230,4 +253,4 @@ class BuggyControlTester:
 if __name__=="__main__":
     bct = BuggyControlTester()
     #bct.single_control_algo_evaluation(1337)
-    bct.test_system(N_test=30, render=False, plot=False)
+    bct.test_system(N_test=50, render=False, plot=False)

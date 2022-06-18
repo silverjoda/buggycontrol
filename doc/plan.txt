@@ -10,15 +10,9 @@
 # Monday:
 ====== Buggy project =======
     - TODO: Buggy maize add to plot initial barriers to see inflated vs actual boundaries
-    - TODO: Default shortest path traj needs to be strictly outside the boundary pts of barriers (or barrier boundaries have to be shrunk)
-    - TODO: Need to add barriers to plot (buggy_maize_env_mujoco plot_grid_traj3)! Correct barrier positions and add optional distance to corner function!
-
-    - TODO: Check that the evaluate_traj_opt_vs_mppi_full full test is working correctly and that the correct trajectories are being evaluated on.
-
-    - TODO: For TEP Add failure prediction maybe (or maybe just ignore failed episodes).
     - TODO: Make full opt_vs_mmpi traj plot on grid
-
     - TODO: Train agent with significantly more tyre friction
+    - TODO: Make live plot of trajectories of 1-step training because for some reason the training error is too high when training.
 
 
 # Robotic transformations and frames:

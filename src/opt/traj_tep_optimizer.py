@@ -259,6 +259,10 @@ class TrajTepOptimizer:
         Y = np.load(self.y_file_path)
         N_traj = len(X)
 
+        # Change to successive angle representation
+        X = T.tensor(self.get_successive_angle_representation(X), dtype=T.float32)  # 1000, 50
+        Y = T.tensor(Y, dtype=T.float32).unsqueeze(1)  # N, 1
+
         if self.config["tep_class"] == "MLP":
             tep = TEPMLP(obs_dim=X.shape[1], act_dim=1)
             save_name = "mlp_full_traj_tep"
@@ -278,10 +282,6 @@ class TrajTepOptimizer:
             raise NotImplementedError
 
         tep.load_state_dict(T.load(f"agents/{save_name}.p"), strict=False)
-
-        # Change to successive angle representation
-        X = T.tensor(self.get_successive_angle_representation(X), dtype=T.float32) # 1000, 50
-        Y = T.tensor(Y, dtype=T.float32).unsqueeze(1) # 1000, 1
 
         # Turn dataset into list of tensors
         X_list = [x for x in X]
@@ -651,7 +651,7 @@ class TrajTepOptimizer:
 
         return traj_opt
 
-    def optimize_traj_with_barriers(self, traj, tep, env):
+    def optimize_traj_with_barriers(self, traj, tep, env, use_tep=True):
         # For barrier loss
         def flattened_mse(p1, p2):
             a = T.tensor(-1e2)
@@ -701,7 +701,7 @@ class TrajTepOptimizer:
             if len(barrier_loss_list) > 0:
                 barrier_loss_sum = T.stack(barrier_loss_list).sum()
 
-            loss = tep_loss + last_pt_loss + barrier_loss_sum
+            loss = tep_loss * use_tep + last_pt_loss + barrier_loss_sum
             loss.backward()
 
             optimizer.step()
