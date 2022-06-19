@@ -201,6 +201,9 @@ class BuggyControlTester:
             mppi_free_rew_avg += mppi_free_res_list[i][0]
             mppi_free_time_taken_avg += mppi_free_res_list[i][1]
 
+        print("traj_tep_optimizer config:")
+        print(self.traj_tep_optimizer.config)
+
         # Print out results
         table = [['Def_rl_agent', def_rl_agent_rew_avg, def_rl_agent_time_taken_avg],
                  ['Updated_no_tep_traj_rl_agent', updated_no_tep_traj_rl_agent_rew_avg, updated_no_tep_traj_rl_agent_time_taken_avg],
@@ -256,4 +259,4 @@ class BuggyControlTester:
 if __name__=="__main__":
     bct = BuggyControlTester()
     #bct.single_control_algo_evaluation(1337)
-    bct.test_system(N_test=100, render=False, plot=False)
+    bct.test_system(N_test=50, render=False, plot=False)

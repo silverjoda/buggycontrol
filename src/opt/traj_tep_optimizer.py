@@ -294,7 +294,7 @@ class TrajTepOptimizer:
         lossfun = T.nn.MSELoss()
 
         # Epoch consists of training tep and performing grad update on subset of original dataset
-        for ep in range(self.config["n_epochs"]):
+        for ep in range(1, self.config["n_epochs"] + 1):
             n_data = len(X_list)
 
             # ===== TRAIN TEP ======
@@ -331,12 +331,14 @@ class TrajTepOptimizer:
             for idx, x_traj in enumerate(x_list):
                 x_ud_traj = T.clone(x_traj).detach()
                 x_ud_traj.requires_grad = True
-                x_ud_traj = self.optimize_traj(x_ud_traj, tep)
+                if self.config["env"] == "DEF":
+                    x_ud_traj = self.optimize_traj(x_ud_traj, tep)
+                else:
+                    x_ud_traj = self.optimize_traj_with_barriers(x_ud_traj, tep, self.env, use_tep=True)
                 X_list.append(x_ud_traj)
 
                 if self.config["plot_trajs"]:
                     self.plot_trajs2(x_traj[:50], x_ud_traj)
-                    time.sleep(1.6)
 
                 # Annotate the new X_ud
                 obs = env.reset()
@@ -347,6 +349,7 @@ class TrajTepOptimizer:
                 Y_list.append(T.tensor([time_taken]))
 
             print("Epoch: {}, finished updating dataset".format(ep))
+
 
         # Finished training, saving
         print("Done training, saving model")
@@ -672,9 +675,12 @@ class TrajTepOptimizer:
         traj_opt = T.clone(traj).detach()
         traj_opt.requires_grad = True
 
-        #optimizer = T.optim.SGD(params=[traj_opt], lr=0.03, momentum=.0)
-        optimizer = T.optim.Adam(params=[traj_opt], lr=self.config["traj_opt_rate"])
-        #optimizer = T.optim.LBFGS(params=[traj_opt], lr=0.03)
+        if self.config["optimizer"] == "SGD":
+            optimizer = T.optim.SGD(params=[traj_opt], lr=self.config["traj_opt_rate"], momentum=.0)
+        elif self.config["optimizer"] == "ADAM":
+            optimizer = T.optim.Adam(params=[traj_opt], lr=self.config["traj_opt_rate"])
+        else:
+            optimizer = T.optim.LBFGS(params=[traj_opt], lr=self.config["traj_opt_rate"], max_iter=self.config["n_step_opt"])
 
         # Get barriers edge points (4 per barrier)
         edgepoints = env.maize.get_barrier_edgepoints()
@@ -704,8 +710,11 @@ class TrajTepOptimizer:
             loss = tep_loss * use_tep + last_pt_loss + barrier_loss_sum
             loss.backward()
 
-            optimizer.step()
-            #optimizer.step(closure) # For LBFGS
+            if self.config["optimizer"] == "LBFGS":
+                optimizer.step(closure) # For LBFGS
+            else:
+                optimizer.step()
+
             optimizer.zero_grad()
 
         return traj_opt
@@ -745,7 +754,7 @@ if __name__ == "__main__":
     tm.sb_model = sb_model
     #tm.make_dataset()
     #tm.train_tep()
-    #tm.train_tep_1step_grad_aggregated()
+    tm.train_tep_1step_grad_aggregated()
     #tm.test_tep(env, venv, sb_model)
     #tm.test_tep_full()
 

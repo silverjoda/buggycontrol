@@ -368,8 +368,8 @@ class BuggyMaize():
     def reset(self):
         self.blocks, self.all_barriers, self.dense_grid, self.start, self.finish = self.generate_random_maize()
         self.shortest_path_pts, self.shortest_path_pts_spline = self.generate_shortest_path(self.dense_grid, self.start, self.finish)
-        self.dense_grid_field = self.generate_dense_grid_field(self.dense_grid, self.blocks)
-        self.dense_grid_progress = self.generate_dense_grid_progress(self.dense_grid, self.blocks, self.start, self.finish)
+        #self.dense_grid_field = self.generate_dense_grid_field(self.dense_grid, self.blocks)
+        #self.dense_grid_progress = self.generate_dense_grid_progress(self.dense_grid, self.blocks, self.start, self.finish)
         if GLOBAL_DEBUG:
             self.plot_grid(self.dense_grid, self.shortest_path_pts, self.shortest_path_pts_spline)
 
