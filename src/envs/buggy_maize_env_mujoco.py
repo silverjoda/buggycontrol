@@ -365,7 +365,10 @@ class BuggyMaize():
         grid_field = np.clip(grid_field, 0, 1000)
         return grid_field
 
-    def reset(self):
+    def reset(self, seed=None):
+        if seed is not None:
+            np.random.seed(seed)
+            random.seed(seed)
         self.blocks, self.all_barriers, self.dense_grid, self.start, self.finish = self.generate_random_maize()
         self.shortest_path_pts, self.shortest_path_pts_spline = self.generate_shortest_path(self.dense_grid, self.start, self.finish)
         #self.dense_grid_field = self.generate_dense_grid_field(self.dense_grid, self.blocks)
@@ -501,7 +504,7 @@ class BuggyMaizeEnv(gym.Env):
 
         return complete_obs_vec, r, done, {"visited" : wp_visited}
 
-    def reset(self):
+    def reset(self, reset_maize=True, seed=None):
         # Reset variables
         self.step_ctr = 0
         self.prev_scaled_act = np.zeros(2)
@@ -510,7 +513,8 @@ class BuggyMaizeEnv(gym.Env):
         self.engine.reset()
 
         # Reset maize
-        self.maize.reset()
+        if reset_maize:
+            self.maize.reset(seed=seed)
 
         # Force engine trajectory to be same as maize
         self.engine.reset_trajectory(traj_pts_in=self.maize.get_shortest_path_pts_xy())
@@ -534,7 +538,7 @@ class BuggyMaizeEnv(gym.Env):
     def demo(self):
         while True:
             self.noise = SimplexNoise(dim=2, smoothness=30, multiplier=1.6)
-            self.reset()
+            self.reset(seed=1337)
 
             cum_rew = 0
             while True:

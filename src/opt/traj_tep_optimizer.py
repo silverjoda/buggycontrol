@@ -35,6 +35,7 @@ class TrajTepOptimizer:
 
         self.x_file_path = os.path.join(dir_path, "X.npy")
         self.y_file_path = os.path.join(dir_path, "Y.npy")
+        self.es_file_path = os.path.join(dir_path, "ES.npy")
 
         #self.env, self.venv, self.sb_model = self.load_model_and_env()
 
@@ -65,22 +66,31 @@ class TrajTepOptimizer:
         print("Starting dataset creation")
         obs_list = []
         time_taken_list = []
+        env_seed_list = []
         for i in range(self.n_dataset_pts):
-            obs = self.env.reset()
+            env_seed = np.random.randint(0, 1000000)
+            if self.config["env"] == "DEF":
+                obs = self.env.reset()
+            else:
+                obs = self.env.reset(seed=env_seed)
+
             traj_flat = [item for sublist in self.env.engine.wp_list[:self.max_num_wp] for item in sublist]
             time_taken = self.evaluate_rollout(obs, self.env, self.venv, self.sb_model, traj=None, render=self.config["render"], deterministic=self.config["deterministic_eval"])
 
             obs_list.append(traj_flat)
             time_taken_list.append(time_taken)
+            env_seed_list.append(env_seed)
 
             if i % 10 == 0:
                 print(f"Iter: {i}/{self.n_dataset_pts}")
 
         obs_arr = np.array(obs_list, dtype=np.float32)
         time_taken_arr = np.array(time_taken_list, dtype=np.float32)
+        env_seed_arr = np.array(env_seed_list, dtype=np.float32)
 
         np.save(self.x_file_path, obs_arr)
         np.save(self.y_file_path, time_taken_arr)
+        np.save(self.es_file_path, env_seed_arr)
 
         return obs_arr, time_taken_arr
 
@@ -257,6 +267,7 @@ class TrajTepOptimizer:
         # Core dataset
         X = np.load(self.x_file_path, allow_pickle=True)
         Y = np.load(self.y_file_path)
+        ES = np.load(self.es_file_path)
         N_traj = len(X)
 
         # Change to successive angle representation
@@ -286,6 +297,7 @@ class TrajTepOptimizer:
         # Turn dataset into list of tensors
         X_list = [x for x in X]
         Y_list = [y for y in Y]
+        ES_list = [es for es in ES]
 
         # Prepare policy and training
         tep_optim = T.optim.Adam(params=tep.parameters(),
@@ -327,7 +339,8 @@ class TrajTepOptimizer:
             # Update random trajectories from initial dataset and add to dataset
             rnd_indeces = np.random.choice(np.arange(N_traj), self.config["n_traj_update"], replace=False)
             x_list = T.stack([X_list[ri] for ri in rnd_indeces])
-            #y_list = T.stack([Y_list[ri] for ri in rnd_indeces])
+            y_list = T.stack([Y_list[ri] for ri in rnd_indeces])
+            es_list = T.stack([ES_list[ri] for ri in rnd_indeces])
             for idx, x_traj in enumerate(x_list):
                 x_ud_traj = T.clone(x_traj).detach()
                 x_ud_traj.requires_grad = True
@@ -341,15 +354,16 @@ class TrajTepOptimizer:
                     self.plot_trajs2(x_traj[:50], x_ud_traj)
 
                 # Annotate the new X_ud
-                obs = env.reset()
-                time_taken = self.evaluate_rollout(obs, env, venv, sb_policy, self.sar_to_xy(x_ud_traj).detach().numpy())
+                obs = env.reset(seed=es_list[idx])
+
+                time_taken = self.evaluate_rollout(obs, env, venv, sb_policy, traj=self.sar_to_xy(x_ud_traj).detach().numpy(), render=self.config["render"])
                 #obs = env.reset()
                 #rew_orig = self.evaluate_rollout(obs, env, venv, sb_policy, self.sar_to_xy(x_traj).detach().numpy())
                 #print(rew_orig, y_list[idx])
                 Y_list.append(T.tensor([time_taken]))
+                print(f"Time taken orig: {y_list[idx]}, and after ud: {time_taken}")
 
             print("Epoch: {}, finished updating dataset".format(ep))
-
 
         # Finished training, saving
         print("Done training, saving model")
@@ -752,7 +766,7 @@ if __name__ == "__main__":
     tm.env = env
     tm.venv = venv
     tm.sb_model = sb_model
-    #tm.make_dataset()
+    tm.make_dataset()
     #tm.train_tep()
     tm.train_tep_1step_grad_aggregated()
     #tm.test_tep(env, venv, sb_model)

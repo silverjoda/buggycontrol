@@ -9,6 +9,7 @@
 
 # Monday:
 ====== Buggy project =======
+    - TODO: Fix evaluation (add partial reset to maize env (without maize regeneration). Or just save and enforce the maize)
     - TODO: Buggy maize add to plot initial barriers to see inflated vs actual boundaries
     - TODO: Make full opt_vs_mmpi traj plot on grid
     - TODO: Train agent with significantly more tyre friction
