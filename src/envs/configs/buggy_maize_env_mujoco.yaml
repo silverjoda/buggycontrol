@@ -5,7 +5,7 @@
 "randomize_env" : False
 "state_dim" : 3
 "latent_dim" : 4
-"car_xml" : "one_car_maize"
+"car_xml" : "one_car_maize_hf"
 "rew_type" : "traj" # traj/free
 "deadzone" : 0.4 # traj/free
 "n_blocks" : 8

@@ -340,7 +340,7 @@ class TrajTepOptimizer:
             rnd_indeces = np.random.choice(np.arange(N_traj), self.config["n_traj_update"], replace=False)
             x_list = T.stack([X_list[ri] for ri in rnd_indeces])
             y_list = T.stack([Y_list[ri] for ri in rnd_indeces])
-            es_list = T.stack([ES_list[ri] for ri in rnd_indeces])
+            es_list = [int(ES_list[ri]) for ri in rnd_indeces]
             for idx, x_traj in enumerate(x_list):
                 x_ud_traj = T.clone(x_traj).detach()
                 x_ud_traj.requires_grad = True
@@ -671,7 +671,7 @@ class TrajTepOptimizer:
     def optimize_traj_with_barriers(self, traj, tep, env, use_tep=True):
         # For barrier loss
         def flattened_mse(p1, p2):
-            a = T.tensor(-1e2)
+            a = T.tensor(-2)
             c = T.tensor(.2)
             x = p1 - p2
             loss = (T.abs(a - 2.) / (a)) * (T.pow((T.square(x / c) / T.abs(a - 2)) + 1, 0.5 * a) - 1.)
@@ -714,8 +714,12 @@ class TrajTepOptimizer:
                 closest_edgept, dist = self.find_closest_edgepoint(xy.detach(), edgepoints)
 
                 # If edge point close enough then apply loss (doesn't apply to inital n pts)
-                if dist < 0.15 and xy_idx > 2:
+                if dist < self.config["barrier_pt_thresh_dist"] and xy_idx > 2:
                     barrier_loss_list.append(-flattened_mse(xy, T.tensor(closest_edgept, dtype=T.float32)) * self.config["traj_barrier_coeff"])
+
+                    #if dist < 0.05:
+                        # Edge violation
+                    #    break
 
             barrier_loss_sum = 0
             if len(barrier_loss_list) > 0:
@@ -766,9 +770,9 @@ if __name__ == "__main__":
     tm.env = env
     tm.venv = venv
     tm.sb_model = sb_model
-    tm.make_dataset()
+    #tm.make_dataset()
     #tm.train_tep()
-    tm.train_tep_1step_grad_aggregated()
+    #tm.train_tep_1step_grad_aggregated()
     #tm.test_tep(env, venv, sb_model)
     #tm.test_tep_full()
 
