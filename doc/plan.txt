@@ -9,12 +9,12 @@
 
 # Monday:
 ====== Buggy project =======
-    - TODO: Terminate traj opt when traj is delta close to barrier
+    - TODO: Change the barrier points from maize env, and also the way barrier loss is calculated (to make it more robust)
+    - TODO: Play with scale of maize (make it a bit bigger maybe)
+    - TODO: Start making model based and ilqr controllers
     - TODO: Buggy maize add to plot initial barriers to see inflated vs actual boundaries
-    - TODO: Make full opt_vs_mmpi traj plot on grid
     - TODO: Train agent with significantly more tyre friction
-    - TODO: Make live plot of trajectories of 1-step training because for some reason the training error is too high when training.
-
+    - TODO: Make Field D star implementation
 
 # Robotic transformations and frames:
 Motivation: Spot example in rviz (coordinate frames form a tree, show tf tree, switch between various fixed frames: world, base_link, sensor, etc)
