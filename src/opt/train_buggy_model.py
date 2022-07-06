@@ -25,6 +25,7 @@ class LSHDiscriminator(SourceDiscriminator):
 
 class ModelDataset:
     def __init__(self, use_real_data=False):
+        self.real_data = use_real_data
         if use_real_data:
             self.X_trn, self.Y_trn, self.X_val, self.Y_val = self.load_real_dataset()
         else:
@@ -68,10 +69,15 @@ class ModelDataset:
         x_traj_list = []
         y_traj_list = []
         for x, y in zip(x_data_list, y_data_list):
-            # TODO: REMOVE THE x[0], it's due to an extra dimension which should go away with new data
-            for traj_idx in range(0, len(x[0]) - traj_len, traj_len):
-                x_traj_list.append(x[0,traj_idx:traj_idx + traj_len])
-                y_traj_list.append(y[0,traj_idx:traj_idx + traj_len])
+            assert len(x.shape) == 2
+            # TODO: ADD/REMOVE THE x[0], it's due to an extra dimension which should go away with new data
+            for traj_idx in range(0, len(x) - traj_len, traj_len):
+                x_traj_list.append(x[traj_idx:traj_idx + traj_len])
+                y_traj_list.append(y[traj_idx:traj_idx + traj_len])
+
+            # for traj_idx in range(0, len(x[0]) - traj_len, traj_len):
+            #     x_traj_list.append(x[0,traj_idx:traj_idx + traj_len])
+            #     y_traj_list.append(y[0,traj_idx:traj_idx + traj_len])
 
         # Make tensor out of loaded list
         X = np.stack(x_traj_list)
@@ -159,6 +165,13 @@ class ModelDataset:
             X = T.tensor(X, dtype=T.float32)
             Y = T.tensor(Y, dtype=T.float32)
         return X, Y
+
+    def print_ranges(self):
+        data_type = "Real" if self.real_data else "MuJoCo"
+        print(f"Data type: {data_type}, mean: {self.X_trn.mean(axis=(0, 1))}")
+        print(f"Data type: {data_type}, min: {self.X_trn.min(axis=(0, 1))}")
+        print(f"Data type: {data_type}, max: {self.X_trn.max(axis=(0, 1))}")
+
 
 class ModelTrainer:
     def __init__(self, config, mujoco_dataset, real_dataset):
@@ -348,8 +361,12 @@ class ModelTrainer:
         #lossfun = T.nn.CrossEntropyLoss(weight=T.tensor([dataset_ratio, 1 - dataset_ratio]))
         lossfun = T.nn.CrossEntropyLoss()
 
-        self.plot_umap()
+        self.mujoco_dataset.print_ranges()
+        self.real_dataset.print_ranges()
 
+        # TODO: Make plot of learning curve
+
+        loss_curve = []
         n_iters = 1000
         for i in range(n_iters):
             # Get minibatch from both datasets
@@ -372,7 +389,7 @@ class ModelTrainer:
             optim.step()
             optim.zero_grad(set_to_none=True)
 
-            if i % 100 == 0:
+            if i % 10 == 0:
                 x_eval_mujoco, _ = self.mujoco_dataset.get_val_dataset(tensor=True)
                 y_mujoco = discrim(x_eval_mujoco)
                 eval_mujoco_loss = lossfun(y_mujoco, T.zeros(len(x_eval_mujoco), dtype=T.long))
@@ -502,13 +519,20 @@ class ModelTrainer:
 
         embedding = reducer.fit_transform(scaled_data)
         print(embedding.shape)
-
+        color_palette = sns.color_palette()
+        #color_palette = [(0,0.3,0.7), (.2,.8,0)]
         plt.scatter(
             embedding[:, 0],
             embedding[:, 1],
-            c=[sns.color_palette()[x] for x in df.index.map({"mujoco": 0, "real": 1})])
+            c=[color_palette[x] for x in df.index.map({"mujoco": 0, "real": 1})])
+        plt.scatter([],[],label="MuJoCo", color=color_palette[0])
+        plt.scatter([],[],label="Real", color=color_palette[1])
         plt.gca().set_aspect('equal', 'datalim')
-        plt.title('UMAP projection of the buggy dataset', fontsize=24)
+        #plt.gca().legend(('MuJoCo', 'Real'))
+        plt.gca().legend()
+        plt.gca().grid(True)
+        #plt.title('UMAP projection of the buggy dataset', fontsize=16)
+        plt.legend()
         plt.show()
         exit()
 
@@ -517,16 +541,15 @@ if __name__=="__main__":
     with open(os.path.join(os.path.dirname(__file__), "configs/train_buggy_model.yaml"), 'r') as f:
         config = yaml.load(f, Loader=yaml.FullLoader)
 
-    #real_dataset = ModelDataset(use_real_data=False)
+    real_dataset = ModelDataset(use_real_data=True)
     mujoco_dataset = ModelDataset(use_real_data=False)
-    model_trainer = ModelTrainer(config, mujoco_dataset, mujoco_dataset)
+    model_trainer = ModelTrainer(config, mujoco_dataset, real_dataset)
     #model_trainer.plot_umap()
-    #exit()
 
     # Train
     if config["train"]:
         pretrained_model_path = f"agents/buggy_lte_mujoco.p"
 
-        model_trainer.train(mujoco_dataset, "buggy_lte_mujoco", pretrained_model_path=None)
-        #model_trainer.train_data_discriminator()
+        #model_trainer.train(mujoco_dataset, "buggy_lte_mujoco", pretrained_model_path=None)
+        model_trainer.train_data_discriminator()
         #model_trainer.evaluate_trained_model(mujoco_dataset, model_name="buggy_lte_mujoco")

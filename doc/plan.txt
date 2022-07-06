@@ -64,8 +64,13 @@ General testing procedure:
     - Do one-step TEP gradient training on random trajectory buggy dataset or using trajectories from maize
     - Launch full testing script to evaluate agent, agent with TEP correction, agent trained on maize with traj and free rew, MPPI with traj and free rew
 
-
-
+# TODO: Find out why discriminator doesn't train well
+# TODO: Gather mujoco data with same actions as real dataset maybe (also a plus that we will have the same amount of data)
+# TODO: Check if real dataset works and if mujoco dataset gathering works, and also check the obs and act ranges
+# TODO: Train discriminator and plot both umap and the other prediction accuracy plot that we had
+# TODO: Make buggy env config setting so that we can choose two different env parameter vectors which have different behaviors
+# TODO: Obtain dataset from sim env A
+# TODO: Test hybrid env
 
 
 
