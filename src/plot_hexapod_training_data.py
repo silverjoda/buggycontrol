@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
 
+# TODO: change loading, processing and plotting into separate functions, and plot the e2e and lsa. Also check if adding reward after the pca and redoing pca helps
+
 data_path = "/home/silverjoda/SW/tmp-data"
 lsa_data_path = os.path.join(data_path, "lsa_data.npy")
 e2e_data_path = os.path.join(data_path, "e2e_data.npy")
